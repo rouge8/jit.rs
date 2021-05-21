@@ -72,12 +72,15 @@ fn main() {
 
                     database.store(&blob);
 
-                    Entry::new(&path, blob.oid())
+                    let mode = workspace.file_mode(&path);
+                    Entry::new(&path, blob.oid(), mode)
                 })
                 .collect();
 
-            let tree = Tree::new(entries);
-            database.store(&tree);
+            let root = Tree::build(entries);
+            root.traverse(&|tree| {
+                database.store(tree);
+            });
 
             let parent = refs.read_head();
             let name = env::var("GIT_AUTHOR_NAME").unwrap();
@@ -87,7 +90,7 @@ fn main() {
             let mut stdin = io::stdin();
             stdin.read_to_string(&mut message).unwrap();
 
-            let commit = Commit::new(parent, tree.oid(), author, message);
+            let commit = Commit::new(parent, root.oid(), author, message);
             database.store(&commit);
             refs.update_head(commit.oid()).unwrap();
 

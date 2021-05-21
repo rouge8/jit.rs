@@ -28,9 +28,13 @@ use workspace::Workspace;
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    let command = &args[1];
+    let command = if let Some(command) = args.get(1) {
+        command.as_str()
+    } else {
+        ""
+    };
 
-    match command.as_str() {
+    match command {
         "init" => {
             let cwd = env::current_dir().unwrap();
             let root_path = if let Some(path) = args.get(2) {

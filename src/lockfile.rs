@@ -1,19 +1,8 @@
+use anyhow::{bail, Context, Result};
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io;
 use std::io::Write;
 use std::path::PathBuf;
-use thiserror::Error;
-
-pub type Result<T> = std::result::Result<T, LockfileErr>;
-
-#[derive(Error, Debug)]
-pub enum LockfileErr {
-    #[error("{lock_path}: {err}")]
-    IO { lock_path: PathBuf, err: io::Error },
-    #[error("Not holding lock on file: {0}")]
-    StaleLock(PathBuf),
-}
 
 #[derive(Debug)]
 pub struct Lockfile {
@@ -39,12 +28,8 @@ impl Lockfile {
                 .read(true)
                 .write(true)
                 .create_new(true)
-                .open(&self.lock_path);
-
-            let open_file = match open_file {
-                Ok(file) => file,
-                Err(err) => return Err(self.io_error(err)),
-            };
+                .open(&self.lock_path)
+                .with_context(|| format!("{:?}", self.lock_path))?;
 
             self.lock = Some(open_file);
         }
@@ -52,39 +37,39 @@ impl Lockfile {
         Ok(())
     }
 
+    // TODO: Replace callers with write_bytes() and then rename write_bytes()
     pub fn write(&self, contents: &str) -> Result<()> {
+        self.write_bytes(&contents.as_bytes().to_vec())?;
+
+        Ok(())
+    }
+
+    pub fn write_bytes(&self, bytes: &Vec<u8>) -> Result<()> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
 
-        match lock.write_all(contents.as_bytes()) {
-            Ok(()) => Ok(()),
-            Err(err) => Err(self.io_error(err)),
-        }
+        lock.write_all(bytes)
+            .with_context(|| format!("{:?}", self.lock_path))?;
+
+        Ok(())
     }
 
     pub fn commit(&mut self) -> Result<()> {
         self.err_on_stale_lock()?;
 
         self.lock = None;
-        match fs::rename(&self.lock_path, &self.file_path) {
-            Ok(()) => Ok(()),
-            Err(err) => Err(self.io_error(err)),
-        }
+        fs::rename(&self.lock_path, &self.file_path)
+            .with_context(|| format!("{:?}", self.lock_path))?;
+
+        Ok(())
     }
 
     fn err_on_stale_lock(&self) -> Result<()> {
         if self.lock.is_none() {
-            Err(LockfileErr::StaleLock(self.lock_path.clone()))
+            bail!("Not holding lock on file: {:?}", self.lock_path);
         } else {
             Ok(())
-        }
-    }
-
-    pub fn io_error(&self, err: io::Error) -> LockfileErr {
-        LockfileErr::IO {
-            lock_path: self.lock_path.clone(),
-            err,
         }
     }
 }

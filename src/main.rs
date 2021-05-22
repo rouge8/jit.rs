@@ -3,11 +3,14 @@ use std::env;
 use std::fs;
 use std::io;
 use std::io::Read;
+use std::path::PathBuf;
 use std::process;
 
 mod database;
+mod index;
 mod lockfile;
 mod refs;
+mod util;
 mod workspace;
 use database::author::Author;
 use database::blob::Blob;
@@ -16,6 +19,7 @@ use database::entry::Entry;
 use database::object::Object;
 use database::tree::Tree;
 use database::Database;
+use index::Index;
 use refs::Refs;
 use workspace::Workspace;
 
@@ -99,6 +103,30 @@ fn main() {
                 commit.oid(),
                 commit.message.lines().next().unwrap(),
             );
+        }
+        "add" => {
+            let root_path = env::current_dir().unwrap();
+            let git_path = root_path.join(".git");
+
+            let workspace = Workspace::new(root_path);
+            let database = Database::new(git_path.join("objects"));
+            let mut index = Index::new(git_path.join("index"));
+
+            let path = if let Some(path) = args.get(2) {
+                path
+            } else {
+                eprintln!("Nothing specified, nothing added.");
+                process::exit(0);
+            };
+
+            let data = workspace.read_file(&PathBuf::from(path));
+            let stat = workspace.stat_file(&PathBuf::from(path));
+
+            let blob = Blob::new(data);
+            database.store(&blob);
+            index.add(path, blob.oid(), stat);
+
+            index.write_updates().unwrap();
         }
         _ => {
             eprintln!("jit: '{}' is not a jit command.", command);

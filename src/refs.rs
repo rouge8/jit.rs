@@ -1,5 +1,5 @@
-use crate::lockfile;
 use crate::lockfile::Lockfile;
+use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 
@@ -13,7 +13,7 @@ impl Refs {
         Refs { pathname }
     }
 
-    pub fn update_head(&self, oid: String) -> lockfile::Result<()> {
+    pub fn update_head(&self, oid: String) -> Result<()> {
         let mut lockfile = Lockfile::new(self.head_path());
         lockfile.hold_for_update()?;
 

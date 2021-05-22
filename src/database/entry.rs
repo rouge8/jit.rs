@@ -1,3 +1,4 @@
+use crate::util::is_executable;
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -14,8 +15,7 @@ impl Entry {
     }
 
     pub fn mode(&self) -> &str {
-        // Check if the mode is executable
-        if (self.mode & 0o111) != 0 {
+        if is_executable(self.mode) {
             "100755"
         } else {
             "100644"

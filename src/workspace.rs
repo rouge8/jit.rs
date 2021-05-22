@@ -1,5 +1,5 @@
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 // TODO: Remove `target` once we have .gitignore support
@@ -23,11 +23,12 @@ impl Workspace {
         fs::read(&self.pathname.join(&path)).unwrap()
     }
 
+    pub fn stat_file(&self, path: &PathBuf) -> fs::Metadata {
+        fs::metadata(&self.pathname.join(&path)).unwrap()
+    }
+
     pub fn file_mode(&self, path: &PathBuf) -> u32 {
-        fs::metadata(&self.pathname.join(&path))
-            .unwrap()
-            .permissions()
-            .mode()
+        self.stat_file(&path).mode()
     }
 
     fn should_ignore(&self, path: &PathBuf) -> bool {

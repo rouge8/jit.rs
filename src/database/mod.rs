@@ -1,4 +1,5 @@
 use crate::database::object::Object;
+use anyhow::Result;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use std::fs;
@@ -24,40 +25,42 @@ impl Database {
         Database { pathname }
     }
 
-    pub fn store<T>(&self, object: &T)
+    pub fn store<T>(&self, object: &T) -> Result<()>
     where
         T: Object,
     {
-        self.write_object(object.oid(), object.content());
+        self.write_object(object.oid(), object.content())?;
+        Ok(())
     }
 
-    fn write_object(&self, oid: String, content: Vec<u8>) {
+    fn write_object(&self, oid: String, content: Vec<u8>) -> Result<()> {
         let object_path = &self.pathname.join(&oid[0..2]).join(&oid[2..]);
 
         if object_path.exists() {
-            return;
+            return Ok(());
         }
 
         let dirname = object_path.parent().unwrap();
         let temp_path = dirname.join(Uuid::new_v4().to_simple().to_string());
 
         // TODO: Only create `dirname` if it doesn't already exist
-        fs::create_dir_all(&dirname).unwrap();
+        fs::create_dir_all(&dirname)?;
 
         {
             let mut file = OpenOptions::new()
                 .write(true)
                 .create_new(true)
-                .open(&temp_path)
-                .unwrap();
+                .open(&temp_path)?;
 
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::fast());
-            encoder.write_all(&content).unwrap();
+            encoder.write_all(&content)?;
 
-            let compressed = encoder.finish().unwrap();
-            file.write_all(&compressed).unwrap();
+            let compressed = encoder.finish()?;
+            file.write_all(&compressed)?;
         }
 
-        fs::rename(&temp_path, &object_path).unwrap();
+        fs::rename(&temp_path, &object_path)?;
+
+        Ok(())
     }
 }

@@ -1,3 +1,4 @@
+use anyhow::Result;
 use chrono::Local;
 use std::env;
 use std::fs;
@@ -23,7 +24,7 @@ use index::Index;
 use refs::Refs;
 use workspace::Workspace;
 
-fn main() {
+fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
 
     let command = if let Some(command) = args.get(1) {
@@ -34,7 +35,7 @@ fn main() {
 
     match command {
         "init" => {
-            let cwd = env::current_dir().unwrap();
+            let cwd = env::current_dir()?;
             let root_path = if let Some(path) = args.get(2) {
                 cwd.join(path)
             } else {
@@ -44,16 +45,13 @@ fn main() {
             let git_path = root_path.join(".git");
 
             for dir in ["objects", "refs"].iter() {
-                fs::create_dir_all(git_path.join(dir)).unwrap_or_else(|err| {
-                    eprintln!("fatal: {}", err);
-                    process::exit(1);
-                });
+                fs::create_dir_all(git_path.join(dir))?;
             }
 
             println!("Initialized empty Jit repository in {:?}", git_path);
         }
         "commit" => {
-            let root_path = env::current_dir().unwrap();
+            let root_path = env::current_dir()?;
             let git_path = root_path.join(".git");
             let db_path = git_path.join("objects");
 
@@ -68,7 +66,7 @@ fn main() {
                     let data = workspace.read_file(&path);
                     let blob = Blob::new(data);
 
-                    database.store(&blob);
+                    database.store(&blob).unwrap();
 
                     let mode = workspace.file_mode(&path);
                     Entry::new(&path, blob.oid(), mode)
@@ -77,20 +75,26 @@ fn main() {
 
             let root = Tree::build(entries);
             root.traverse(&|tree| {
-                database.store(tree);
+                database.store(tree).unwrap();
             });
 
             let parent = refs.read_head();
-            let name = env::var("GIT_AUTHOR_NAME").unwrap();
-            let email = env::var("GIT_AUTHOR_EMAIL").unwrap();
+            let name = env::var("GIT_AUTHOR_NAME")?;
+            let email = env::var("GIT_AUTHOR_EMAIL")?;
             let author = Author::new(name, email, Local::now());
             let mut message = String::new();
             let mut stdin = io::stdin();
-            stdin.read_to_string(&mut message).unwrap();
+            stdin.read_to_string(&mut message)?;
+
+            message = message.trim().to_string();
+            if message.is_empty() {
+                eprintln!("Aborting commit due to empty commit message.");
+                process::exit(0);
+            }
 
             let commit = Commit::new(parent, root.oid(), author, message);
-            database.store(&commit);
-            refs.update_head(commit.oid()).unwrap();
+            database.store(&commit)?;
+            refs.update_head(commit.oid())?;
 
             let mut is_root = String::new();
             match commit.parent {
@@ -105,7 +109,7 @@ fn main() {
             );
         }
         "add" => {
-            let root_path = env::current_dir().unwrap();
+            let root_path = env::current_dir()?;
             let git_path = root_path.join(".git");
 
             let workspace = Workspace::new(root_path);
@@ -123,14 +127,16 @@ fn main() {
             let stat = workspace.stat_file(&PathBuf::from(path));
 
             let blob = Blob::new(data);
-            database.store(&blob);
+            database.store(&blob)?;
             index.add(path, blob.oid(), stat);
 
-            index.write_updates().unwrap();
+            index.write_updates()?;
         }
         _ => {
             eprintln!("jit: '{}' is not a jit command.", command);
             process::exit(1);
         }
     }
+
+    Ok(())
 }

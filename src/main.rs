@@ -116,19 +116,19 @@ fn main() -> Result<()> {
             let database = Database::new(git_path.join("objects"));
             let mut index = Index::new(git_path.join("index"));
 
-            let path = if let Some(path) = args.get(2) {
-                path
-            } else {
+            if args.len() < 2 {
                 eprintln!("Nothing specified, nothing added.");
                 process::exit(0);
-            };
+            }
 
-            let data = workspace.read_file(&PathBuf::from(path));
-            let stat = workspace.stat_file(&PathBuf::from(path));
+            for path in args[2..].iter() {
+                let data = workspace.read_file(&PathBuf::from(path));
+                let stat = workspace.stat_file(&PathBuf::from(path));
 
-            let blob = Blob::new(data);
-            database.store(&blob)?;
-            index.add(path, blob.oid(), stat);
+                let blob = Blob::new(data);
+                database.store(&blob)?;
+                index.add(path, blob.oid(), stat);
+            }
 
             index.write_updates()?;
         }

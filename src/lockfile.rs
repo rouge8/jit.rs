@@ -37,14 +37,7 @@ impl Lockfile {
         Ok(())
     }
 
-    // TODO: Replace callers with write_bytes() and then rename write_bytes()
-    pub fn write(&self, contents: &str) -> Result<()> {
-        self.write_bytes(&contents.as_bytes().to_vec())?;
-
-        Ok(())
-    }
-
-    pub fn write_bytes(&self, bytes: &Vec<u8>) -> Result<()> {
+    pub fn write(&self, bytes: &Vec<u8>) -> Result<()> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();

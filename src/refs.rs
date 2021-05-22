@@ -17,8 +17,7 @@ impl Refs {
         let mut lockfile = Lockfile::new(self.head_path());
         lockfile.hold_for_update()?;
 
-        lockfile.write(oid.as_str())?;
-        lockfile.write("\n")?;
+        lockfile.write(&format!("{}\n", oid).into_bytes())?;
         lockfile.commit()
     }
 

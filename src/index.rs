@@ -48,7 +48,7 @@ impl Index {
         let mut hash = Sha1::new().chain(&bytes).finalize().to_vec();
         bytes.append(&mut hash);
 
-        self.lockfile.write_bytes(&bytes)?;
+        self.lockfile.write(&bytes)?;
         self.lockfile.commit()
     }
 }

@@ -1,6 +1,6 @@
 use std::fs;
 use std::os::unix::fs::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 // TODO: Remove `target` once we have .gitignore support
 const IGNORE: &[&str] = &[".", "..", ".git", "target"];
@@ -19,25 +19,25 @@ impl Workspace {
         self.list_files_at_path(&self.pathname)
     }
 
-    pub fn read_file(&self, path: &PathBuf) -> Vec<u8> {
+    pub fn read_file(&self, path: &Path) -> Vec<u8> {
         fs::read(&self.pathname.join(&path)).unwrap()
     }
 
-    pub fn stat_file(&self, path: &PathBuf) -> fs::Metadata {
+    pub fn stat_file(&self, path: &Path) -> fs::Metadata {
         fs::metadata(&self.pathname.join(&path)).unwrap()
     }
 
-    pub fn file_mode(&self, path: &PathBuf) -> u32 {
+    pub fn file_mode(&self, path: &Path) -> u32 {
         self.stat_file(&path).mode()
     }
 
-    fn should_ignore(&self, path: &PathBuf) -> bool {
+    fn should_ignore(&self, path: &Path) -> bool {
         IGNORE
             .iter()
-            .any(|ignore_path| path == &PathBuf::from(ignore_path))
+            .any(|ignore_path| path == PathBuf::from(ignore_path))
     }
 
-    fn list_files_at_path(&self, path: &PathBuf) -> Vec<PathBuf> {
+    fn list_files_at_path(&self, path: &Path) -> Vec<PathBuf> {
         let mut files: Vec<PathBuf> = Vec::new();
 
         for entry in fs::read_dir(&path).unwrap() {

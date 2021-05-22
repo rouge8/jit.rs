@@ -1,5 +1,5 @@
 use crate::util::is_executable;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct Entry {
@@ -9,7 +9,7 @@ pub struct Entry {
 }
 
 impl Entry {
-    pub fn new(name: &PathBuf, oid: String, mode: u32) -> Self {
+    pub fn new(name: &Path, oid: String, mode: u32) -> Self {
         let name = name.to_str().unwrap().to_string();
         Entry { name, oid, mode }
     }

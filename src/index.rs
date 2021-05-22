@@ -83,7 +83,7 @@ impl Entry {
             uid: stat.uid(),
             gid: stat.gid(),
             size: stat.size(),
-            oid: oid.to_string(),
+            oid,
             flags: min(pathname.len() as u16, MAX_PATH_SIZE),
             path: pathname.to_string(),
         }

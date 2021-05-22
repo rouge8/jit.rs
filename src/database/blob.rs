@@ -1,4 +1,4 @@
-use crate::object::Object;
+use crate::database::object::Object;
 
 #[derive(Debug)]
 pub struct Blob {

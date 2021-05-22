@@ -1,5 +1,5 @@
-use crate::author::Author;
-use crate::object::Object;
+use crate::database::author::Author;
+use crate::database::object::Object;
 
 #[derive(Debug)]
 pub struct Commit {

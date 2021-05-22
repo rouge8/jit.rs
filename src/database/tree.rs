@@ -1,5 +1,5 @@
-use crate::entry::Entry;
-use crate::object::Object;
+use crate::database::entry::Entry;
+use crate::database::object::Object;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 

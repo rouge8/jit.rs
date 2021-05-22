@@ -5,24 +5,18 @@ use std::io;
 use std::io::Read;
 use std::process;
 
-mod author;
-mod blob;
-mod commit;
 mod database;
-mod entry;
 mod lockfile;
-mod object;
 mod refs;
-mod tree;
 mod workspace;
-use author::Author;
-use blob::Blob;
-use commit::Commit;
+use database::author::Author;
+use database::blob::Blob;
+use database::commit::Commit;
+use database::entry::Entry;
+use database::object::Object;
+use database::tree::Tree;
 use database::Database;
-use entry::Entry;
-use object::Object;
 use refs::Refs;
-use tree::Tree;
 use workspace::Workspace;
 
 fn main() {

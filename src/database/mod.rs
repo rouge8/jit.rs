@@ -1,4 +1,4 @@
-use crate::object::Object;
+use crate::database::object::Object;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use std::fs;
@@ -6,6 +6,13 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 use uuid::Uuid;
+
+pub mod author;
+pub mod blob;
+pub mod commit;
+pub mod entry;
+pub mod object;
+pub mod tree;
 
 #[derive(Debug)]
 pub struct Database {

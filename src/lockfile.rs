@@ -58,8 +58,8 @@ impl Lockfile {
         let mut lock = self.lock.as_ref().unwrap();
 
         match lock.write_all(contents.as_bytes()) {
-            Ok(()) => return Ok(()),
-            Err(err) => return Err(self.io_error(err)),
+            Ok(()) => Ok(()),
+            Err(err) => Err(self.io_error(err)),
         }
     }
 
@@ -68,8 +68,8 @@ impl Lockfile {
 
         self.lock = None;
         match fs::rename(&self.lock_path, &self.file_path) {
-            Ok(()) => return Ok(()),
-            Err(err) => return Err(self.io_error(err)),
+            Ok(()) => Ok(()),
+            Err(err) => Err(self.io_error(err)),
         }
     }
 

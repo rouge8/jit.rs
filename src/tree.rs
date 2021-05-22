@@ -1,6 +1,5 @@
 use crate::entry::Entry;
 use crate::object::Object;
-use hex;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -52,7 +51,7 @@ impl Tree {
 
     pub fn traverse<F>(&self, f: &F)
     where
-        F: Fn(&Tree) -> (),
+        F: Fn(&Tree),
     {
         for entry in self.entries.values() {
             match entry {
@@ -66,8 +65,7 @@ impl Tree {
 
     fn add_entry(&mut self, parents: Vec<PathBuf>, entry: Entry) {
         if parents.is_empty() {
-            &self
-                .entries
+            self.entries
                 .insert(entry.basename(), TreeEntry::Entry(entry));
         } else {
             let key = PathBuf::from(parents[0].file_name().unwrap());
@@ -78,7 +76,7 @@ impl Tree {
             } else {
                 let mut tree = Tree::new();
                 tree.add_entry(new_parents, entry);
-                &self.entries.insert(key, TreeEntry::Tree(tree));
+                self.entries.insert(key, TreeEntry::Tree(tree));
             }
         }
     }

@@ -21,14 +21,14 @@ impl Database {
     where
         T: Object,
     {
-        &self.write_object(object.oid(), object.content());
+        self.write_object(object.oid(), object.content());
     }
 
     fn write_object(&self, oid: String, content: Vec<u8>) {
         let object_path = &self.pathname.join(&oid[0..2]).join(&oid[2..]);
 
         if object_path.exists() {
-            return ();
+            return;
         }
 
         let dirname = object_path.parent().unwrap();

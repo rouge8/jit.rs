@@ -25,9 +25,9 @@ impl Refs {
     pub fn read_head(&self) -> Option<String> {
         let path = self.head_path();
         if path.exists() {
-            return Some(fs::read_to_string(path).unwrap().trim().to_string());
+            Some(fs::read_to_string(path).unwrap().trim().to_string())
         } else {
-            return None;
+            None
         }
     }
 

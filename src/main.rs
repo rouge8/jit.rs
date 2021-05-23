@@ -122,13 +122,15 @@ fn main() -> Result<()> {
             }
 
             for path in args[2..].iter() {
-                let path = PathBuf::from(path);
-                let data = workspace.read_file(&path)?;
-                let stat = workspace.stat_file(&path)?;
+                let path = PathBuf::from(path).canonicalize()?;
+                for path in workspace.list_files_at_path(&path)? {
+                    let data = workspace.read_file(&path)?;
+                    let stat = workspace.stat_file(&path)?;
 
-                let blob = Blob::new(data);
-                database.store(&blob)?;
-                index.add(path, blob.oid(), stat);
+                    let blob = Blob::new(data);
+                    database.store(&blob)?;
+                    index.add(path, blob.oid(), stat);
+                }
             }
 
             index.write_updates()?;

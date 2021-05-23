@@ -49,25 +49,21 @@ impl Index {
             return Ok(());
         }
 
-        self.lockfile.hold_for_update()?;
-
-        let mut bytes: Vec<u8> = vec![];
+        let mut writer = Checksum::new(&self.lockfile);
 
         // Header
-        bytes.extend_from_slice(b"DIRC");
-        bytes.extend_from_slice(&2u32.to_be_bytes()); // version number
-        bytes.extend_from_slice(&(self.entries.len() as u32).to_be_bytes());
+        let mut header: Vec<u8> = vec![];
+        header.extend_from_slice(b"DIRC");
+        header.extend_from_slice(&2u32.to_be_bytes()); // version number
+        header.extend_from_slice(&(self.entries.len() as u32).to_be_bytes());
+        writer.write(&header)?;
 
         // Entries
         for entry in self.entries.values() {
-            bytes.append(&mut entry.bytes());
+            writer.write(&entry.bytes())?;
         }
 
-        // SHA1 checksum
-        let mut hash = Sha1::new().chain(&bytes).finalize().to_vec();
-        bytes.append(&mut hash);
-
-        self.lockfile.write(&bytes)?;
+        writer.write_checksum()?;
         self.lockfile.commit()?;
 
         self.changed = false;
@@ -290,6 +286,20 @@ where
         if sum != expected {
             bail!("Checksum does not match value stored on disk");
         }
+
+        Ok(())
+    }
+
+    fn write(&mut self, data: &[u8]) -> Result<()> {
+        self.file.write_all(data)?;
+        self.digest.update(data);
+
+        Ok(())
+    }
+
+    fn write_checksum(&mut self) -> Result<()> {
+        self.file
+            .write_all(&self.digest.clone().finalize().to_vec())?;
 
         Ok(())
     }

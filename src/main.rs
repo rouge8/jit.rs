@@ -59,19 +59,21 @@ fn main() -> Result<()> {
             let database = Database::new(db_path);
             let refs = Refs::new(git_path);
 
-            let entries: Vec<Entry> = workspace
+            let entries: Result<Vec<Entry>> = workspace
                 .list_files()?
                 .iter()
                 .map(|path| {
-                    let data = workspace.read_file(&path).unwrap();
+                    let data = workspace.read_file(&path)?;
                     let blob = Blob::new(data);
 
-                    database.store(&blob).unwrap();
+                    database.store(&blob)?;
 
-                    let mode = workspace.file_mode(&path).unwrap();
-                    Entry::new(&path, blob.oid(), mode)
+                    let mode = workspace.file_mode(&path)?;
+                    Ok(Entry::new(&path, blob.oid(), mode))
                 })
                 .collect();
+            // TODO: Why can't this be `.collect()?`?
+            let entries = entries?;
 
             let root = Tree::build(entries);
             root.traverse(&|tree| {

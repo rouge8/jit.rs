@@ -60,15 +60,15 @@ fn main() -> Result<()> {
             let refs = Refs::new(git_path);
 
             let entries: Vec<Entry> = workspace
-                .list_files()
+                .list_files()?
                 .iter()
                 .map(|path| {
-                    let data = workspace.read_file(&path);
+                    let data = workspace.read_file(&path).unwrap();
                     let blob = Blob::new(data);
 
                     database.store(&blob).unwrap();
 
-                    let mode = workspace.file_mode(&path);
+                    let mode = workspace.file_mode(&path).unwrap();
                     Entry::new(&path, blob.oid(), mode)
                 })
                 .collect();
@@ -123,8 +123,8 @@ fn main() -> Result<()> {
 
             for path in args[2..].iter() {
                 let path = PathBuf::from(path);
-                let data = workspace.read_file(&path);
-                let stat = workspace.stat_file(&path);
+                let data = workspace.read_file(&path)?;
+                let stat = workspace.stat_file(&path)?;
 
                 let blob = Blob::new(data);
                 database.store(&blob)?;

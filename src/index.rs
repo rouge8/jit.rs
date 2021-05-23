@@ -24,7 +24,8 @@ impl Index {
         }
     }
 
-    pub fn add(&mut self, pathname: &str, oid: String, stat: fs::Metadata) {
+    pub fn add(&mut self, pathname: PathBuf, oid: String, stat: fs::Metadata) {
+        let pathname = pathname.to_str().unwrap();
         let entry = Entry::new(pathname, oid, stat);
         self.entries.insert(pathname.to_string(), entry);
     }

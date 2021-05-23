@@ -122,8 +122,9 @@ fn main() -> Result<()> {
             }
 
             for path in args[2..].iter() {
-                let data = workspace.read_file(&PathBuf::from(path));
-                let stat = workspace.stat_file(&PathBuf::from(path));
+                let path = PathBuf::from(path);
+                let data = workspace.read_file(&path);
+                let stat = workspace.stat_file(&path);
 
                 let blob = Blob::new(data);
                 database.store(&blob)?;

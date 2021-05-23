@@ -23,6 +23,7 @@ impl Lockfile {
     }
 
     pub fn hold_for_update(&mut self) -> Result<()> {
+        // TODO: Handle file already exists
         if self.lock.is_none() {
             let open_file = OpenOptions::new()
                 .read(true)

@@ -10,6 +10,6 @@ edition = "2018"
 sha-1 = "0.9.6"
 uuid = { version = "0.8", features = ["v4"] }
 flate2 = "1.0.20"
-hex = "0.4.3"
+hex = { version = "0.4.3", features = ["alloc"] }
 chrono = "0.4.19"
 anyhow = "1.0.40"

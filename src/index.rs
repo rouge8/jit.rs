@@ -1,33 +1,46 @@
 use crate::lockfile::Lockfile;
 use crate::util::is_executable;
-use anyhow::Result;
+use anyhow::{bail, Result};
+use hex::ToHex;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
 use std::collections::BTreeMap;
+use std::convert::TryInto;
 use std::fs;
+use std::fs::File;
+use std::io;
+use std::io::Read;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
+use std::str;
 
 const MAX_PATH_SIZE: u16 = 0xfff;
+const CHECKSUM_SIZE: usize = 20;
+const HEADER_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct Index {
     entries: BTreeMap<String, Entry>,
+    pathname: PathBuf,
     lockfile: Lockfile,
+    changed: bool,
 }
 
 impl Index {
     pub fn new(pathname: PathBuf) -> Self {
         Index {
             entries: BTreeMap::new(),
+            pathname: pathname.clone(),
             lockfile: Lockfile::new(pathname),
+            changed: false,
         }
     }
 
     pub fn add(&mut self, pathname: PathBuf, oid: String, stat: fs::Metadata) {
         let pathname = pathname.to_str().unwrap();
         let entry = Entry::new(pathname, oid, stat);
-        self.entries.insert(pathname.to_string(), entry);
+        self.store_entry(entry);
+        self.changed = true;
     }
 
     pub fn write_updates(&mut self) -> Result<()> {
@@ -52,6 +65,77 @@ impl Index {
         self.lockfile.write(&bytes)?;
         self.lockfile.commit()
     }
+
+    pub fn load_for_update(&mut self) -> Result<()> {
+        self.lockfile.hold_for_update()?;
+        self.load()?;
+
+        Ok(())
+    }
+
+    fn load(&mut self) -> Result<()> {
+        self.clear();
+
+        if let Some(file) = self.open_index_file()? {
+            let mut reader = Checksum::new(file);
+            let count = self.read_header(&mut reader)?;
+            self.read_entries(&mut reader, count)?;
+            reader.verify_checksum()?;
+        }
+
+        Ok(())
+    }
+
+    fn clear(&mut self) {
+        self.entries = BTreeMap::new();
+        self.changed = false;
+    }
+
+    fn open_index_file(&self) -> Result<Option<File>> {
+        let f = File::open(&self.pathname);
+
+        match f {
+            Ok(file) => Ok(Some(file)),
+            Err(error) => match error.kind() {
+                io::ErrorKind::NotFound => Ok(None),
+                _ => Err(error.into()),
+            },
+        }
+    }
+
+    fn read_header(&self, reader: &mut Checksum) -> Result<u32> {
+        let data = reader.read(HEADER_SIZE)?;
+        let signature = str::from_utf8(&data[0..4])?;
+        let version = u32::from_be_bytes(data[4..8].try_into()?);
+        let count = u32::from_be_bytes(data[8..12].try_into()?);
+
+        if signature != "DIRC" {
+            bail!("Signature: expected 'DIRC' but found '{}'", signature);
+        }
+        if version != 2 {
+            bail!("Version: expected '2' but found '{}'", version);
+        }
+
+        Ok(count)
+    }
+
+    fn read_entries(&mut self, reader: &mut Checksum, count: u32) -> Result<()> {
+        for _i in 0..count {
+            let mut entry = reader.read(64)?;
+
+            while entry.last().unwrap() != &0u8 {
+                entry.extend_from_slice(&reader.read(8)?)
+            }
+
+            self.store_entry(Entry::parse(&entry)?);
+        }
+
+        Ok(())
+    }
+
+    fn store_entry(&mut self, entry: Entry) {
+        self.entries.insert(entry.path.clone(), entry);
+    }
 }
 
 #[derive(Debug)]
@@ -62,12 +146,12 @@ struct Entry {
     mtime_nsec: i64,
     dev: u64,
     ino: u64,
+    mode: u32,
     uid: u32,
     gid: u32,
     size: u64,
-    flags: u16,
-    mode: u32,
     oid: String,
+    flags: u16,
     path: String,
 }
 
@@ -88,6 +172,36 @@ impl Entry {
             flags: min(pathname.len() as u16, MAX_PATH_SIZE),
             path: pathname.to_string(),
         }
+    }
+
+    fn parse(data: &[u8]) -> Result<Self> {
+        let mut metadata: Vec<u32> = Vec::with_capacity(10);
+
+        for i in 0..10 {
+            metadata.push(u32::from_be_bytes(data[i * 4..(i + 1) * 4].try_into()?));
+        }
+
+        let oid = data[40..60].to_vec().encode_hex::<String>();
+        let flags = u16::from_be_bytes(data[60..62].try_into()?);
+        let path = str::from_utf8(&data[62..])?
+            .trim_end_matches('\0')
+            .to_string();
+
+        Ok(Entry {
+            ctime: i64::from(metadata[0]),
+            ctime_nsec: i64::from(metadata[1]),
+            mtime: i64::from(metadata[2]),
+            mtime_nsec: i64::from(metadata[3]),
+            dev: u64::from(metadata[4]),
+            ino: u64::from(metadata[5]),
+            mode: metadata[6],
+            uid: metadata[7],
+            gid: metadata[8],
+            size: u64::from(metadata[9]),
+            oid,
+            flags,
+            path,
+        })
     }
 
     fn mode(mode: u32) -> u32 {
@@ -128,5 +242,40 @@ impl Entry {
         }
 
         bytes
+    }
+}
+
+#[derive(Debug)]
+struct Checksum {
+    file: File,
+    digest: Sha1,
+}
+
+impl Checksum {
+    fn new(file: File) -> Self {
+        Checksum {
+            file,
+            digest: Sha1::new(),
+        }
+    }
+
+    fn read(&mut self, size: usize) -> Result<Vec<u8>> {
+        let mut data = vec![0; size];
+        self.file.read_exact(&mut data)?;
+        self.digest.update(&data);
+
+        Ok(data)
+    }
+
+    fn verify_checksum(&mut self) -> Result<()> {
+        let mut sum = vec![0; CHECKSUM_SIZE];
+        self.file.read_exact(&mut sum)?;
+
+        let expected = self.digest.clone().finalize().to_vec();
+        if sum != expected {
+            bail!("Checksum does not match value stored on disk");
+        }
+
+        Ok(())
     }
 }

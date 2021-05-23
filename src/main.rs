@@ -121,6 +121,8 @@ fn main() -> Result<()> {
                 process::exit(0);
             }
 
+            index.load_for_update()?;
+
             for path in args[2..].iter() {
                 let path = PathBuf::from(path).canonicalize()?;
                 for path in workspace.list_files_at_path(&path)? {

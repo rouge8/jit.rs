@@ -59,6 +59,15 @@ impl Lockfile {
         Ok(())
     }
 
+    pub fn rollback(&mut self) -> Result<()> {
+        self.err_on_stale_lock()?;
+
+        fs::remove_file(&self.lock_path)?;
+        self.lock = None;
+
+        Ok(())
+    }
+
     fn err_on_stale_lock(&self) -> Result<()> {
         if self.lock.is_none() {
             bail!("Not holding lock on file: {:?}", self.lock_path);

@@ -44,6 +44,11 @@ impl Index {
     }
 
     pub fn write_updates(&mut self) -> Result<()> {
+        if !self.changed {
+            self.lockfile.rollback()?;
+            return Ok(());
+        }
+
         self.lockfile.hold_for_update()?;
 
         let mut bytes: Vec<u8> = vec![];
@@ -63,7 +68,11 @@ impl Index {
         bytes.append(&mut hash);
 
         self.lockfile.write(&bytes)?;
-        self.lockfile.commit()
+        self.lockfile.commit()?;
+
+        self.changed = false;
+
+        Ok(())
     }
 
     pub fn load_for_update(&mut self) -> Result<()> {
@@ -275,6 +284,32 @@ impl Checksum {
         if sum != expected {
             bail!("Checksum does not match value stored on disk");
         }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Release the lock when dropping an `Index`, but only in tests
+    impl Drop for Index {
+        fn drop(&mut self) {
+            let _ = self.lockfile.rollback();
+        }
+    }
+
+    #[test]
+    fn load_for_update_adds_files_to_index_entries() -> Result<()> {
+        let root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let git_path = root_path.join(".git");
+
+        let mut index = Index::new(git_path.join("index"));
+        index.load_for_update()?;
+
+        assert!(index.entries.get("src/main.rs").is_some());
+        assert!(index.entries.get("src/main.rs").is_some());
 
         Ok(())
     }

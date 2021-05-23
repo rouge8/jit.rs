@@ -309,7 +309,7 @@ mod tests {
         index.load_for_update()?;
 
         assert!(index.entries.get("src/main.rs").is_some());
-        assert!(index.entries.get("src/main.rs").is_some());
+        assert!(index.entries.get("src/lockfile.rs").is_some());
 
         Ok(())
     }

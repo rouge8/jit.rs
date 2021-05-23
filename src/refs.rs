@@ -18,7 +18,9 @@ impl Refs {
         lockfile.hold_for_update()?;
 
         lockfile.write(&format!("{}\n", oid).into_bytes())?;
-        lockfile.commit()
+        lockfile.commit()?;
+
+        Ok(())
     }
 
     pub fn read_head(&self) -> Result<Option<String>> {

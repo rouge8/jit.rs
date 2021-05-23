@@ -1,7 +1,6 @@
-use anyhow::{bail, Context, Result};
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::Write;
+use std::io::{Error, ErrorKind, Read, Result, Write};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -29,8 +28,7 @@ impl Lockfile {
                 .read(true)
                 .write(true)
                 .create_new(true)
-                .open(&self.lock_path)
-                .with_context(|| format!("{:?}", self.lock_path))?;
+                .open(&self.lock_path)?;
 
             self.lock = Some(open_file);
         }
@@ -43,8 +41,7 @@ impl Lockfile {
 
         let mut lock = self.lock.as_ref().unwrap();
 
-        lock.write_all(bytes)
-            .with_context(|| format!("{:?}", self.lock_path))?;
+        lock.write_all(bytes)?;
 
         Ok(())
     }
@@ -53,8 +50,7 @@ impl Lockfile {
         self.err_on_stale_lock()?;
 
         self.lock = None;
-        fs::rename(&self.lock_path, &self.file_path)
-            .with_context(|| format!("{:?}", self.lock_path))?;
+        fs::rename(&self.lock_path, &self.file_path)?;
 
         Ok(())
     }
@@ -70,9 +66,62 @@ impl Lockfile {
 
     fn err_on_stale_lock(&self) -> Result<()> {
         if self.lock.is_none() {
-            bail!("Not holding lock on file: {:?}", self.lock_path);
+            Err(Error::new(
+                ErrorKind::Other,
+                format!("Not holding lock on file: {:?}", self.lock_path),
+            ))
         } else {
             Ok(())
         }
+    }
+}
+
+impl Read for Lockfile {
+    fn read(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.read(&mut buf)
+    }
+}
+
+impl Write for Lockfile {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.write(buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.flush()
+    }
+}
+
+impl<'a> Read for &'a Lockfile {
+    fn read(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.read(&mut buf)
+    }
+}
+
+impl<'a> Write for &'a Lockfile {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.write(buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.err_on_stale_lock()?;
+
+        let mut lock = self.lock.as_ref().unwrap();
+        lock.flush()
     }
 }

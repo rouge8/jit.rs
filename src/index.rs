@@ -9,7 +9,7 @@ use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::io;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::str;
@@ -112,7 +112,7 @@ impl Index {
         }
     }
 
-    fn read_header(&self, reader: &mut Checksum) -> Result<u32> {
+    fn read_header(&self, reader: &mut Checksum<File>) -> Result<u32> {
         let data = reader.read(HEADER_SIZE)?;
         let signature = str::from_utf8(&data[0..4])?;
         let version = u32::from_be_bytes(data[4..8].try_into()?);
@@ -128,7 +128,7 @@ impl Index {
         Ok(count)
     }
 
-    fn read_entries(&mut self, reader: &mut Checksum, count: u32) -> Result<()> {
+    fn read_entries(&mut self, reader: &mut Checksum<File>, count: u32) -> Result<()> {
         for _i in 0..count {
             let mut entry = reader.read(64)?;
 
@@ -255,13 +255,19 @@ impl Entry {
 }
 
 #[derive(Debug)]
-struct Checksum {
-    file: File,
+struct Checksum<T>
+where
+    T: Read + Write,
+{
+    file: T,
     digest: Sha1,
 }
 
-impl Checksum {
-    fn new(file: File) -> Self {
+impl<T> Checksum<T>
+where
+    T: Read + Write,
+{
+    fn new(file: T) -> Self {
         Checksum {
             file,
             digest: Sha1::new(),

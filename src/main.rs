@@ -78,7 +78,7 @@ fn main() -> Result<()> {
                 database.store(tree).unwrap();
             });
 
-            let parent = refs.read_head();
+            let parent = refs.read_head()?;
             let name = env::var("GIT_AUTHOR_NAME")?;
             let email = env::var("GIT_AUTHOR_EMAIL")?;
             let author = Author::new(name, email, Local::now());

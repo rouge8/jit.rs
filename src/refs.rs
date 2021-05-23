@@ -21,12 +21,12 @@ impl Refs {
         lockfile.commit()
     }
 
-    pub fn read_head(&self) -> Option<String> {
+    pub fn read_head(&self) -> Result<Option<String>> {
         let path = self.head_path();
         if path.exists() {
-            Some(fs::read_to_string(path).unwrap().trim().to_string())
+            Ok(Some(fs::read_to_string(path)?.trim().to_string()))
         } else {
-            None
+            Ok(None)
         }
     }
 

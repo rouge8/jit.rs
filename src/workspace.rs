@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::fs;
-use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 // TODO: Remove `target` once we have .gitignore support
@@ -27,10 +26,6 @@ impl Workspace {
 
     pub fn stat_file(&self, path: &Path) -> Result<fs::Metadata> {
         Ok(fs::metadata(&self.pathname.join(&path))?)
-    }
-
-    pub fn file_mode(&self, path: &Path) -> Result<u32> {
-        Ok(self.stat_file(&path)?.mode())
     }
 
     fn should_ignore(&self, path: &Path) -> bool {

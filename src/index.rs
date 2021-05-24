@@ -2,11 +2,12 @@ use crate::lockfile::Lockfile;
 use crate::util::basename;
 use crate::util::is_executable;
 use crate::util::parent_directories;
+use crate::util::path_to_string;
 use anyhow::{bail, Result};
 use hex::ToHex;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
@@ -22,8 +23,9 @@ const HEADER_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct Index {
-    pub entries: BTreeMap<String, Entry>,
     pathname: PathBuf,
+    pub entries: BTreeMap<String, Entry>,
+    parents: HashMap<String, HashSet<String>>,
     lockfile: Lockfile,
     changed: bool,
 }
@@ -31,16 +33,17 @@ pub struct Index {
 impl Index {
     pub fn new(pathname: PathBuf) -> Self {
         Index {
-            entries: BTreeMap::new(),
             pathname: pathname.clone(),
+            entries: BTreeMap::new(),
+            parents: HashMap::new(),
             lockfile: Lockfile::new(pathname),
             changed: false,
         }
     }
 
     pub fn add(&mut self, pathname: PathBuf, oid: String, stat: fs::Metadata) {
-        let pathname = pathname.to_str().unwrap();
-        let entry = Entry::new(pathname, oid, stat);
+        let pathname = path_to_string(&pathname);
+        let entry = Entry::new(&pathname, oid, stat);
         self.discard_conflicts(&entry);
         self.store_entry(entry);
         self.changed = true;
@@ -96,6 +99,7 @@ impl Index {
 
     fn clear(&mut self) {
         self.entries = BTreeMap::new();
+        self.parents = HashMap::new();
         self.changed = false;
     }
 
@@ -142,13 +146,55 @@ impl Index {
     }
 
     fn store_entry(&mut self, entry: Entry) {
+        for parent in entry.parent_directories() {
+            let parent = path_to_string(&parent);
+
+            if let Some(children) = self.parents.get_mut(&parent) {
+                children.insert(entry.path.clone());
+            } else {
+                let mut children = HashSet::new();
+                children.insert(entry.path.clone());
+                self.parents.insert(parent, children);
+            }
+        }
+
         self.entries.insert(entry.path.clone(), entry);
     }
 
     fn discard_conflicts(&mut self, entry: &Entry) {
         for parent in entry.parent_directories() {
-            let parent = parent.to_str().unwrap();
-            self.entries.remove(parent);
+            let parent = path_to_string(&parent);
+            self.remove_entry(&parent);
+        }
+        self.remove_children(&entry.path);
+    }
+
+    fn remove_children(&mut self, path: &str) {
+        let mut to_remove = vec![];
+
+        if let Some(children) = self.parents.get(path) {
+            for child in children.iter() {
+                to_remove.push(child.clone());
+            }
+        }
+
+        for child in to_remove {
+            self.remove_entry(&child);
+        }
+    }
+
+    fn remove_entry(&mut self, pathname: &str) {
+        if let Some(entry) = self.entries.remove(pathname) {
+            for dirname in entry.parent_directories() {
+                let dirname = path_to_string(&dirname);
+
+                if let Some(children) = self.parents.get_mut(&dirname) {
+                    children.remove(pathname);
+                    if children.is_empty() {
+                        self.parents.remove(&dirname);
+                    }
+                }
+            }
         }
     }
 }
@@ -384,6 +430,53 @@ mod tests {
         assert_eq!(
             index.entries.keys().cloned().collect::<Vec<String>>(),
             vec![String::from("alice.txt/nested"), String::from("bob.txt")],
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn replace_a_directory_with_a_file() -> Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let mut index = Index::new(tmp_dir.path().join("index"));
+
+        let stat = fs::metadata(&tmp_dir)?;
+        let oid = random_oid();
+
+        index.add(PathBuf::from("alice.txt"), oid.clone(), stat.clone());
+        index.add(PathBuf::from("nested/bob.txt"), oid.clone(), stat.clone());
+
+        index.add(PathBuf::from("nested"), oid, stat);
+
+        assert_eq!(
+            index.entries.keys().cloned().collect::<Vec<String>>(),
+            vec![String::from("alice.txt"), String::from("nested")],
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn recursively_replace_a_directory_with_a_file() -> Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let mut index = Index::new(tmp_dir.path().join("index"));
+
+        let stat = fs::metadata(&tmp_dir)?;
+        let oid = random_oid();
+
+        index.add(PathBuf::from("alice.txt"), oid.clone(), stat.clone());
+        index.add(PathBuf::from("nested/bob.txt"), oid.clone(), stat.clone());
+        index.add(
+            PathBuf::from("nested/inner/claire.txt"),
+            oid.clone(),
+            stat.clone(),
+        );
+
+        index.add(PathBuf::from("nested"), oid, stat);
+
+        assert_eq!(
+            index.entries.keys().cloned().collect::<Vec<String>>(),
+            vec![String::from("alice.txt"), String::from("nested")],
         );
 
         Ok(())

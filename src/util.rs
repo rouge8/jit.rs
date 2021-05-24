@@ -4,7 +4,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 #[cfg(test)]
 use sha1::{Digest, Sha1};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub fn is_executable(mode: u32) -> bool {
     mode & 0o1111 != 0
@@ -28,6 +28,10 @@ pub fn parent_directories(mut path: PathBuf) -> Vec<PathBuf> {
 
 pub fn basename(path: PathBuf) -> PathBuf {
     PathBuf::from(PathBuf::from(&path).file_name().unwrap())
+}
+
+pub fn path_to_string(path: &Path) -> String {
+    path.to_str().unwrap().to_string()
 }
 
 #[cfg(test)]

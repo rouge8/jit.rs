@@ -1,5 +1,7 @@
 use crate::index;
+use crate::util::basename;
 use crate::util::is_executable;
+use crate::util::parent_directories;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -24,24 +26,11 @@ impl Entry {
     }
 
     pub fn basename(&self) -> PathBuf {
-        PathBuf::from(PathBuf::from(&self.name).file_name().unwrap())
+        basename(PathBuf::from(&self.name))
     }
 
     pub fn parent_directories(&self) -> Vec<PathBuf> {
-        let mut parents = Vec::new();
-        let mut path = PathBuf::from(&self.name);
-
-        // TODO: path.ancestors()
-        while let Some(parent) = path.parent() {
-            let parent = parent.to_path_buf();
-            path = parent.clone();
-
-            if parent != PathBuf::from("") {
-                parents.insert(0, parent);
-            }
-        }
-
-        parents
+        parent_directories(PathBuf::from(&self.name))
     }
 }
 

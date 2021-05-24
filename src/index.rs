@@ -1,5 +1,7 @@
 use crate::lockfile::Lockfile;
+use crate::util::basename;
 use crate::util::is_executable;
+use crate::util::parent_directories;
 use anyhow::{bail, Result};
 use hex::ToHex;
 use sha1::{Digest, Sha1};
@@ -39,6 +41,7 @@ impl Index {
     pub fn add(&mut self, pathname: PathBuf, oid: String, stat: fs::Metadata) {
         let pathname = pathname.to_str().unwrap();
         let entry = Entry::new(pathname, oid, stat);
+        self.discard_conflicts(&entry);
         self.store_entry(entry);
         self.changed = true;
     }
@@ -141,6 +144,13 @@ impl Index {
     fn store_entry(&mut self, entry: Entry) {
         self.entries.insert(entry.path.clone(), entry);
     }
+
+    fn discard_conflicts(&mut self, entry: &Entry) {
+        for parent in entry.parent_directories() {
+            let parent = parent.to_str().unwrap();
+            self.entries.remove(parent);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -215,6 +225,14 @@ impl Entry {
         } else {
             0o100644u32
         }
+    }
+
+    fn basename(&self) -> PathBuf {
+        basename(PathBuf::from(&self.path))
+    }
+
+    fn parent_directories(&self) -> Vec<PathBuf> {
+        parent_directories(PathBuf::from(&self.path))
     }
 
     fn bytes(&self) -> Vec<u8> {
@@ -345,6 +363,27 @@ mod tests {
         assert_eq!(
             index.entries.keys().cloned().collect::<Vec<String>>(),
             vec![String::from("alice.txt")],
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn replace_a_file_with_a_directory() -> Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let mut index = Index::new(tmp_dir.path().join("index"));
+
+        let stat = fs::metadata(&tmp_dir)?;
+        let oid = random_oid();
+
+        index.add(PathBuf::from("alice.txt"), oid.clone(), stat.clone());
+        index.add(PathBuf::from("bob.txt"), oid.clone(), stat.clone());
+
+        index.add(PathBuf::from("alice.txt/nested"), oid, stat);
+
+        assert_eq!(
+            index.entries.keys().cloned().collect::<Vec<String>>(),
+            vec![String::from("alice.txt/nested"), String::from("bob.txt")],
         );
 
         Ok(())

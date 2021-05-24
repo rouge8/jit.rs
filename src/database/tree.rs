@@ -37,10 +37,8 @@ impl Tree {
         }
     }
 
-    pub fn build(mut entries: Vec<Entry>) -> Self {
-        // Sort `entries` for `fmt::Display`
-        entries.sort_by(|a, b| a.name.cmp(&b.name));
-
+    /// Assumes `entries` is sorted by `name`.
+    pub fn build(entries: Vec<Entry>) -> Self {
         let mut root = Tree::new();
         for entry in entries {
             root.add_entry(entry.parent_directories(), entry);

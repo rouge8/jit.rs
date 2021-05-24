@@ -1,3 +1,4 @@
+use crate::index;
 use crate::util::is_executable;
 use std::path::{Path, PathBuf};
 
@@ -41,5 +42,15 @@ impl Entry {
         }
 
         parents
+    }
+}
+
+impl From<&index::Entry> for Entry {
+    fn from(entry: &index::Entry) -> Self {
+        Entry {
+            name: entry.path.clone(),
+            oid: entry.oid.clone(),
+            mode: entry.mode,
+        }
     }
 }

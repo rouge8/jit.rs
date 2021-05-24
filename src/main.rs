@@ -53,26 +53,14 @@ fn main() -> Result<()> {
         "commit" => {
             let root_path = env::current_dir()?;
             let git_path = root_path.join(".git");
-            let db_path = git_path.join("objects");
 
-            let workspace = Workspace::new(root_path);
-            let database = Database::new(db_path);
+            let database = Database::new(git_path.join("objects"));
+            let mut index = Index::new(git_path.join("index"));
             let refs = Refs::new(git_path);
 
-            let entries = workspace
-                .list_files()?
-                .iter()
-                .map(|path| {
-                    let data = workspace.read_file(&path)?;
-                    let blob = Blob::new(data);
+            index.load()?;
 
-                    database.store(&blob)?;
-
-                    let mode = workspace.file_mode(&path)?;
-                    Ok(Entry::new(&path, blob.oid(), mode))
-                })
-                .collect::<Result<Vec<Entry>>>()?;
-
+            let entries = index.entries.values().map(Entry::from).collect();
             let root = Tree::build(entries);
             root.traverse(&|tree| {
                 database.store(tree).unwrap();

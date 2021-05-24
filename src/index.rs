@@ -20,7 +20,7 @@ const HEADER_SIZE: usize = 12;
 
 #[derive(Debug)]
 pub struct Index {
-    entries: BTreeMap<String, Entry>,
+    pub entries: BTreeMap<String, Entry>,
     pathname: PathBuf,
     lockfile: Lockfile,
     changed: bool,
@@ -78,7 +78,7 @@ impl Index {
         Ok(())
     }
 
-    fn load(&mut self) -> Result<()> {
+    pub fn load(&mut self) -> Result<()> {
         self.clear();
 
         if let Some(file) = self.open_index_file()? {
@@ -144,20 +144,20 @@ impl Index {
 }
 
 #[derive(Debug)]
-struct Entry {
+pub struct Entry {
     ctime: i64,
     ctime_nsec: i64,
     mtime: i64,
     mtime_nsec: i64,
     dev: u64,
     ino: u64,
-    mode: u32,
+    pub mode: u32,
     uid: u32,
     gid: u32,
     size: u64,
-    oid: String,
+    pub oid: String,
     flags: u16,
-    path: String,
+    pub path: String,
 }
 
 impl Entry {

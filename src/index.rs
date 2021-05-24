@@ -308,6 +308,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::util::random_oid;
+    use tempfile::TempDir;
 
     // Release the lock when dropping an `Index`, but only in tests
     impl Drop for Index {
@@ -326,6 +328,24 @@ mod tests {
 
         assert!(index.entries.get("src/main.rs").is_some());
         assert!(index.entries.get("src/lockfile.rs").is_some());
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_a_single_file() -> Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let mut index = Index::new(tmp_dir.path().join("index"));
+
+        let stat = fs::metadata(&tmp_dir)?;
+        let oid = random_oid();
+
+        index.add(PathBuf::from("alice.txt"), oid, stat);
+
+        assert_eq!(
+            index.entries.keys().cloned().collect::<Vec<String>>(),
+            vec![String::from("alice.txt")],
+        );
 
         Ok(())
     }

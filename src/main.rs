@@ -112,14 +112,26 @@ fn main() -> Result<()> {
             index.load_for_update()?;
 
             for path in args[2..].iter() {
-                let path = PathBuf::from(path).canonicalize()?;
-                for path in workspace.list_files_at_path(&path)? {
-                    let data = workspace.read_file(&path)?;
-                    let stat = workspace.stat_file(&path)?;
+                match PathBuf::from(path).canonicalize() {
+                    Ok(path) => {
+                        for path in workspace.list_files_at_path(&path)? {
+                            let data = workspace.read_file(&path)?;
+                            let stat = workspace.stat_file(&path)?;
 
-                    let blob = Blob::new(data);
-                    database.store(&blob)?;
-                    index.add(path, blob.oid(), stat);
+                            let blob = Blob::new(data);
+                            database.store(&blob)?;
+                            index.add(path, blob.oid(), stat);
+                        }
+                    }
+                    Err(err) => {
+                        if err.kind() == io::ErrorKind::NotFound {
+                            eprintln!("fatal: pathspec '{}' did not match any files", path);
+                            index.release_lock()?;
+                            process::exit(128);
+                        } else {
+                            return Err(anyhow::Error::from(err));
+                        }
+                    }
                 }
             }
 

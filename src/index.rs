@@ -97,6 +97,12 @@ impl Index {
         Ok(())
     }
 
+    pub fn release_lock(&mut self) -> Result<()> {
+        self.lockfile.rollback()?;
+
+        Ok(())
+    }
+
     fn clear(&mut self) {
         self.entries = BTreeMap::new();
         self.parents = HashMap::new();

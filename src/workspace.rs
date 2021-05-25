@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 

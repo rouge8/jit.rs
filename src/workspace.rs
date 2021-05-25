@@ -15,9 +15,23 @@ impl Workspace {
         Workspace { pathname }
     }
 
-    pub fn list_files(&self) -> Result<Vec<PathBuf>> {
-        let files = self.list_files_at_path(&self.pathname)?;
-        Ok(files)
+    pub fn list_files(&self, path: &Path) -> Result<Vec<PathBuf>> {
+        let relative_path = path.strip_prefix(&self.pathname)?;
+
+        if self.should_ignore(&relative_path) {
+            Ok(vec![])
+        } else if relative_path.is_file() {
+            Ok(vec![relative_path.to_path_buf()])
+        } else {
+            let mut files: Vec<PathBuf> = Vec::new();
+
+            for entry in fs::read_dir(&path)? {
+                let path = entry?.path();
+                let mut nested = self.list_files(&path)?;
+                files.append(&mut nested);
+            }
+            Ok(files)
+        }
     }
 
     pub fn read_file(&self, path: &Path) -> Result<Vec<u8>> {
@@ -32,24 +46,5 @@ impl Workspace {
         IGNORE
             .iter()
             .any(|ignore_path| path == PathBuf::from(ignore_path))
-    }
-
-    pub fn list_files_at_path(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let relative_path = path.strip_prefix(&self.pathname)?;
-
-        if self.should_ignore(&relative_path) {
-            Ok(vec![])
-        } else if relative_path.is_file() {
-            Ok(vec![relative_path.to_path_buf()])
-        } else {
-            let mut files: Vec<PathBuf> = Vec::new();
-
-            for entry in fs::read_dir(&path)? {
-                let path = entry?.path();
-                let mut nested = self.list_files_at_path(&path)?;
-                files.append(&mut nested);
-            }
-            Ok(files)
-        }
     }
 }

@@ -114,7 +114,7 @@ fn main() -> Result<()> {
             for path in args[2..].iter() {
                 match PathBuf::from(path).canonicalize() {
                     Ok(path) => {
-                        for path in workspace.list_files_at_path(&path)? {
+                        for path in workspace.list_files(&path)? {
                             let data = workspace.read_file(&path)?;
                             let stat = workspace.stat_file(&path)?;
 

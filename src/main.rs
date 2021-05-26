@@ -117,21 +117,28 @@ fn main() -> Result<()> {
                         for path in workspace.list_files(&path)? {
                             let data = match workspace.read_file(&path) {
                                 Ok(data) => data,
-                                Err(err) => {
-                                    if err.kind() == io::ErrorKind::PermissionDenied {
-                                        eprintln!(
-                                            "error: open('{}': Permission denied",
-                                            path.display()
-                                        );
+                                Err(err) => match err {
+                                    workspace::Error::NoPermission { .. } => {
+                                        eprintln!("error: {}", err);
                                         eprintln!("fatal: adding files failed");
                                         index.release_lock()?;
                                         process::exit(128);
-                                    } else {
-                                        return Err(anyhow::Error::from(err));
                                     }
-                                }
+                                    _ => return Err(anyhow::Error::from(err)),
+                                },
                             };
-                            let stat = workspace.stat_file(&path)?;
+                            let stat = match workspace.stat_file(&path) {
+                                Ok(stat) => stat,
+                                Err(err) => match err {
+                                    workspace::Error::NoPermission { .. } => {
+                                        eprintln!("error: {}", err);
+                                        eprintln!("fatal: adding files failed");
+                                        index.release_lock()?;
+                                        process::exit(128);
+                                    }
+                                    _ => return Err(anyhow::Error::from(err)),
+                                },
+                            };
 
                             let blob = Blob::new(data);
                             database.store(&blob)?;

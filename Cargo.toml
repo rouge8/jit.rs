@@ -13,6 +13,7 @@ flate2 = "1.0.20"
 hex = { version = "0.4.3", features = ["alloc"] }
 chrono = "0.4.19"
 anyhow = "1.0.40"
+thiserror = "1.0.25"
 
 [dev-dependencies]
 tempfile = "3.2.0"

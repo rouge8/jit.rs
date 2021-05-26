@@ -1,9 +1,20 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use thiserror::Error;
 
 // TODO: Remove `target` once we have .gitignore support
 const IGNORE: &[&str] = &[".", "..", ".git", "target"];
+
+#[derive(Error, Debug)]
+pub enum Error {
+    #[error("{method}('{path}'): Permission denied")]
+    NoPermission { method: String, path: PathBuf },
+    #[error(transparent)]
+    Other(#[from] io::Error),
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Workspace {
@@ -15,7 +26,7 @@ impl Workspace {
         Workspace { pathname }
     }
 
-    pub fn list_files(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+    pub fn list_files(&self, path: &Path) -> Result<Vec<PathBuf>> {
         let relative_path = path.strip_prefix(&self.pathname).unwrap();
 
         if self.should_ignore(&relative_path) {
@@ -34,12 +45,30 @@ impl Workspace {
         }
     }
 
-    pub fn read_file(&self, path: &Path) -> io::Result<Vec<u8>> {
-        Ok(fs::read(&self.pathname.join(&path))?)
+    pub fn read_file(&self, path: &Path) -> Result<Vec<u8>> {
+        fs::read(&self.pathname.join(&path)).map_err(|err| {
+            if err.kind() == io::ErrorKind::PermissionDenied {
+                Error::NoPermission {
+                    method: String::from("open"),
+                    path: path.to_path_buf(),
+                }
+            } else {
+                Error::Other(err)
+            }
+        })
     }
 
-    pub fn stat_file(&self, path: &Path) -> io::Result<fs::Metadata> {
-        Ok(fs::metadata(&self.pathname.join(&path))?)
+    pub fn stat_file(&self, path: &Path) -> Result<fs::Metadata> {
+        fs::metadata(&self.pathname.join(&path)).map_err(|err| {
+            if err.kind() == io::ErrorKind::PermissionDenied {
+                Error::NoPermission {
+                    method: String::from("stat"),
+                    path: path.to_path_buf(),
+                }
+            } else {
+                Error::Other(err)
+            }
+        })
     }
 
     fn should_ignore(&self, path: &Path) -> bool {

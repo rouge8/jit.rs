@@ -1,9 +1,9 @@
 use crate::database::object::Object;
-use anyhow::Result;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use std::fs;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 use uuid::Uuid;
@@ -25,7 +25,7 @@ impl Database {
         Database { pathname }
     }
 
-    pub fn store<T>(&self, object: &T) -> Result<()>
+    pub fn store<T>(&self, object: &T) -> io::Result<()>
     where
         T: Object,
     {
@@ -33,7 +33,7 @@ impl Database {
         Ok(())
     }
 
-    fn write_object(&self, oid: String, content: Vec<u8>) -> Result<()> {
+    fn write_object(&self, oid: String, content: Vec<u8>) -> io::Result<()> {
         let object_path = &self.pathname.join(&oid[0..2]).join(&oid[2..]);
 
         if object_path.exists() {

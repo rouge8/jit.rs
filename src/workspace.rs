@@ -1,5 +1,5 @@
-use anyhow::Result;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 // TODO: Remove `target` once we have .gitignore support
@@ -15,8 +15,8 @@ impl Workspace {
         Workspace { pathname }
     }
 
-    pub fn list_files(&self, path: &Path) -> Result<Vec<PathBuf>> {
-        let relative_path = path.strip_prefix(&self.pathname)?;
+    pub fn list_files(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        let relative_path = path.strip_prefix(&self.pathname).unwrap();
 
         if self.should_ignore(&relative_path) {
             Ok(vec![])
@@ -34,11 +34,11 @@ impl Workspace {
         }
     }
 
-    pub fn read_file(&self, path: &Path) -> Result<Vec<u8>> {
+    pub fn read_file(&self, path: &Path) -> io::Result<Vec<u8>> {
         Ok(fs::read(&self.pathname.join(&path))?)
     }
 
-    pub fn stat_file(&self, path: &Path) -> Result<fs::Metadata> {
+    pub fn stat_file(&self, path: &Path) -> io::Result<fs::Metadata> {
         Ok(fs::metadata(&self.pathname.join(&path))?)
     }
 

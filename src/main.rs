@@ -115,7 +115,22 @@ fn main() -> Result<()> {
                 match PathBuf::from(path).canonicalize() {
                     Ok(path) => {
                         for path in workspace.list_files(&path)? {
-                            let data = workspace.read_file(&path)?;
+                            let data = match workspace.read_file(&path) {
+                                Ok(data) => data,
+                                Err(err) => {
+                                    if err.kind() == io::ErrorKind::PermissionDenied {
+                                        eprintln!(
+                                            "error: open('{}': Permission denied",
+                                            path.display()
+                                        );
+                                        eprintln!("fatal: adding files failed");
+                                        index.release_lock()?;
+                                        process::exit(128);
+                                    } else {
+                                        return Err(anyhow::Error::from(err));
+                                    }
+                                }
+                            };
                             let stat = workspace.stat_file(&path)?;
 
                             let blob = Blob::new(data);

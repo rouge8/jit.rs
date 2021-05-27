@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::process;
 
 mod database;
+mod errors;
 mod index;
 mod lockfile;
 mod refs;
@@ -20,6 +21,7 @@ use database::entry::Entry;
 use database::object::Object;
 use database::tree::Tree;
 use database::Database;
+use errors::Error;
 use index::Index;
 use refs::Refs;
 use workspace::Workspace;
@@ -118,7 +120,7 @@ fn main() -> Result<()> {
                             let data = match workspace.read_file(&path) {
                                 Ok(data) => data,
                                 Err(err) => match err {
-                                    workspace::Error::NoPermission { .. } => {
+                                    Error::NoPermission { .. } => {
                                         eprintln!("error: {}", err);
                                         eprintln!("fatal: adding files failed");
                                         index.release_lock()?;
@@ -130,7 +132,7 @@ fn main() -> Result<()> {
                             let stat = match workspace.stat_file(&path) {
                                 Ok(stat) => stat,
                                 Err(err) => match err {
-                                    workspace::Error::NoPermission { .. } => {
+                                    Error::NoPermission { .. } => {
                                         eprintln!("error: {}", err);
                                         eprintln!("fatal: adding files failed");
                                         index.release_lock()?;

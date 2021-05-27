@@ -1,5 +1,5 @@
+use crate::errors::Result;
 use crate::lockfile::Lockfile;
-use anyhow::Result;
 use std::fs;
 use std::path::PathBuf;
 

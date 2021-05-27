@@ -1,20 +1,10 @@
+use crate::errors::{Error, Result};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
-use thiserror::Error;
 
 // TODO: Remove `target` once we have .gitignore support
 const IGNORE: &[&str] = &[".", "..", ".git", "target"];
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("{method}('{path}'): Permission denied")]
-    NoPermission { method: String, path: PathBuf },
-    #[error(transparent)]
-    Other(#[from] io::Error),
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
 pub struct Workspace {
@@ -53,7 +43,7 @@ impl Workspace {
                     path: path.to_path_buf(),
                 }
             } else {
-                Error::Other(err)
+                Error::Io(err)
             }
         })
     }
@@ -66,7 +56,7 @@ impl Workspace {
                     path: path.to_path_buf(),
                 }
             } else {
-                Error::Other(err)
+                Error::Io(err)
             }
         })
     }

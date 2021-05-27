@@ -1,6 +1,8 @@
+use crate::errors::{Error, Result};
 use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io::{Error, ErrorKind, Read, Result, Write};
+use std::io;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -64,10 +66,10 @@ impl Lockfile {
         Ok(())
     }
 
-    fn err_on_stale_lock(&self) -> Result<()> {
+    fn err_on_stale_lock(&self) -> io::Result<()> {
         if self.lock.is_none() {
-            Err(Error::new(
-                ErrorKind::Other,
+            Err(io::Error::new(
+                io::ErrorKind::Other,
                 format!("Not holding lock on file: {:?}", self.lock_path),
             ))
         } else {
@@ -77,7 +79,7 @@ impl Lockfile {
 }
 
 impl Read for Lockfile {
-    fn read(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
@@ -86,14 +88,14 @@ impl Read for Lockfile {
 }
 
 impl Write for Lockfile {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
         lock.write(buf)
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
@@ -102,7 +104,7 @@ impl Write for Lockfile {
 }
 
 impl<'a> Read for &'a Lockfile {
-    fn read(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
@@ -111,14 +113,14 @@ impl<'a> Read for &'a Lockfile {
 }
 
 impl<'a> Write for &'a Lockfile {
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
         lock.write(buf)
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> io::Result<()> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();

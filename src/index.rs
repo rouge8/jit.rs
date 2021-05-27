@@ -1,9 +1,9 @@
+use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::util::basename;
 use crate::util::is_executable;
 use crate::util::parent_directories;
 use crate::util::path_to_string;
-use anyhow::{bail, Result};
 use hex::ToHex;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
@@ -128,10 +128,16 @@ impl Index {
         let count = u32::from_be_bytes(data[8..12].try_into()?);
 
         if signature != "DIRC" {
-            bail!("Signature: expected 'DIRC' but found '{}'", signature);
+            return Err(Error::InvalidSignature {
+                expected: String::from("DIRC"),
+                got: signature.to_string(),
+            });
         }
         if version != 2 {
-            bail!("Version: expected '2' but found '{}'", version);
+            return Err(Error::InvalidVersion {
+                expected: 2,
+                got: version,
+            });
         }
 
         Ok(count)
@@ -354,7 +360,7 @@ where
 
         let expected = self.digest.clone().finalize().to_vec();
         if sum != expected {
-            bail!("Checksum does not match value stored on disk");
+            return Err(Error::InvalidChecksum);
         }
 
         Ok(())

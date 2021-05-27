@@ -12,6 +12,7 @@ mod errors;
 mod index;
 mod lockfile;
 mod refs;
+mod repository;
 mod util;
 mod workspace;
 use database::author::Author;
@@ -20,11 +21,8 @@ use database::commit::Commit;
 use database::entry::Entry;
 use database::object::Object;
 use database::tree::Tree;
-use database::Database;
 use errors::Error;
-use index::Index;
-use refs::Refs;
-use workspace::Workspace;
+use repository::Repository;
 
 fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -54,21 +52,17 @@ fn main() -> Result<()> {
         }
         "commit" => {
             let root_path = env::current_dir()?;
-            let git_path = root_path.join(".git");
+            let mut repo = Repository::new(root_path.join(".git"));
 
-            let database = Database::new(git_path.join("objects"));
-            let mut index = Index::new(git_path.join("index"));
-            let refs = Refs::new(git_path);
+            repo.index.load()?;
 
-            index.load()?;
-
-            let entries = index.entries.values().map(Entry::from).collect();
+            let entries = repo.index.entries.values().map(Entry::from).collect();
             let root = Tree::build(entries);
             root.traverse(&|tree| {
-                database.store(tree).unwrap();
+                repo.database.store(tree).unwrap();
             });
 
-            let parent = refs.read_head()?;
+            let parent = repo.refs.read_head()?;
             let name = env::var("GIT_AUTHOR_NAME")?;
             let email = env::var("GIT_AUTHOR_EMAIL")?;
             let author = Author::new(name, email, Local::now());
@@ -83,8 +77,8 @@ fn main() -> Result<()> {
             }
 
             let commit = Commit::new(parent, root.oid(), author, message);
-            database.store(&commit)?;
-            refs.update_head(commit.oid())?;
+            repo.database.store(&commit)?;
+            repo.refs.update_head(commit.oid())?;
 
             let mut is_root = String::new();
             match commit.parent {
@@ -100,18 +94,14 @@ fn main() -> Result<()> {
         }
         "add" => {
             let root_path = env::current_dir()?;
-            let git_path = root_path.join(".git");
-
-            let workspace = Workspace::new(root_path);
-            let database = Database::new(git_path.join("objects"));
-            let mut index = Index::new(git_path.join("index"));
+            let mut repo = Repository::new(root_path.join(".git"));
 
             if args.len() < 2 {
                 eprintln!("Nothing specified, nothing added.");
                 process::exit(0);
             }
 
-            match index.load_for_update() {
+            match repo.index.load_for_update() {
                 Ok(()) => (),
                 Err(err) => match err {
                     Error::LockDenied(..) => {
@@ -135,7 +125,7 @@ repository earlier: remove the file manually to continue."
                     Err(err) => {
                         if err.kind() == io::ErrorKind::NotFound {
                             eprintln!("fatal: pathspec '{}' did not match any files", path);
-                            index.release_lock()?;
+                            repo.index.release_lock()?;
                             process::exit(128);
                         } else {
                             return Err(anyhow::Error::from(err));
@@ -143,26 +133,26 @@ repository earlier: remove the file manually to continue."
                     }
                 };
 
-                for path in workspace.list_files(&path)? {
-                    let data = match workspace.read_file(&path) {
+                for path in repo.workspace.list_files(&path)? {
+                    let data = match repo.workspace.read_file(&path) {
                         Ok(data) => data,
                         Err(err) => match err {
                             Error::NoPermission { .. } => {
                                 eprintln!("error: {}", err);
                                 eprintln!("fatal: adding files failed");
-                                index.release_lock()?;
+                                repo.index.release_lock()?;
                                 process::exit(128);
                             }
                             _ => return Err(anyhow::Error::from(err)),
                         },
                     };
-                    let stat = match workspace.stat_file(&path) {
+                    let stat = match repo.workspace.stat_file(&path) {
                         Ok(stat) => stat,
                         Err(err) => match err {
                             Error::NoPermission { .. } => {
                                 eprintln!("error: {}", err);
                                 eprintln!("fatal: adding files failed");
-                                index.release_lock()?;
+                                repo.index.release_lock()?;
                                 process::exit(128);
                             }
                             _ => return Err(anyhow::Error::from(err)),
@@ -170,12 +160,12 @@ repository earlier: remove the file manually to continue."
                     };
 
                     let blob = Blob::new(data);
-                    database.store(&blob)?;
-                    index.add(path, blob.oid(), stat);
+                    repo.database.store(&blob)?;
+                    repo.index.add(path, blob.oid(), stat);
                 }
             }
 
-            index.write_updates()?;
+            repo.index.write_updates()?;
         }
         _ => {
             eprintln!("jit: '{}' is not a jit command.", command);

@@ -14,6 +14,8 @@ pub enum Error {
     InvalidChecksum,
     #[error("Unable to create '{0}': File exists.")]
     LockDenied(PathBuf),
+    #[error("{0} is not a jit command.")]
+    UnknownCommand(String),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error("{0}")]
@@ -30,6 +32,12 @@ impl From<std::array::TryFromSliceError> for Error {
 
 impl From<std::str::Utf8Error> for Error {
     fn from(err: std::str::Utf8Error) -> Error {
+        Error::Other(format!("{}", err))
+    }
+}
+
+impl From<std::env::VarError> for Error {
+    fn from(err: std::env::VarError) -> Error {
         Error::Other(format!("{}", err))
     }
 }

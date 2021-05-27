@@ -130,39 +130,8 @@ repository earlier: remove the file manually to continue."
             }
 
             for path in args[2..].iter() {
-                match PathBuf::from(path).canonicalize() {
-                    Ok(path) => {
-                        for path in workspace.list_files(&path)? {
-                            let data = match workspace.read_file(&path) {
-                                Ok(data) => data,
-                                Err(err) => match err {
-                                    Error::NoPermission { .. } => {
-                                        eprintln!("error: {}", err);
-                                        eprintln!("fatal: adding files failed");
-                                        index.release_lock()?;
-                                        process::exit(128);
-                                    }
-                                    _ => return Err(anyhow::Error::from(err)),
-                                },
-                            };
-                            let stat = match workspace.stat_file(&path) {
-                                Ok(stat) => stat,
-                                Err(err) => match err {
-                                    Error::NoPermission { .. } => {
-                                        eprintln!("error: {}", err);
-                                        eprintln!("fatal: adding files failed");
-                                        index.release_lock()?;
-                                        process::exit(128);
-                                    }
-                                    _ => return Err(anyhow::Error::from(err)),
-                                },
-                            };
-
-                            let blob = Blob::new(data);
-                            database.store(&blob)?;
-                            index.add(path, blob.oid(), stat);
-                        }
-                    }
+                let path = match PathBuf::from(path).canonicalize() {
+                    Ok(path) => path,
                     Err(err) => {
                         if err.kind() == io::ErrorKind::NotFound {
                             eprintln!("fatal: pathspec '{}' did not match any files", path);
@@ -172,6 +141,37 @@ repository earlier: remove the file manually to continue."
                             return Err(anyhow::Error::from(err));
                         }
                     }
+                };
+
+                for path in workspace.list_files(&path)? {
+                    let data = match workspace.read_file(&path) {
+                        Ok(data) => data,
+                        Err(err) => match err {
+                            Error::NoPermission { .. } => {
+                                eprintln!("error: {}", err);
+                                eprintln!("fatal: adding files failed");
+                                index.release_lock()?;
+                                process::exit(128);
+                            }
+                            _ => return Err(anyhow::Error::from(err)),
+                        },
+                    };
+                    let stat = match workspace.stat_file(&path) {
+                        Ok(stat) => stat,
+                        Err(err) => match err {
+                            Error::NoPermission { .. } => {
+                                eprintln!("error: {}", err);
+                                eprintln!("fatal: adding files failed");
+                                index.release_lock()?;
+                                process::exit(128);
+                            }
+                            _ => return Err(anyhow::Error::from(err)),
+                        },
+                    };
+
+                    let blob = Blob::new(data);
+                    database.store(&blob)?;
+                    index.add(path, blob.oid(), stat);
                 }
             }
 

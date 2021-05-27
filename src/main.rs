@@ -111,7 +111,23 @@ fn main() -> Result<()> {
                 process::exit(0);
             }
 
-            index.load_for_update()?;
+            match index.load_for_update() {
+                Ok(()) => (),
+                Err(err) => match err {
+                    Error::LockDenied(..) => {
+                        eprintln!("fatal: {}", err);
+                        eprintln!(
+                            "
+Another jit process seems to be running in this repository.
+Please make sure all processes are terminated then try again.
+If it still fails, a jit process may have crashed in this
+repository earlier: remove the file manually to continue."
+                        );
+                        process::exit(128);
+                    }
+                    _ => return Err(anyhow::Error::from(err)),
+                },
+            }
 
             for path in args[2..].iter() {
                 match PathBuf::from(path).canonicalize() {

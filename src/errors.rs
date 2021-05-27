@@ -12,6 +12,8 @@ pub enum Error {
     InvalidVersion { expected: u32, got: u32 },
     #[error("Checksum does not match value stored on disk")]
     InvalidChecksum,
+    #[error("Unable to create '{0}': File exists.")]
+    LockDenied(PathBuf),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error("{0}")]

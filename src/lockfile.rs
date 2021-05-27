@@ -24,15 +24,22 @@ impl Lockfile {
     }
 
     pub fn hold_for_update(&mut self) -> Result<()> {
-        // TODO: Handle file already exists
         if self.lock.is_none() {
-            let open_file = OpenOptions::new()
+            match OpenOptions::new()
                 .read(true)
                 .write(true)
                 .create_new(true)
-                .open(&self.lock_path)?;
-
-            self.lock = Some(open_file);
+                .open(&self.lock_path)
+            {
+                Ok(open_file) => self.lock = Some(open_file),
+                Err(err) => {
+                    if err.kind() == io::ErrorKind::AlreadyExists {
+                        return Err(Error::LockDenied(self.lock_path.clone()));
+                    } else {
+                        return Err(Error::Io(err));
+                    }
+                }
+            }
         }
 
         Ok(())

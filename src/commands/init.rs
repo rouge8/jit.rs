@@ -12,7 +12,7 @@ impl Init {
         _env: HashMap<String, String>,
         argv: VecDeque<String>,
         _stdin: I,
-        _stdout: O,
+        mut stdout: O,
         _stderr: E,
     ) -> Result<()> {
         let root_path = if let Some(path) = argv.get(1) {
@@ -27,7 +27,7 @@ impl Init {
             fs::create_dir_all(git_path.join(dir))?;
         }
 
-        println!("Initialized empty Jit repository in {:?}", git_path);
+        writeln!(stdout, "Initialized empty Jit repository in {:?}", git_path)?;
 
         Ok(())
     }

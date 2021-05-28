@@ -19,8 +19,8 @@ impl Commit {
         env: HashMap<String, String>,
         _argv: VecDeque<String>,
         mut stdin: I,
-        _stdout: O,
-        _stderr: E,
+        mut stdout: O,
+        mut stderr: E,
     ) -> Result<()> {
         let mut repo = Repository::new(dir.join(".git"));
 
@@ -41,7 +41,7 @@ impl Commit {
 
         message = message.trim().to_string();
         if message.is_empty() {
-            eprintln!("Aborting commit due to empty commit message.");
+            writeln!(stderr, "Aborting commit due to empty commit message.")?;
             process::exit(0);
         }
 
@@ -54,12 +54,13 @@ impl Commit {
             Some(_) => (),
             None => is_root.push_str("(root-commit) "),
         }
-        println!(
+        writeln!(
+            stdout,
             "[{}{}] {}",
             is_root,
             commit.oid(),
             commit.message.lines().next().unwrap(),
-        );
+        )?;
 
         Ok(())
     }

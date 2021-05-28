@@ -17,12 +17,12 @@ impl Add {
         argv: VecDeque<String>,
         _stdin: I,
         _stdout: O,
-        _stderr: E,
+        mut stderr: E,
     ) -> Result<()> {
         let mut repo = Repository::new(dir.join(".git"));
 
         if argv.is_empty() {
-            eprintln!("Nothing specified, nothing added.");
+            writeln!(stderr, "Nothing specified, nothing added.")?;
             process::exit(0);
         }
 
@@ -30,14 +30,15 @@ impl Add {
             Ok(()) => (),
             Err(err) => match err {
                 Error::LockDenied(..) => {
-                    eprintln!("fatal: {}", err);
-                    eprintln!(
+                    writeln!(stderr, "fatal: {}", err)?;
+                    writeln!(
+                        stderr,
                         "
 Another jit process seems to be running in this repository.
 Please make sure all processes are terminated then try again.
 If it still fails, a jit process may have crashed in this
 repository earlier: remove the file manually to continue."
-                    );
+                    )?;
                     process::exit(128);
                 }
                 _ => return Err(err),
@@ -49,7 +50,7 @@ repository earlier: remove the file manually to continue."
                 Ok(path) => path,
                 Err(err) => {
                     if err.kind() == io::ErrorKind::NotFound {
-                        eprintln!("fatal: pathspec '{}' did not match any files", path);
+                        writeln!(stderr, "fatal: pathspec '{}' did not match any files", path)?;
                         repo.index.release_lock()?;
                         process::exit(128);
                     } else {
@@ -63,8 +64,8 @@ repository earlier: remove the file manually to continue."
                     Ok(data) => data,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
-                            eprintln!("error: {}", err);
-                            eprintln!("fatal: adding files failed");
+                            writeln!(stderr, "error: {}", err)?;
+                            writeln!(stderr, "fatal: adding files failed")?;
                             repo.index.release_lock()?;
                             process::exit(128);
                         }
@@ -75,8 +76,8 @@ repository earlier: remove the file manually to continue."
                     Ok(stat) => stat,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
-                            eprintln!("error: {}", err);
-                            eprintln!("fatal: adding files failed");
+                            writeln!(stderr, "error: {}", err)?;
+                            writeln!(stderr, "fatal: adding files failed")?;
                             repo.index.release_lock()?;
                             process::exit(128);
                         }

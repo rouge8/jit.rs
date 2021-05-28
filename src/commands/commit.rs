@@ -6,17 +6,23 @@ use crate::database::tree::Tree;
 use crate::errors::Result;
 use crate::repository::Repository;
 use chrono::Local;
-use std::env;
-use std::io;
-use std::io::Read;
+use std::collections::{HashMap, VecDeque};
+use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::process;
 
 pub struct Commit;
 
 impl Commit {
-    pub fn run() -> Result<()> {
-        let root_path = env::current_dir()?;
-        let mut repo = Repository::new(root_path.join(".git"));
+    pub fn run<I: Read, O: Write, E: Write>(
+        dir: PathBuf,
+        env: HashMap<String, String>,
+        _argv: VecDeque<String>,
+        mut stdin: I,
+        _stdout: O,
+        _stderr: E,
+    ) -> Result<()> {
+        let mut repo = Repository::new(dir.join(".git"));
 
         repo.index.load()?;
 
@@ -27,11 +33,10 @@ impl Commit {
         });
 
         let parent = repo.refs.read_head()?;
-        let name = env::var("GIT_AUTHOR_NAME")?;
-        let email = env::var("GIT_AUTHOR_EMAIL")?;
-        let author = Author::new(name, email, Local::now());
+        let name = &env["GIT_AUTHOR_NAME"];
+        let email = &env["GIT_AUTHOR_EMAIL"];
+        let author = Author::new(name.clone(), email.clone(), Local::now());
         let mut message = String::new();
-        let mut stdin = io::stdin();
         stdin.read_to_string(&mut message)?;
 
         message = message.trim().to_string();

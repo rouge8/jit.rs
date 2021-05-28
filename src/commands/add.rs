@@ -2,21 +2,26 @@ use crate::database::blob::Blob;
 use crate::database::object::Object;
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
-use std::env;
+use std::collections::{HashMap, VecDeque};
 use std::io;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process;
 
 pub struct Add;
 
 impl Add {
-    pub fn run() -> Result<()> {
-        let args: Vec<String> = env::args().collect();
+    pub fn run<I: Read, O: Write, E: Write>(
+        dir: PathBuf,
+        _env: HashMap<String, String>,
+        argv: VecDeque<String>,
+        _stdin: I,
+        _stdout: O,
+        _stderr: E,
+    ) -> Result<()> {
+        let mut repo = Repository::new(dir.join(".git"));
 
-        let root_path = env::current_dir()?;
-        let mut repo = Repository::new(root_path.join(".git"));
-
-        if args.len() < 2 {
+        if argv.is_empty() {
             eprintln!("Nothing specified, nothing added.");
             process::exit(0);
         }
@@ -39,7 +44,7 @@ repository earlier: remove the file manually to continue."
             },
         }
 
-        for path in args[2..].iter() {
+        for path in argv.range(0..) {
             let path = match PathBuf::from(path).canonicalize() {
                 Ok(path) => path,
                 Err(err) => {

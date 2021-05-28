@@ -1,5 +1,7 @@
 use anyhow::Result;
+use std::collections::{HashMap, VecDeque};
 use std::env;
+use std::io;
 use std::process;
 
 mod commands;
@@ -14,15 +16,16 @@ mod workspace;
 use errors::Error;
 
 fn main() -> Result<()> {
-    let args: Vec<String> = env::args().collect();
+    let argv: VecDeque<String> = env::args().collect();
 
-    let command = if let Some(command) = args.get(1) {
-        command.as_str()
-    } else {
-        ""
-    };
-
-    match commands::execute(&command) {
+    match commands::execute(
+        env::current_dir()?,
+        env::vars().collect::<HashMap<String, String>>(),
+        argv,
+        io::stdin(),
+        io::stdout(),
+        io::stderr(),
+    ) {
         Ok(()) => (),
         Err(err) => match err {
             Error::UnknownCommand(..) => {

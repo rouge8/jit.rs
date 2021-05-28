@@ -1,18 +1,24 @@
 use crate::errors::Result;
-use std::env;
+use std::collections::{HashMap, VecDeque};
 use std::fs;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 
 pub struct Init;
 
 impl Init {
-    pub fn run() -> Result<()> {
-        let args: Vec<String> = env::args().collect();
-
-        let cwd = env::current_dir()?;
-        let root_path = if let Some(path) = args.get(2) {
-            cwd.join(path)
+    pub fn run<I: Read, O: Write, E: Write>(
+        dir: PathBuf,
+        _env: HashMap<String, String>,
+        argv: VecDeque<String>,
+        _stdin: I,
+        _stdout: O,
+        _stderr: E,
+    ) -> Result<()> {
+        let root_path = if let Some(path) = argv.get(1) {
+            dir.join(path)
         } else {
-            cwd
+            dir
         };
 
         let git_path = root_path.join(".git");

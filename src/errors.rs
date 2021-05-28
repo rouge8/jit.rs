@@ -35,9 +35,3 @@ impl From<std::str::Utf8Error> for Error {
         Error::Other(format!("{}", err))
     }
 }
-
-impl From<std::env::VarError> for Error {
-    fn from(err: std::env::VarError) -> Error {
-        Error::Other(format!("{}", err))
-    }
-}

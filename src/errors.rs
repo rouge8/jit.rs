@@ -16,6 +16,8 @@ pub enum Error {
     LockDenied(PathBuf),
     #[error("{0} is not a jit command.")]
     UnknownCommand(String),
+    #[error("Exit {0}")]
+    Exit(i32),
     #[error(transparent)]
     Io(#[from] io::Error),
     #[error("{0}")]

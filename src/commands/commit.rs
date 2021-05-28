@@ -3,13 +3,13 @@ use crate::database::commit::Commit as DatabaseCommit;
 use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
+use crate::errors::Error;
 use crate::errors::Result;
 use crate::repository::Repository;
 use chrono::Local;
 use std::collections::{HashMap, VecDeque};
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::process;
 
 pub struct Commit;
 
@@ -42,7 +42,7 @@ impl Commit {
         message = message.trim().to_string();
         if message.is_empty() {
             writeln!(stderr, "Aborting commit due to empty commit message.")?;
-            process::exit(0);
+            return Err(Error::Exit(0));
         }
 
         let commit = DatabaseCommit::new(parent, root.oid(), author, message);

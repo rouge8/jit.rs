@@ -32,6 +32,9 @@ fn main() -> Result<()> {
                 eprintln!("jit: {}", err);
                 process::exit(1);
             }
+            Error::Exit(code) => {
+                process::exit(code);
+            }
             _ => {
                 eprintln!("fatal: {}", err);
                 process::exit(1);

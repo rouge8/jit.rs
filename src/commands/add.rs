@@ -6,7 +6,6 @@ use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
-use std::process;
 
 pub struct Add;
 
@@ -23,7 +22,7 @@ impl Add {
 
         if argv.is_empty() {
             writeln!(stderr, "Nothing specified, nothing added.")?;
-            process::exit(0);
+            return Err(Error::Exit(0));
         }
 
         match repo.index.load_for_update() {
@@ -39,7 +38,7 @@ Please make sure all processes are terminated then try again.
 If it still fails, a jit process may have crashed in this
 repository earlier: remove the file manually to continue."
                     )?;
-                    process::exit(128);
+                    return Err(Error::Exit(128));
                 }
                 _ => return Err(err),
             },
@@ -52,7 +51,7 @@ repository earlier: remove the file manually to continue."
                     if err.kind() == io::ErrorKind::NotFound {
                         writeln!(stderr, "fatal: pathspec '{}' did not match any files", path)?;
                         repo.index.release_lock()?;
-                        process::exit(128);
+                        return Err(Error::Exit(128));
                     } else {
                         return Err(Error::Io(err));
                     }
@@ -67,7 +66,7 @@ repository earlier: remove the file manually to continue."
                             writeln!(stderr, "error: {}", err)?;
                             writeln!(stderr, "fatal: adding files failed")?;
                             repo.index.release_lock()?;
-                            process::exit(128);
+                            return Err(Error::Exit(128));
                         }
                         _ => return Err(err),
                     },
@@ -79,7 +78,7 @@ repository earlier: remove the file manually to continue."
                             writeln!(stderr, "error: {}", err)?;
                             writeln!(stderr, "fatal: adding files failed")?;
                             repo.index.release_lock()?;
-                            process::exit(128);
+                            return Err(Error::Exit(128));
                         }
                         _ => return Err(err),
                     },

@@ -43,7 +43,7 @@ pub mod tests {
     use std::io::{Cursor, Write};
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
-    use tempfile::tempdir;
+    use tempfile::TempDir;
 
     pub fn random_oid() -> String {
         let rand_string: String = thread_rng()
@@ -66,7 +66,7 @@ pub mod tests {
 
     impl CommandHelper {
         pub fn new() -> Self {
-            let tmp_dir = tempdir().unwrap();
+            let tmp_dir = TempDir::new().unwrap();
             let repo_path = tmp_dir.path().canonicalize().unwrap();
 
             CommandHelper {

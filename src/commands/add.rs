@@ -139,4 +139,91 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn add_multiple_files_to_the_index() -> Result<()> {
+        let mut helper = CommandHelper::new();
+        helper.init()?;
+
+        helper.write_file("hello.txt", "hello")?;
+        helper.write_file("world.txt", "world")?;
+
+        env::set_current_dir(&helper.repo_path).unwrap();
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("add"),
+            String::from("hello.txt"),
+            String::from("world.txt"),
+        ]))?;
+
+        helper
+            .assert_index(vec![(0o100644, "hello.txt"), (0o100644, "world.txt")])
+            .unwrap();
+
+        Ok(())
+    }
+
+    #[test]
+    fn incrementally_add_files_to_the_index() -> Result<()> {
+        let mut helper = CommandHelper::new();
+        helper.init()?;
+
+        helper.write_file("hello.txt", "hello")?;
+        helper.write_file("world.txt", "world")?;
+
+        env::set_current_dir(&helper.repo_path).unwrap();
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("add"),
+            String::from("hello.txt"),
+        ]))?;
+
+        helper.assert_index(vec![(0o100644, "hello.txt")]).unwrap();
+
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("add"),
+            String::from("world.txt"),
+        ]))?;
+
+        helper
+            .assert_index(vec![(0o100644, "hello.txt"), (0o100644, "world.txt")])
+            .unwrap();
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_a_directory_to_the_index() -> Result<()> {
+        let mut helper = CommandHelper::new();
+        helper.init()?;
+
+        helper.write_file("a-dir/nested.txt", "content")?;
+
+        env::set_current_dir(&helper.repo_path).unwrap();
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("add"),
+            String::from("a-dir"),
+        ]))?;
+
+        helper
+            .assert_index(vec![(0o100644, "a-dir/nested.txt")])
+            .unwrap();
+
+        Ok(())
+    }
+
+    #[test]
+    fn add_the_repository_root_to_the_index() -> Result<()> {
+        let mut helper = CommandHelper::new();
+        helper.init()?;
+
+        helper.write_file("a/b/c/file.txt", "content")?;
+
+        env::set_current_dir(&helper.repo_path).unwrap();
+        helper.jit_cmd(VecDeque::from(vec![String::from("add"), String::from(".")]))?;
+
+        helper
+            .assert_index(vec![(0o100644, "a/b/c/file.txt")])
+            .unwrap();
+
+        Ok(())
+    }
 }

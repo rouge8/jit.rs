@@ -16,7 +16,10 @@ mod workspace;
 use errors::Error;
 
 fn main() -> Result<()> {
-    let argv: VecDeque<String> = env::args().collect();
+    let mut argv: VecDeque<String> = env::args().collect();
+
+    // Remove the executable name from argv
+    argv.pop_front();
 
     match commands::execute(
         env::current_dir()?,

@@ -19,9 +19,6 @@ pub fn execute<I: Read, O: Write, E: Write>(
     stdout: O,
     stderr: E,
 ) -> Result<()> {
-    // Remove the executable name from argv
-    argv.pop_front();
-
     let name = if let Some(name) = argv.pop_front() {
         name
     } else {

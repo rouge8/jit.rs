@@ -95,3 +95,34 @@ repository earlier: remove the file manually to continue."
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::errors::Result;
+    use crate::util::path_to_string;
+    use crate::util::tests::CommandHelper;
+    use std::collections::VecDeque;
+    use std::env;
+
+    #[test]
+    fn add_a_regular_file_to_the_index() -> Result<()> {
+        let mut helper = CommandHelper::new();
+
+        helper.write_file("hello.txt", "hello")?;
+
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("init"),
+            path_to_string(&helper.repo_path),
+        ]))?;
+
+        env::set_current_dir(&helper.repo_path).unwrap();
+        helper.jit_cmd(VecDeque::from(vec![
+            String::from("add"),
+            String::from("hello.txt"),
+        ]))?;
+
+        helper.assert_index(vec![(0o100644, "hello.txt")]).unwrap();
+
+        Ok(())
+    }
+}

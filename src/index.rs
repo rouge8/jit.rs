@@ -384,7 +384,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::random_oid;
+    use crate::util::tests::random_oid;
     use tempfile::TempDir;
 
     // Release the lock when dropping an `Index`, but only in tests

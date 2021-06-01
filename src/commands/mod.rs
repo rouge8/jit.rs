@@ -1,6 +1,6 @@
 use crate::errors::{Error, Result};
 use std::collections::{HashMap, VecDeque};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 
 mod add;
@@ -11,13 +11,11 @@ use add::Add;
 use commit::Commit;
 use init::Init;
 
-pub fn execute<I: Read, O: Write, E: Write>(
+pub fn execute<I: Read>(
     dir: PathBuf,
     env: HashMap<String, String>,
     mut argv: VecDeque<String>,
     stdin: I,
-    stdout: O,
-    stderr: E,
 ) -> Result<()> {
     let name = if let Some(name) = argv.pop_front() {
         name
@@ -32,5 +30,5 @@ pub fn execute<I: Read, O: Write, E: Write>(
         _ => return Err(Error::UnknownCommand(name.to_string())),
     };
 
-    command(dir, env, argv, stdin, stdout, stderr)
+    command(dir, env, argv, stdin)
 }

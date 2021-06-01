@@ -4,24 +4,22 @@ use crate::errors::{Error, Result};
 use crate::repository::Repository;
 use std::collections::{HashMap, VecDeque};
 use std::io;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 
 pub struct Add;
 
 impl Add {
-    pub fn run<I: Read, O: Write, E: Write>(
+    pub fn run<I: Read>(
         dir: PathBuf,
         _env: HashMap<String, String>,
         argv: VecDeque<String>,
         _stdin: I,
-        _stdout: O,
-        mut stderr: E,
     ) -> Result<()> {
         let mut repo = Repository::new(dir.join(".git"));
 
         if argv.is_empty() {
-            writeln!(stderr, "Nothing specified, nothing added.")?;
+            eprintln!("Nothing specified, nothing added.");
             return Err(Error::Exit(0));
         }
 
@@ -29,15 +27,14 @@ impl Add {
             Ok(()) => (),
             Err(err) => match err {
                 Error::LockDenied(..) => {
-                    writeln!(stderr, "fatal: {}", err)?;
-                    writeln!(
-                        stderr,
+                    eprintln!("fatal: {}", err);
+                    eprintln!(
                         "
 Another jit process seems to be running in this repository.
 Please make sure all processes are terminated then try again.
 If it still fails, a jit process may have crashed in this
 repository earlier: remove the file manually to continue."
-                    )?;
+                    );
                     return Err(Error::Exit(128));
                 }
                 _ => return Err(err),
@@ -49,7 +46,7 @@ repository earlier: remove the file manually to continue."
                 Ok(path) => path,
                 Err(err) => {
                     if err.kind() == io::ErrorKind::NotFound {
-                        writeln!(stderr, "fatal: pathspec '{}' did not match any files", path)?;
+                        eprintln!("fatal: pathspec '{}' did not match any files", path);
                         repo.index.release_lock()?;
                         return Err(Error::Exit(128));
                     } else {
@@ -63,8 +60,8 @@ repository earlier: remove the file manually to continue."
                     Ok(data) => data,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
-                            writeln!(stderr, "error: {}", err)?;
-                            writeln!(stderr, "fatal: adding files failed")?;
+                            eprintln!("error: {}", err);
+                            eprintln!("fatal: adding files failed");
                             repo.index.release_lock()?;
                             return Err(Error::Exit(128));
                         }
@@ -75,8 +72,8 @@ repository earlier: remove the file manually to continue."
                     Ok(stat) => stat,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
-                            writeln!(stderr, "error: {}", err)?;
-                            writeln!(stderr, "fatal: adding files failed")?;
+                            eprintln!("error: {}", err);
+                            eprintln!("fatal: adding files failed");
                             repo.index.release_lock()?;
                             return Err(Error::Exit(128));
                         }

@@ -26,8 +26,6 @@ fn main() -> Result<()> {
         env::vars().collect::<HashMap<String, String>>(),
         argv,
         io::stdin(),
-        io::stdout(),
-        io::stderr(),
     ) {
         Ok(()) => (),
         Err(err) => match err {

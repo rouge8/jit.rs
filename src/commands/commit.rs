@@ -8,19 +8,17 @@ use crate::errors::Result;
 use crate::repository::Repository;
 use chrono::Local;
 use std::collections::{HashMap, VecDeque};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::PathBuf;
 
 pub struct Commit;
 
 impl Commit {
-    pub fn run<I: Read, O: Write, E: Write>(
+    pub fn run<I: Read>(
         dir: PathBuf,
         env: HashMap<String, String>,
         _argv: VecDeque<String>,
         mut stdin: I,
-        mut stdout: O,
-        mut stderr: E,
     ) -> Result<()> {
         let mut repo = Repository::new(dir.join(".git"));
 
@@ -41,7 +39,7 @@ impl Commit {
 
         message = message.trim().to_string();
         if message.is_empty() {
-            writeln!(stderr, "Aborting commit due to empty commit message.")?;
+            eprintln!("Aborting commit due to empty commit message.");
             return Err(Error::Exit(0));
         }
 
@@ -54,13 +52,12 @@ impl Commit {
             Some(_) => (),
             None => is_root.push_str("(root-commit) "),
         }
-        writeln!(
-            stdout,
+        println!(
             "[{}{}] {}",
             is_root,
             commit.oid(),
             commit.message.lines().next().unwrap(),
-        )?;
+        );
 
         Ok(())
     }

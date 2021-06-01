@@ -33,6 +33,7 @@ pub mod tests {
     use crate::commands::execute;
     use crate::errors::Result;
     use crate::repository::Repository;
+    use crate::util::path_to_string;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sha1::{Digest, Sha1};
@@ -40,8 +41,9 @@ pub mod tests {
     use std::fs;
     use std::fs::OpenOptions;
     use std::io::{Cursor, Write};
+    use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
-    use tempfile::TempDir;
+    use tempfile::tempdir;
 
     pub fn random_oid() -> String {
         let rand_string: String = thread_rng()
@@ -64,7 +66,7 @@ pub mod tests {
 
     impl CommandHelper {
         pub fn new() -> Self {
-            let tmp_dir = TempDir::new().unwrap();
+            let tmp_dir = tempdir().unwrap();
             let repo_path = tmp_dir.path().canonicalize().unwrap();
 
             CommandHelper {
@@ -91,6 +93,16 @@ pub mod tests {
             Ok(())
         }
 
+        pub fn make_executable(&self, name: &str) -> Result<()> {
+            let path = self.repo_path.join(name);
+            let mut perms = fs::metadata(&path)?.permissions();
+
+            perms.set_mode(0o755);
+            fs::set_permissions(path, perms)?;
+
+            Ok(())
+        }
+
         pub fn jit_cmd(&mut self, argv: VecDeque<String>) -> Result<()> {
             execute(
                 self.repo_path.clone(),
@@ -100,6 +112,13 @@ pub mod tests {
                 &mut self.stdout,
                 &mut self.stderr,
             )
+        }
+
+        pub fn init(&mut self) -> Result<()> {
+            self.jit_cmd(VecDeque::from(vec![
+                String::from("init"),
+                path_to_string(&self.repo_path),
+            ]))
         }
 
         pub fn assert_index(&self, expected: Vec<(u32, &str)>) -> Result<()> {

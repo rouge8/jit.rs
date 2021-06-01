@@ -33,7 +33,8 @@ pub mod tests {
     use crate::errors::Result;
     use crate::repository::Repository;
     use crate::util::path_to_string;
-    use assert_cmd::Command;
+    use assert_cmd::assert::Assert;
+    use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sha1::{Digest, Sha1};
@@ -43,6 +44,7 @@ pub mod tests {
     use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
+    use std::process::{Command, Output};
     use tempfile::TempDir;
 
     pub fn random_oid() -> String {
@@ -97,19 +99,30 @@ pub mod tests {
             Ok(())
         }
 
-        pub fn jit_cmd(&mut self, argv: &[&str]) -> Result<()> {
+        pub fn make_unreadable(&self, name: &str) -> Result<()> {
+            let path = self.repo_path.join(name);
+            let mut perms = fs::metadata(&path)?.permissions();
+
+            perms.set_mode(0o200);
+            fs::set_permissions(path, perms)?;
+
+            Ok(())
+        }
+
+        pub fn jit_cmd(&mut self, argv: &[&str]) -> Output {
             Command::cargo_bin(env!("CARGO_PKG_NAME"))
                 .unwrap()
                 .args(argv)
                 .current_dir(&self.repo_path)
                 .envs(&self.env)
-                .unwrap();
-
-            Ok(())
+                .output()
+                .unwrap()
         }
 
-        pub fn init(&mut self) -> Result<()> {
+        pub fn init(&mut self) {
             self.jit_cmd(&["init", path_to_string(&self.repo_path).as_str()])
+                .assert()
+                .code(0);
         }
 
         pub fn assert_index(&self, expected: Vec<(u32, &str)>) -> Result<()> {

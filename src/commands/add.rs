@@ -100,8 +100,6 @@ repository earlier: remove the file manually to continue."
 mod tests {
     use crate::errors::Result;
     use crate::util::tests::CommandHelper;
-    use std::collections::VecDeque;
-    use std::env;
 
     #[test]
     fn add_a_regular_file_to_the_index() -> Result<()> {
@@ -110,11 +108,7 @@ mod tests {
 
         helper.write_file("hello.txt", "hello")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("hello.txt"),
-        ]))?;
+        helper.jit_cmd(&["add", "hello.txt"])?;
 
         helper.assert_index(vec![(0o100644, "hello.txt")]).unwrap();
 
@@ -129,11 +123,7 @@ mod tests {
         helper.write_file("hello.txt", "hello")?;
         helper.make_executable("hello.txt")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("hello.txt"),
-        ]))?;
+        helper.jit_cmd(&["add", "hello.txt"])?;
 
         helper.assert_index(vec![(0o100755, "hello.txt")]).unwrap();
 
@@ -148,12 +138,7 @@ mod tests {
         helper.write_file("hello.txt", "hello")?;
         helper.write_file("world.txt", "world")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("hello.txt"),
-            String::from("world.txt"),
-        ]))?;
+        helper.jit_cmd(&["add", "hello.txt", "world.txt"])?;
 
         helper
             .assert_index(vec![(0o100644, "hello.txt"), (0o100644, "world.txt")])
@@ -170,18 +155,11 @@ mod tests {
         helper.write_file("hello.txt", "hello")?;
         helper.write_file("world.txt", "world")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("hello.txt"),
-        ]))?;
+        helper.jit_cmd(&["add", "hello.txt"])?;
 
         helper.assert_index(vec![(0o100644, "hello.txt")]).unwrap();
 
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("world.txt"),
-        ]))?;
+        helper.jit_cmd(&["add", "world.txt"])?;
 
         helper
             .assert_index(vec![(0o100644, "hello.txt"), (0o100644, "world.txt")])
@@ -197,11 +175,7 @@ mod tests {
 
         helper.write_file("a-dir/nested.txt", "content")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![
-            String::from("add"),
-            String::from("a-dir"),
-        ]))?;
+        helper.jit_cmd(&["add", "a-dir"])?;
 
         helper
             .assert_index(vec![(0o100644, "a-dir/nested.txt")])
@@ -217,8 +191,7 @@ mod tests {
 
         helper.write_file("a/b/c/file.txt", "content")?;
 
-        env::set_current_dir(&helper.repo_path).unwrap();
-        helper.jit_cmd(VecDeque::from(vec![String::from("add"), String::from(".")]))?;
+        helper.jit_cmd(&["add", "."])?;
 
         helper
             .assert_index(vec![(0o100644, "a/b/c/file.txt")])

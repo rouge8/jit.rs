@@ -30,17 +30,17 @@ pub fn path_to_string(path: &Path) -> String {
 
 #[cfg(test)]
 pub mod tests {
-    use crate::commands::execute;
     use crate::errors::Result;
     use crate::repository::Repository;
     use crate::util::path_to_string;
+    use assert_cmd::Command;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sha1::{Digest, Sha1};
-    use std::collections::{HashMap, VecDeque};
+    use std::collections::HashMap;
     use std::fs;
     use std::fs::OpenOptions;
-    use std::io::{Cursor, Write};
+    use std::io::Write;
     use std::os::unix::fs::PermissionsExt;
     use std::path::PathBuf;
     use tempfile::TempDir;
@@ -58,22 +58,16 @@ pub mod tests {
 
     pub struct CommandHelper {
         pub repo_path: PathBuf,
-        stdin: Cursor<Vec<u8>>,
-        stdout: Cursor<Vec<u8>>,
-        stderr: Cursor<Vec<u8>>,
         env: HashMap<String, String>,
     }
 
     impl CommandHelper {
         pub fn new() -> Self {
             let tmp_dir = TempDir::new().unwrap();
-            let repo_path = tmp_dir.path().canonicalize().unwrap();
+            let repo_path = tmp_dir.into_path().canonicalize().unwrap();
 
             CommandHelper {
                 repo_path,
-                stdin: Cursor::new(vec![]),
-                stdout: Cursor::new(vec![]),
-                stderr: Cursor::new(vec![]),
                 env: HashMap::new(),
             }
         }
@@ -103,22 +97,19 @@ pub mod tests {
             Ok(())
         }
 
-        pub fn jit_cmd(&mut self, argv: VecDeque<String>) -> Result<()> {
-            execute(
-                self.repo_path.clone(),
-                self.env.clone(),
-                argv,
-                &mut self.stdin,
-                &mut self.stdout,
-                &mut self.stderr,
-            )
+        pub fn jit_cmd(&mut self, argv: &[&str]) -> Result<()> {
+            Command::cargo_bin(env!("CARGO_PKG_NAME"))
+                .unwrap()
+                .args(argv)
+                .current_dir(&self.repo_path)
+                .envs(&self.env)
+                .unwrap();
+
+            Ok(())
         }
 
         pub fn init(&mut self) -> Result<()> {
-            self.jit_cmd(VecDeque::from(vec![
-                String::from("init"),
-                path_to_string(&self.repo_path),
-            ]))
+            self.jit_cmd(&["init", path_to_string(&self.repo_path).as_str()])
         }
 
         pub fn assert_index(&self, expected: Vec<(u32, &str)>) -> Result<()> {
@@ -139,6 +130,12 @@ pub mod tests {
 
         fn repo(&self) -> Repository {
             Repository::new(self.repo_path.join(".git"))
+        }
+    }
+
+    impl Drop for CommandHelper {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.repo_path).unwrap();
         }
     }
 }

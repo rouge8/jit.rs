@@ -1,8 +1,7 @@
+use crate::commands::CommandContext;
 use crate::database::blob::Blob;
 use crate::database::object::Object;
 use crate::errors::{Error, Result};
-use crate::repository::Repository;
-use std::collections::{HashMap, VecDeque};
 use std::io;
 use std::io::Read;
 use std::path::PathBuf;
@@ -10,20 +9,13 @@ use std::path::PathBuf;
 pub struct Add;
 
 impl Add {
-    pub fn run<I: Read>(
-        dir: PathBuf,
-        _env: HashMap<String, String>,
-        argv: VecDeque<String>,
-        _stdin: I,
-    ) -> Result<()> {
-        let mut repo = Repository::new(dir.join(".git"));
-
-        if argv.is_empty() {
+    pub fn run<I: Read>(mut ctx: CommandContext<I>) -> Result<()> {
+        if ctx.argv.is_empty() {
             eprintln!("Nothing specified, nothing added.");
             return Err(Error::Exit(0));
         }
 
-        match repo.index.load_for_update() {
+        match ctx.repo.index.load_for_update() {
             Ok(()) => (),
             Err(err) => match err {
                 Error::LockDenied(..) => {
@@ -41,13 +33,13 @@ repository earlier: remove the file manually to continue."
             },
         }
 
-        for path in argv.range(0..) {
+        for path in ctx.argv.range(0..) {
             let path = match PathBuf::from(path).canonicalize() {
                 Ok(path) => path,
                 Err(err) => {
                     if err.kind() == io::ErrorKind::NotFound {
                         eprintln!("fatal: pathspec '{}' did not match any files", path);
-                        repo.index.release_lock()?;
+                        ctx.repo.index.release_lock()?;
                         return Err(Error::Exit(128));
                     } else {
                         return Err(Error::Io(err));
@@ -55,26 +47,26 @@ repository earlier: remove the file manually to continue."
                 }
             };
 
-            for path in repo.workspace.list_files(&path)? {
-                let data = match repo.workspace.read_file(&path) {
+            for path in ctx.repo.workspace.list_files(&path)? {
+                let data = match ctx.repo.workspace.read_file(&path) {
                     Ok(data) => data,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
                             eprintln!("error: {}", err);
                             eprintln!("fatal: adding files failed");
-                            repo.index.release_lock()?;
+                            ctx.repo.index.release_lock()?;
                             return Err(Error::Exit(128));
                         }
                         _ => return Err(err),
                     },
                 };
-                let stat = match repo.workspace.stat_file(&path) {
+                let stat = match ctx.repo.workspace.stat_file(&path) {
                     Ok(stat) => stat,
                     Err(err) => match err {
                         Error::NoPermission { .. } => {
                             eprintln!("error: {}", err);
                             eprintln!("fatal: adding files failed");
-                            repo.index.release_lock()?;
+                            ctx.repo.index.release_lock()?;
                             return Err(Error::Exit(128));
                         }
                         _ => return Err(err),
@@ -82,12 +74,12 @@ repository earlier: remove the file manually to continue."
                 };
 
                 let blob = Blob::new(data);
-                repo.database.store(&blob)?;
-                repo.index.add(path, blob.oid(), stat);
+                ctx.repo.database.store(&blob)?;
+                ctx.repo.index.add(path, blob.oid(), stat);
             }
         }
 
-        repo.index.write_updates()?;
+        ctx.repo.index.write_updates()?;
 
         Ok(())
     }

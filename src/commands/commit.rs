@@ -1,3 +1,4 @@
+use crate::commands::CommandContext;
 use crate::database::author::Author;
 use crate::database::commit::Commit as DatabaseCommit;
 use crate::database::entry::Entry;
@@ -5,37 +6,27 @@ use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::errors::Error;
 use crate::errors::Result;
-use crate::repository::Repository;
 use chrono::Local;
-use std::collections::{HashMap, VecDeque};
 use std::io::Read;
-use std::path::PathBuf;
 
 pub struct Commit;
 
 impl Commit {
-    pub fn run<I: Read>(
-        dir: PathBuf,
-        env: HashMap<String, String>,
-        _argv: VecDeque<String>,
-        mut stdin: I,
-    ) -> Result<()> {
-        let mut repo = Repository::new(dir.join(".git"));
+    pub fn run<I: Read>(mut ctx: CommandContext<I>) -> Result<()> {
+        ctx.repo.index.load()?;
 
-        repo.index.load()?;
-
-        let entries = repo.index.entries.values().map(Entry::from).collect();
+        let entries = ctx.repo.index.entries.values().map(Entry::from).collect();
         let root = Tree::build(entries);
         root.traverse(&|tree| {
-            repo.database.store(tree).unwrap();
+            ctx.repo.database.store(tree).unwrap();
         });
 
-        let parent = repo.refs.read_head()?;
-        let name = &env["GIT_AUTHOR_NAME"];
-        let email = &env["GIT_AUTHOR_EMAIL"];
+        let parent = ctx.repo.refs.read_head()?;
+        let name = &ctx.env["GIT_AUTHOR_NAME"];
+        let email = &ctx.env["GIT_AUTHOR_EMAIL"];
         let author = Author::new(name.clone(), email.clone(), Local::now());
         let mut message = String::new();
-        stdin.read_to_string(&mut message)?;
+        ctx.stdin.read_to_string(&mut message)?;
 
         message = message.trim().to_string();
         if message.is_empty() {
@@ -44,8 +35,8 @@ impl Commit {
         }
 
         let commit = DatabaseCommit::new(parent, root.oid(), author, message);
-        repo.database.store(&commit)?;
-        repo.refs.update_head(commit.oid())?;
+        ctx.repo.database.store(&commit)?;
+        ctx.repo.refs.update_head(commit.oid())?;
 
         let mut is_root = String::new();
         match commit.parent {

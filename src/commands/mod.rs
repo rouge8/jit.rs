@@ -1,4 +1,5 @@
 use crate::errors::{Error, Result};
+use crate::repository::Repository;
 use std::collections::{HashMap, VecDeque};
 use std::io::Read;
 use std::path::PathBuf;
@@ -23,6 +24,7 @@ pub fn execute<I: Read>(
         String::from("")
     };
 
+    let ctx = CommandContext::new(dir, env, argv, stdin);
     let command = match name.as_str() {
         "init" => Init::run,
         "add" => Add::run,
@@ -30,5 +32,38 @@ pub fn execute<I: Read>(
         _ => return Err(Error::UnknownCommand(name.to_string())),
     };
 
-    command(dir, env, argv, stdin)
+    command(ctx)
+}
+
+pub struct CommandContext<I>
+where
+    I: Read,
+{
+    dir: PathBuf,
+    env: HashMap<String, String>,
+    argv: VecDeque<String>,
+    stdin: I,
+    repo: Repository,
+}
+
+impl<I> CommandContext<I>
+where
+    I: Read,
+{
+    pub fn new(
+        dir: PathBuf,
+        env: HashMap<String, String>,
+        argv: VecDeque<String>,
+        stdin: I,
+    ) -> Self {
+        let repo = Repository::new(dir.join(".git"));
+
+        Self {
+            dir,
+            env,
+            argv,
+            stdin,
+            repo,
+        }
+    }
 }

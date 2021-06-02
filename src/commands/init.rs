@@ -1,22 +1,16 @@
+use crate::commands::CommandContext;
 use crate::errors::Result;
-use std::collections::{HashMap, VecDeque};
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
 
 pub struct Init;
 
 impl Init {
-    pub fn run<I: Read>(
-        dir: PathBuf,
-        _env: HashMap<String, String>,
-        argv: VecDeque<String>,
-        _stdin: I,
-    ) -> Result<()> {
-        let root_path = if let Some(path) = argv.get(1) {
-            dir.join(path)
+    pub fn run<I: Read>(ctx: CommandContext<I>) -> Result<()> {
+        let root_path = if let Some(path) = ctx.argv.get(1) {
+            ctx.dir.join(path)
         } else {
-            dir
+            ctx.dir
         };
 
         let git_path = root_path.join(".git");

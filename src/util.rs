@@ -33,7 +33,6 @@ pub mod tests {
     use crate::errors::Result;
     use crate::repository::Repository;
     use crate::util::path_to_string;
-    use assert_cmd::assert::Assert;
     use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};

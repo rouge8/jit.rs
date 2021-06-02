@@ -1,19 +1,10 @@
 use anyhow::Result;
+use jit::commands;
+use jit::errors::Error;
 use std::collections::{HashMap, VecDeque};
 use std::env;
 use std::io;
 use std::process;
-
-mod commands;
-mod database;
-mod errors;
-mod index;
-mod lockfile;
-mod refs;
-mod repository;
-mod util;
-mod workspace;
-use errors::Error;
 
 fn main() -> Result<()> {
     let mut argv: VecDeque<String> = env::args().collect();

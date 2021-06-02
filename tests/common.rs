@@ -1,4 +1,5 @@
-use assert_cmd::prelude::{CommandCargoExt, OutputAssertExt};
+use assert_cmd::prelude::OutputAssertExt;
+use assert_cmd::Command;
 use jit::errors::Result;
 use jit::repository::Repository;
 use jit::util::path_to_string;
@@ -8,12 +9,13 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::process::{Command, Output};
+use std::process::Output;
 use tempfile::TempDir;
 
 pub struct CommandHelper {
     pub repo_path: PathBuf,
-    env: HashMap<String, String>,
+    env: HashMap<&'static str, &'static str>,
+    stdin: &'static str,
 }
 
 impl CommandHelper {
@@ -24,6 +26,7 @@ impl CommandHelper {
         CommandHelper {
             repo_path,
             env: HashMap::new(),
+            stdin: "",
         }
     }
 
@@ -68,6 +71,7 @@ impl CommandHelper {
             .args(argv)
             .current_dir(&self.repo_path)
             .envs(&self.env)
+            .write_stdin(self.stdin.as_bytes())
             .output()
             .unwrap()
     }
@@ -76,6 +80,14 @@ impl CommandHelper {
         self.jit_cmd(&["init", path_to_string(&self.repo_path).as_str()])
             .assert()
             .code(0);
+    }
+
+    pub fn commit(&mut self, message: &'static str) {
+        self.env.insert("GIT_AUTHOR_NAME", "A. U. Thor");
+        self.env.insert("GIT_AUTHOR_EMAIL", "author@example.com");
+        self.stdin = message;
+
+        self.jit_cmd(&["commit"]);
     }
 
     pub fn assert_index(&self, expected: Vec<(u32, &str)>) -> Result<()> {

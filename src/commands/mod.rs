@@ -7,10 +7,12 @@ use std::path::PathBuf;
 mod add;
 mod commit;
 mod init;
+mod status;
 
 use add::Add;
 use commit::Commit;
 use init::Init;
+use status::Status;
 
 pub fn execute<I: Read>(
     dir: PathBuf,
@@ -29,6 +31,7 @@ pub fn execute<I: Read>(
         "init" => Init::run,
         "add" => Add::run,
         "commit" => Commit::run,
+        "status" => Status::run,
         _ => return Err(Error::UnknownCommand(name.to_string())),
     };
 

@@ -14,7 +14,7 @@ use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
 use std::os::unix::fs::MetadataExt;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str;
 
 const MAX_PATH_SIZE: u16 = 0xfff;
@@ -101,6 +101,10 @@ impl Index {
         self.lockfile.rollback()?;
 
         Ok(())
+    }
+
+    pub fn tracked(&self, path: &Path) -> bool {
+        self.entries.contains_key(&path_to_string(&path))
     }
 
     fn clear(&mut self) {

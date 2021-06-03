@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 pub struct Status {
     root_dir: PathBuf,
     repo: Repository,
+    untracked: BTreeSet<String>,
 }
 
 impl Status {
@@ -16,39 +17,38 @@ impl Status {
         Self {
             root_dir: ctx.dir,
             repo: ctx.repo,
+            untracked: BTreeSet::new(),
         }
     }
 
     pub fn run(&mut self) -> Result<()> {
         self.repo.index.load()?;
 
-        let untracked = self.scan_workplace(&self.root_dir.clone())?;
+        self.scan_workplace(&self.root_dir.clone())?;
 
-        for path in untracked {
+        for path in &self.untracked {
             println!("?? {}", path);
         }
 
         Ok(())
     }
 
-    fn scan_workplace(&mut self, prefix: &Path) -> Result<BTreeSet<String>> {
-        let mut untracked: BTreeSet<String> = BTreeSet::new();
-
+    fn scan_workplace(&mut self, prefix: &Path) -> Result<()> {
         for (path, stat) in &self.repo.workspace.list_dir(prefix)? {
             if self.repo.index.tracked(path) {
                 if stat.is_dir() {
-                    untracked.append(&mut self.scan_workplace(&path)?);
+                    self.scan_workplace(&path)?;
                 }
             } else if self.trackable_file(&path, &stat)? {
                 let mut path = path_to_string(path);
                 if stat.is_dir() {
                     path.push(MAIN_SEPARATOR);
                 }
-                untracked.insert(path);
+                self.untracked.insert(path);
             }
         }
 
-        Ok(untracked)
+        Ok(())
     }
 
     fn trackable_file(&mut self, path: &Path, stat: &Metadata) -> Result<bool> {

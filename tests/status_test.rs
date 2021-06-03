@@ -1,5 +1,6 @@
 mod common;
-use common::CommandHelper;
+
+pub use common::CommandHelper;
 use jit::errors::Result;
 
 #[test]

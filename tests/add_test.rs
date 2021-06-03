@@ -1,7 +1,7 @@
 mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
-use common::CommandHelper;
+pub use common::CommandHelper;
 use jit::errors::Result;
 
 #[test]

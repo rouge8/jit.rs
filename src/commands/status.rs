@@ -1,4 +1,5 @@
 use crate::commands::CommandContext;
+use crate::database::blob::Blob;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::Repository;
@@ -30,7 +31,7 @@ impl Status {
         self.repo.index.load()?;
 
         self.scan_workspace(&self.root_dir.clone())?;
-        self.detect_workspace_changes();
+        self.detect_workspace_changes()?;
 
         for path in &self.changed {
             println!(" M {}", path);
@@ -62,12 +63,14 @@ impl Status {
         Ok(())
     }
 
-    fn detect_workspace_changes(&mut self) {
+    fn detect_workspace_changes(&mut self) -> Result<()> {
         for entry in self.repo.index.entries.values() {
-            if self.index_entry_changed(&entry) {
+            if self.index_entry_changed(&entry)? {
                 self.changed.insert(entry.path.clone());
             }
         }
+
+        Ok(())
     }
 
     fn trackable_file(&mut self, path: &Path, stat: &fs::Metadata) -> Result<bool> {
@@ -90,8 +93,16 @@ impl Status {
         Ok(false)
     }
 
-    fn index_entry_changed(&self, entry: &Entry) -> bool {
+    fn index_entry_changed(&self, entry: &Entry) -> Result<bool> {
         let stat = &self.stats[&entry.path];
-        !entry.stat_match(&stat)
+        if !entry.stat_match(&stat) {
+            return Ok(true);
+        }
+
+        let data = self.repo.workspace.read_file(&PathBuf::from(&entry.path))?;
+        let blob = Blob::new(data);
+        let oid = self.repo.database.hash_object(&blob);
+
+        Ok(entry.oid != oid)
     }
 }

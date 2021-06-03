@@ -152,3 +152,16 @@ fn report_files_with_changed_modes() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn report_modified_files_with_unchanged_size() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.write_file("a/b/3.txt", "hello")?;
+
+    helper.assert_status(" M a/b/3.txt\n");
+
+    Ok(())
+}

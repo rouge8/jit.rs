@@ -33,6 +33,13 @@ impl Database {
         Ok(())
     }
 
+    pub fn hash_object<T>(&self, object: &T) -> String
+    where
+        T: Object,
+    {
+        object.oid()
+    }
+
     fn write_object(&self, oid: String, content: Vec<u8>) -> io::Result<()> {
         let object_path = &self.pathname.join(&oid[0..2]).join(&oid[2..]);
 

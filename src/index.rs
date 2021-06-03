@@ -399,20 +399,6 @@ mod tests {
     }
 
     #[test]
-    fn load_for_update_adds_files_to_index_entries() -> Result<()> {
-        let root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let git_path = root_path.join(".git");
-
-        let mut index = Index::new(git_path.join("index"));
-        index.load_for_update()?;
-
-        assert!(index.entries.get("src/main.rs").is_some());
-        assert!(index.entries.get("src/lockfile.rs").is_some());
-
-        Ok(())
-    }
-
-    #[test]
     fn add_a_single_file() -> Result<()> {
         let tmp_dir = TempDir::new()?;
         let mut index = Index::new(tmp_dir.path().join("index"));

@@ -3,6 +3,7 @@ use crate::errors::Result;
 use crate::repository::Repository;
 use crate::util::path_to_string;
 use std::collections::BTreeSet;
+use std::fs::Metadata;
 use std::io::Read;
 use std::path::{Path, MAIN_SEPARATOR};
 
@@ -29,7 +30,7 @@ impl Status {
                 if stat.is_dir() {
                     untracked.append(&mut Self::scan_workplace(repo, &path)?);
                 }
-            } else {
+            } else if Self::trackable_file(repo, &path, &stat)? {
                 let mut path = path_to_string(path);
                 if stat.is_dir() {
                     path.push(MAIN_SEPARATOR);
@@ -39,5 +40,25 @@ impl Status {
         }
 
         Ok(untracked)
+    }
+
+    fn trackable_file(repo: &Repository, path: &Path, stat: &Metadata) -> Result<bool> {
+        if stat.is_file() {
+            return Ok(!repo.index.tracked(path));
+        } else if !stat.is_dir() {
+            return Ok(false);
+        }
+
+        let items = repo.workspace.list_dir(path)?;
+        let files = items.iter().filter(|(_, item_stat)| item_stat.is_file());
+        let dirs = items.iter().filter(|(_, item_stat)| item_stat.is_dir());
+
+        for (item_path, item_stat) in files.chain(dirs) {
+            if Self::trackable_file(repo, item_path, item_stat)? {
+                return Ok(true);
+            }
+        }
+
+        Ok(false)
     }
 }

@@ -45,6 +45,12 @@ impl CommandHelper {
         Ok(())
     }
 
+    pub fn mkdir(&self, name: &str) -> Result<()> {
+        fs::create_dir_all(self.repo_path.join(name))?;
+
+        Ok(())
+    }
+
     pub fn make_executable(&self, name: &str) -> Result<()> {
         let path = self.repo_path.join(name);
         let mut perms = fs::metadata(&path)?.permissions();

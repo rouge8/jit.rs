@@ -76,3 +76,27 @@ fn list_untracked_files_inside_tracked_directories() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn dont_list_empty_untracked_directories() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+
+    helper.mkdir("outer")?;
+
+    helper.assert_status("");
+
+    Ok(())
+}
+
+#[test]
+fn list_untracked_directories_that_indirectly_contain_files() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+
+    helper.write_file("outer/inner/file.txt", "")?;
+
+    helper.assert_status("?? outer/\n");
+
+    Ok(())
+}

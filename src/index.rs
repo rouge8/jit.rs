@@ -1,6 +1,5 @@
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
-use crate::util::basename;
 use crate::util::is_executable;
 use crate::util::parent_directories;
 use crate::util::path_to_string;
@@ -288,10 +287,6 @@ impl Entry {
         } else {
             0o100644u32
         }
-    }
-
-    fn basename(&self) -> PathBuf {
-        basename(PathBuf::from(&self.path))
     }
 
     fn parent_directories(&self) -> Vec<PathBuf> {

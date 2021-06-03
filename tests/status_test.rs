@@ -139,3 +139,16 @@ fn report_files_with_modified_contents() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn report_files_with_changed_modes() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.make_executable("a/2.txt")?;
+
+    helper.assert_status(" M a/2.txt\n");
+
+    Ok(())
+}

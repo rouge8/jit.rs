@@ -241,7 +241,7 @@ impl Entry {
             mtime_nsec: stat.mtime_nsec(),
             dev: stat.dev(),
             ino: stat.ino(),
-            mode: Entry::mode(stat.mode()),
+            mode: Entry::mode_for_stat(&stat),
             uid: stat.uid(),
             gid: stat.gid(),
             size: stat.size(),
@@ -281,8 +281,8 @@ impl Entry {
         })
     }
 
-    fn mode(mode: u32) -> u32 {
-        if is_executable(mode) {
+    fn mode_for_stat(stat: &fs::Metadata) -> u32 {
+        if is_executable(stat.mode()) {
             0o100755u32
         } else {
             0o100644u32
@@ -326,7 +326,7 @@ impl Entry {
     }
 
     pub fn stat_match(&self, stat: &fs::Metadata) -> bool {
-        self.size == 0 || self.size == stat.size()
+        (self.mode == Entry::mode_for_stat(stat)) && (self.size == 0 || self.size == stat.size())
     }
 }
 

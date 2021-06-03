@@ -100,3 +100,42 @@ fn list_untracked_directories_that_indirectly_contain_files() -> Result<()> {
 
     Ok(())
 }
+
+fn setup_index_workspace_changes(helper: &mut CommandHelper) -> Result<()> {
+    helper.write_file("1.txt", "one")?;
+    helper.write_file("a/2.txt", "two")?;
+    helper.write_file("a/b/3.txt", "three")?;
+    helper.jit_cmd(&["add", "."]);
+    helper.commit("commit message");
+
+    Ok(())
+}
+
+#[test]
+fn print_nothing_when_no_files_are_changed() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.assert_status("");
+
+    Ok(())
+}
+
+#[test]
+fn report_files_with_modified_contents() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.write_file("1.txt", "changed")?;
+    helper.write_file("a/2.txt", "modified")?;
+
+    helper.assert_status(
+        " M 1.txt
+ M a/2.txt
+",
+    );
+
+    Ok(())
+}

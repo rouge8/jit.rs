@@ -104,7 +104,8 @@ impl Index {
     }
 
     pub fn tracked(&self, path: &Path) -> bool {
-        self.entries.contains_key(&path_to_string(&path))
+        let key = path_to_string(&path);
+        self.entries.contains_key(&key) || self.parents.contains_key(&key)
     }
 
     fn clear(&mut self) {

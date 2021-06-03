@@ -1,4 +1,5 @@
 use crate::errors::{Error, Result};
+use std::collections::HashMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -33,6 +34,22 @@ impl Workspace {
             }
             Ok(files)
         }
+    }
+
+    pub fn list_dir(&self, dirname: &Path) -> Result<HashMap<PathBuf, fs::Metadata>> {
+        let path = self.pathname.join(dirname);
+        let mut stats = HashMap::new();
+
+        for entry in fs::read_dir(&path)? {
+            let path = entry?.path();
+            let relative_path = path.strip_prefix(&self.pathname).unwrap();
+
+            if !self.should_ignore(&relative_path) {
+                stats.insert(relative_path.to_path_buf(), self.stat_file(&relative_path)?);
+            }
+        }
+
+        Ok(stats)
     }
 
     pub fn read_file(&self, path: &Path) -> Result<Vec<u8>> {

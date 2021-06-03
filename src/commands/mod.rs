@@ -25,15 +25,20 @@ pub fn execute(
     };
 
     let ctx = CommandContext::new(dir, env, argv);
-    let command = match name.as_str() {
-        "init" => Init::run,
-        "add" => Add::run,
-        "commit" => Commit::run,
-        "status" => Status::run,
-        _ => return Err(Error::UnknownCommand(name.to_string())),
-    };
 
-    command(ctx)
+    match name.as_str() {
+        "init" => Init::run(ctx),
+        "add" => Add::run(ctx),
+        "commit" => {
+            let mut cmd = Commit::new(ctx);
+            cmd.run()
+        }
+        "status" => {
+            let mut cmd = Status::new(ctx);
+            cmd.run()
+        }
+        _ => Err(Error::UnknownCommand(name.to_string())),
+    }
 }
 
 pub struct CommandContext {

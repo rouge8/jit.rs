@@ -6,25 +6,37 @@ use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::errors::Error;
 use crate::errors::Result;
+use crate::repository::Repository;
 use chrono::Local;
+use std::collections::HashMap;
 use std::io;
 use std::io::Read;
 
-pub struct Commit;
+pub struct Commit {
+    repo: Repository,
+    env: HashMap<String, String>,
+}
 
 impl Commit {
-    pub fn run(mut ctx: CommandContext) -> Result<()> {
-        ctx.repo.index.load()?;
+    pub fn new(ctx: CommandContext) -> Self {
+        Self {
+            repo: ctx.repo,
+            env: ctx.env,
+        }
+    }
 
-        let entries = ctx.repo.index.entries.values().map(Entry::from).collect();
+    pub fn run(&mut self) -> Result<()> {
+        self.repo.index.load()?;
+
+        let entries = self.repo.index.entries.values().map(Entry::from).collect();
         let root = Tree::build(entries);
         root.traverse(&|tree| {
-            ctx.repo.database.store(tree).unwrap();
+            self.repo.database.store(tree).unwrap();
         });
 
-        let parent = ctx.repo.refs.read_head()?;
-        let name = &ctx.env["GIT_AUTHOR_NAME"];
-        let email = &ctx.env["GIT_AUTHOR_EMAIL"];
+        let parent = self.repo.refs.read_head()?;
+        let name = &self.env["GIT_AUTHOR_NAME"];
+        let email = &self.env["GIT_AUTHOR_EMAIL"];
         let author = Author::new(name.clone(), email.clone(), Local::now());
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
@@ -36,8 +48,8 @@ impl Commit {
         }
 
         let commit = DatabaseCommit::new(parent, root.oid(), author, message);
-        ctx.repo.database.store(&commit)?;
-        ctx.repo.refs.update_head(commit.oid())?;
+        self.repo.database.store(&commit)?;
+        self.repo.refs.update_head(commit.oid())?;
 
         let mut is_root = String::new();
         match commit.parent {

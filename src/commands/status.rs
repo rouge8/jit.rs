@@ -4,13 +4,12 @@ use crate::repository::Repository;
 use crate::util::path_to_string;
 use std::collections::BTreeSet;
 use std::fs::Metadata;
-use std::io::Read;
 use std::path::{Path, MAIN_SEPARATOR};
 
 pub struct Status;
 
 impl Status {
-    pub fn run<I: Read>(mut ctx: CommandContext<I>) -> Result<()> {
+    pub fn run(mut ctx: CommandContext) -> Result<()> {
         ctx.repo.index.load()?;
 
         let untracked = Self::scan_workplace(&ctx.repo, &ctx.dir)?;

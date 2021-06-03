@@ -1,12 +1,11 @@
 use crate::commands::CommandContext;
 use crate::errors::Result;
 use std::fs;
-use std::io::Read;
 
 pub struct Init;
 
 impl Init {
-    pub fn run<I: Read>(ctx: CommandContext<I>) -> Result<()> {
+    pub fn run(ctx: CommandContext) -> Result<()> {
         let root_path = if let Some(path) = ctx.argv.get(1) {
             ctx.dir.join(path)
         } else {

@@ -7,12 +7,13 @@ use crate::database::tree::Tree;
 use crate::errors::Error;
 use crate::errors::Result;
 use chrono::Local;
+use std::io;
 use std::io::Read;
 
 pub struct Commit;
 
 impl Commit {
-    pub fn run<I: Read>(mut ctx: CommandContext<I>) -> Result<()> {
+    pub fn run(mut ctx: CommandContext) -> Result<()> {
         ctx.repo.index.load()?;
 
         let entries = ctx.repo.index.entries.values().map(Entry::from).collect();
@@ -26,7 +27,7 @@ impl Commit {
         let email = &ctx.env["GIT_AUTHOR_EMAIL"];
         let author = Author::new(name.clone(), email.clone(), Local::now());
         let mut message = String::new();
-        ctx.stdin.read_to_string(&mut message)?;
+        io::stdin().read_to_string(&mut message)?;
 
         message = message.trim().to_string();
         if message.is_empty() {

@@ -4,13 +4,12 @@ use crate::database::object::Object;
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
 use std::io;
-use std::io::Read;
 use std::path::PathBuf;
 
 pub struct Add;
 
 impl Add {
-    pub fn run<I: Read>(mut ctx: CommandContext<I>) -> Result<()> {
+    pub fn run(mut ctx: CommandContext) -> Result<()> {
         if ctx.argv.is_empty() {
             eprintln!("Nothing specified, nothing added.");
             return Err(Error::Exit(0));

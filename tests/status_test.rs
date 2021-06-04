@@ -165,3 +165,30 @@ fn report_modified_files_with_unchanged_size() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn print_nothing_if_a_file_is_touched() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    let mut index = helper.repo().index;
+    index.load()?;
+    let entry_before = &index.entries["1.txt"];
+
+    helper.touch("1.txt")?;
+
+    helper.assert_status("");
+
+    let mut index = helper.repo().index;
+    index.load()?;
+    let entry_after = &index.entries["1.txt"];
+
+    // The modification time should have been updated in the index
+    assert_ne!(
+        (entry_before.mtime, entry_before.mtime_nsec),
+        (entry_after.mtime, entry_after.mtime_nsec)
+    );
+
+    Ok(())
+}

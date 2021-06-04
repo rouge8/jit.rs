@@ -1,5 +1,7 @@
 use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
+use filetime;
+use filetime::FileTime;
 use jit::errors::Result;
 use jit::repository::Repository;
 use jit::util::path_to_string;
@@ -71,6 +73,14 @@ impl CommandHelper {
         Ok(())
     }
 
+    pub fn touch(&self, name: &str) -> Result<()> {
+        let path = self.repo_path.join(name);
+
+        filetime::set_file_mtime(path, FileTime::now())?;
+
+        Ok(())
+    }
+
     pub fn jit_cmd(&mut self, argv: &[&str]) -> Output {
         Command::cargo_bin(env!("CARGO_PKG_NAME"))
             .unwrap()
@@ -116,7 +126,7 @@ impl CommandHelper {
         self.jit_cmd(&["status"]).assert().stdout(expected);
     }
 
-    fn repo(&self) -> Repository {
+    pub fn repo(&self) -> Repository {
         Repository::new(self.repo_path.join(".git"))
     }
 }

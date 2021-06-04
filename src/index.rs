@@ -107,6 +107,11 @@ impl Index {
         self.entries.contains_key(&key) || self.parents.contains_key(&key)
     }
 
+    pub fn update_entry_stat(&mut self, entry: &mut Entry, stat: &fs::Metadata) {
+        entry.update_stat(stat);
+        self.changed = true;
+    }
+
     fn clear(&mut self) {
         self.entries = BTreeMap::new();
         self.parents = HashMap::new();
@@ -215,12 +220,13 @@ impl Index {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Entry {
     ctime: i64,
     ctime_nsec: i64,
-    mtime: i64,
-    mtime_nsec: i64,
+    // `mtime` and `mtime_nsec` are public so they can be inspected in `status_test.rs`
+    pub mtime: i64,
+    pub mtime_nsec: i64,
     dev: u64,
     ino: u64,
     pub mode: u32,
@@ -327,6 +333,26 @@ impl Entry {
 
     pub fn stat_match(&self, stat: &fs::Metadata) -> bool {
         (self.mode == Entry::mode_for_stat(stat)) && (self.size == 0 || self.size == stat.size())
+    }
+
+    pub fn times_match(&self, stat: &fs::Metadata) -> bool {
+        (self.ctime == stat.ctime())
+            && (self.ctime_nsec == stat.ctime_nsec())
+            && (self.mtime == stat.mtime())
+            && (self.mtime_nsec == stat.mtime_nsec())
+    }
+
+    fn update_stat(&mut self, stat: &fs::Metadata) {
+        self.ctime = stat.ctime();
+        self.ctime_nsec = stat.ctime_nsec();
+        self.mtime = stat.mtime();
+        self.mtime_nsec = stat.mtime_nsec();
+        self.dev = stat.dev();
+        self.ino = stat.ino();
+        self.mode = Entry::mode_for_stat(stat);
+        self.uid = stat.uid();
+        self.gid = stat.gid();
+        self.size = stat.size();
     }
 }
 

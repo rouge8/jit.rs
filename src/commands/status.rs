@@ -28,10 +28,12 @@ impl Status {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        self.repo.index.load()?;
+        self.repo.index.load_for_update()?;
 
         self.scan_workspace(&self.root_dir.clone())?;
         self.detect_workspace_changes()?;
+
+        self.repo.index.write_updates()?;
 
         for path in &self.changed {
             println!(" M {}", path);
@@ -64,10 +66,18 @@ impl Status {
     }
 
     fn detect_workspace_changes(&mut self) -> Result<()> {
-        for entry in self.repo.index.entries.values() {
-            if self.index_entry_changed(&entry)? {
-                self.changed.insert(entry.path.clone());
-            }
+        // We have to iterate over `cloned_entries` rather than `self.repo.index.entries` because
+        // Rust will not let us borrow self as mutable more than one time: first with
+        // `self.repo.index.entries.values_mut()` and second with `self.check_index_entry()`.
+        let mut cloned_entries = self.repo.index.entries.clone();
+        for mut entry in cloned_entries.values_mut() {
+            self.check_index_entry(&mut entry)?;
+        }
+
+        // Update `self.repo.index.entries` with the entries that were modified in
+        // `self.check_index_entry()`
+        for (key, val) in cloned_entries {
+            self.repo.index.entries.insert(key, val);
         }
 
         Ok(())
@@ -93,16 +103,27 @@ impl Status {
         Ok(false)
     }
 
-    fn index_entry_changed(&self, entry: &Entry) -> Result<bool> {
+    fn check_index_entry(&mut self, entry: &mut Entry) -> Result<()> {
         let stat = &self.stats[&entry.path];
         if !entry.stat_match(&stat) {
-            return Ok(true);
+            self.changed.insert(entry.path.clone());
+            return Ok(());
+        }
+
+        if entry.times_match(&stat) {
+            return Ok(());
         }
 
         let data = self.repo.workspace.read_file(&PathBuf::from(&entry.path))?;
         let blob = Blob::new(data);
         let oid = self.repo.database.hash_object(&blob);
 
-        Ok(entry.oid != oid)
+        if entry.oid == oid {
+            self.repo.index.update_entry_stat(entry, &stat);
+        } else {
+            self.changed.insert(entry.path.clone());
+        }
+
+        Ok(())
     }
 }

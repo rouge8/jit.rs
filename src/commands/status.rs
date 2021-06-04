@@ -4,7 +4,7 @@ use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::Repository;
 use crate::util::path_to_string;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
@@ -12,8 +12,15 @@ pub struct Status {
     root_dir: PathBuf,
     repo: Repository,
     stats: HashMap<String, fs::Metadata>,
+    changes: HashMap<String, HashSet<ChangeType>>,
     changed: BTreeSet<String>,
     untracked: BTreeSet<String>,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+enum ChangeType {
+    WorkspaceDeleted,
+    WorkspaceModified,
 }
 
 impl Status {
@@ -22,6 +29,7 @@ impl Status {
             root_dir: ctx.dir,
             repo: ctx.repo,
             stats: HashMap::new(),
+            changes: HashMap::new(),
             changed: BTreeSet::new(),
             untracked: BTreeSet::new(),
         }
@@ -35,14 +43,31 @@ impl Status {
 
         self.repo.index.write_updates()?;
 
+        self.print_results();
+
+        Ok(())
+    }
+
+    fn print_results(&self) {
         for path in &self.changed {
-            println!(" M {}", path);
+            let status = self.status_for(&path);
+            println!("{} {}", status, path);
         }
         for path in &self.untracked {
             println!("?? {}", path);
         }
+    }
 
-        Ok(())
+    fn status_for(&self, path: &str) -> &str {
+        let changes = &self.changes[path];
+
+        if changes.contains(&ChangeType::WorkspaceModified) {
+            " M"
+        } else if changes.contains(&ChangeType::WorkspaceDeleted) {
+            " D"
+        } else {
+            "  "
+        }
     }
 
     fn scan_workspace(&mut self, prefix: &Path) -> Result<()> {
@@ -83,6 +108,14 @@ impl Status {
         Ok(())
     }
 
+    fn record_change(&mut self, path: &str, r#type: ChangeType) {
+        self.changed.insert(path.to_string());
+        self.changes
+            .entry(path.to_string())
+            .or_insert_with(HashSet::new)
+            .insert(r#type);
+    }
+
     fn trackable_file(&mut self, path: &Path, stat: &fs::Metadata) -> Result<bool> {
         if stat.is_file() {
             return Ok(!self.repo.index.tracked(path));
@@ -104,9 +137,16 @@ impl Status {
     }
 
     fn check_index_entry(&mut self, entry: &mut Entry) -> Result<()> {
-        let stat = &self.stats[&entry.path];
+        let stat = match self.stats.get(&entry.path) {
+            Some(stat) => stat,
+            None => {
+                self.record_change(&entry.path, ChangeType::WorkspaceDeleted);
+                return Ok(());
+            }
+        };
+
         if !entry.stat_match(&stat) {
-            self.changed.insert(entry.path.clone());
+            self.record_change(&entry.path, ChangeType::WorkspaceModified);
             return Ok(());
         }
 
@@ -121,7 +161,7 @@ impl Status {
         if entry.oid == oid {
             self.repo.index.update_entry_stat(entry, &stat);
         } else {
-            self.changed.insert(entry.path.clone());
+            self.record_change(&entry.path, ChangeType::WorkspaceModified);
         }
 
         Ok(())

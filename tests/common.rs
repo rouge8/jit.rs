@@ -81,6 +81,18 @@ impl CommandHelper {
         Ok(())
     }
 
+    pub fn delete(&self, name: &str) -> Result<()> {
+        let path = self.repo_path.join(name);
+
+        if path.is_dir() {
+            fs::remove_dir_all(path)?;
+        } else {
+            fs::remove_file(path)?;
+        }
+
+        Ok(())
+    }
+
     pub fn jit_cmd(&mut self, argv: &[&str]) -> Output {
         Command::cargo_bin(env!("CARGO_PKG_NAME"))
             .unwrap()

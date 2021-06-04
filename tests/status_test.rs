@@ -192,3 +192,33 @@ fn print_nothing_if_a_file_is_touched() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn report_deleted_files() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.delete("a/2.txt")?;
+
+    helper.assert_status(" D a/2.txt\n");
+
+    Ok(())
+}
+
+#[test]
+fn report_files_in_deleted_directories() -> Result<()> {
+    let mut helper = CommandHelper::new();
+    helper.init();
+    setup_index_workspace_changes(&mut helper)?;
+
+    helper.delete("a")?;
+
+    helper.assert_status(
+        " D a/2.txt
+ D a/b/3.txt
+",
+    );
+
+    Ok(())
+}

@@ -1,14 +1,12 @@
 mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
-pub use common::CommandHelper;
+pub use common::{helper, CommandHelper};
 use jit::errors::Result;
+use rstest::rstest;
 
-#[test]
-fn add_a_regular_file_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn add_a_regular_file_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("hello.txt", "hello")?;
 
     helper.jit_cmd(&["add", "hello.txt"]);
@@ -18,11 +16,8 @@ fn add_a_regular_file_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn add_an_executable_file_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn add_an_executable_file_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("hello.txt", "hello")?;
     helper.make_executable("hello.txt")?;
 
@@ -33,11 +28,8 @@ fn add_an_executable_file_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn add_multiple_files_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn add_multiple_files_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("hello.txt", "hello")?;
     helper.write_file("world.txt", "world")?;
 
@@ -50,11 +42,8 @@ fn add_multiple_files_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn incrementally_add_files_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn incrementally_add_files_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("hello.txt", "hello")?;
     helper.write_file("world.txt", "world")?;
 
@@ -71,11 +60,8 @@ fn incrementally_add_files_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn add_a_directory_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn add_a_directory_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("a-dir/nested.txt", "content")?;
 
     helper.jit_cmd(&["add", "a-dir"]);
@@ -87,11 +73,8 @@ fn add_a_directory_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn add_the_repository_root_to_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn add_the_repository_root_to_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("a/b/c/file.txt", "content")?;
 
     helper.jit_cmd(&["add", "."]);
@@ -103,11 +86,8 @@ fn add_the_repository_root_to_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn silent_on_success() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn silent_on_success(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("hello.txt", "hello")?;
 
     helper
@@ -120,11 +100,8 @@ fn silent_on_success() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn fail_for_non_existent_files() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn fail_for_non_existent_files(mut helper: CommandHelper) -> Result<()> {
     helper
         .jit_cmd(&["add", "no-such-file"])
         .assert()
@@ -136,11 +113,8 @@ fn fail_for_non_existent_files() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn fail_for_unreadable_files() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn fail_for_unreadable_files(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("secret.txt", "")?;
     helper.make_unreadable("secret.txt")?;
 
@@ -155,11 +129,8 @@ fn fail_for_unreadable_files() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn fail_if_the_index_is_locked() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn fail_if_the_index_is_locked(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("file.txt", "")?;
     helper.write_file(".git/index.lock", "")?;
 

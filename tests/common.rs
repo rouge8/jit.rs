@@ -1,10 +1,10 @@
 use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
-use filetime;
 use filetime::FileTime;
 use jit::errors::Result;
 use jit::repository::Repository;
 use jit::util::path_to_string;
+use rstest::fixture;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
@@ -18,6 +18,14 @@ pub struct CommandHelper {
     pub repo_path: PathBuf,
     env: HashMap<&'static str, &'static str>,
     stdin: &'static str,
+}
+
+#[fixture]
+pub fn helper() -> CommandHelper {
+    let mut helper = CommandHelper::new();
+    helper.init();
+
+    helper
 }
 
 impl CommandHelper {

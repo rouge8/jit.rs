@@ -1,13 +1,11 @@
 mod common;
 
-pub use common::CommandHelper;
+pub use common::{helper, CommandHelper};
 use jit::errors::Result;
+use rstest::{fixture, rstest};
 
-#[test]
-fn list_untracked_files_in_name_order() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn list_untracked_files_in_name_order(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("file.txt", "")?;
     helper.write_file("another.txt", "")?;
 
@@ -21,11 +19,8 @@ fn list_untracked_files_in_name_order() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn list_files_as_untracked_if_they_are_not_in_the_index() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn list_files_as_untracked_if_they_are_not_in_the_index(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("committed.txt", "")?;
     helper.jit_cmd(&["add", "."]);
     helper.commit("commit message");
@@ -37,11 +32,8 @@ fn list_files_as_untracked_if_they_are_not_in_the_index() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn list_untracked_directories_not_their_contents() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn list_untracked_directories_not_their_contents(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("file.txt", "")?;
     helper.write_file("dir/another.txt", "")?;
 
@@ -55,11 +47,8 @@ fn list_untracked_directories_not_their_contents() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn list_untracked_files_inside_tracked_directories() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn list_untracked_files_inside_tracked_directories(mut helper: CommandHelper) -> Result<()> {
     helper.write_file("a/b/inner.txt", "")?;
     helper.jit_cmd(&["add", "."]);
     helper.commit("commit message");
@@ -77,11 +66,8 @@ fn list_untracked_files_inside_tracked_directories() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn dont_list_empty_untracked_directories() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn dont_list_empty_untracked_directories(mut helper: CommandHelper) -> Result<()> {
     helper.mkdir("outer")?;
 
     helper.assert_status("");
@@ -89,11 +75,10 @@ fn dont_list_empty_untracked_directories() -> Result<()> {
     Ok(())
 }
 
-#[test]
-fn list_untracked_directories_that_indirectly_contain_files() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-
+#[rstest]
+fn list_untracked_directories_that_indirectly_contain_files(
+    mut helper: CommandHelper,
+) -> Result<()> {
     helper.write_file("outer/inner/file.txt", "")?;
 
     helper.assert_status("?? outer/\n");
@@ -101,124 +86,104 @@ fn list_untracked_directories_that_indirectly_contain_files() -> Result<()> {
     Ok(())
 }
 
-fn setup_index_workspace_changes(helper: &mut CommandHelper) -> Result<()> {
-    helper.write_file("1.txt", "one")?;
-    helper.write_file("a/2.txt", "two")?;
-    helper.write_file("a/b/3.txt", "three")?;
-    helper.jit_cmd(&["add", "."]);
-    helper.commit("commit message");
+mod index_workspace_changes {
+    use super::*;
 
-    Ok(())
-}
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
 
-#[test]
-fn print_nothing_when_no_files_are_changed() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+        helper.write_file("1.txt", "one").unwrap();
+        helper.write_file("a/2.txt", "two").unwrap();
+        helper.write_file("a/b/3.txt", "three").unwrap();
+        helper.jit_cmd(&["add", "."]);
+        helper.commit("commit message");
 
-    helper.assert_status("");
+        helper
+    }
 
-    Ok(())
-}
+    #[rstest]
+    fn print_nothing_when_no_files_are_changed(mut helper: CommandHelper) -> Result<()> {
+        helper.assert_status("");
 
-#[test]
-fn report_files_with_modified_contents() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+        Ok(())
+    }
 
-    helper.write_file("1.txt", "changed")?;
-    helper.write_file("a/2.txt", "modified")?;
+    #[rstest]
+    fn report_files_with_modified_contents(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        helper.write_file("a/2.txt", "modified")?;
 
-    helper.assert_status(
-        " M 1.txt
+        helper.assert_status(
+            " M 1.txt
  M a/2.txt
 ",
-    );
+        );
 
-    Ok(())
-}
+        Ok(())
+    }
 
-#[test]
-fn report_files_with_changed_modes() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+    #[rstest]
+    fn report_files_with_changed_modes(mut helper: CommandHelper) -> Result<()> {
+        helper.make_executable("a/2.txt")?;
 
-    helper.make_executable("a/2.txt")?;
+        helper.assert_status(" M a/2.txt\n");
 
-    helper.assert_status(" M a/2.txt\n");
+        Ok(())
+    }
 
-    Ok(())
-}
+    #[rstest]
+    fn report_modified_files_with_unchanged_size(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("a/b/3.txt", "hello")?;
 
-#[test]
-fn report_modified_files_with_unchanged_size() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+        helper.assert_status(" M a/b/3.txt\n");
 
-    helper.write_file("a/b/3.txt", "hello")?;
+        Ok(())
+    }
 
-    helper.assert_status(" M a/b/3.txt\n");
+    #[rstest]
+    fn print_nothing_if_a_file_is_touched(mut helper: CommandHelper) -> Result<()> {
+        let mut index = helper.repo().index;
+        index.load()?;
+        let entry_before = &index.entries["1.txt"];
 
-    Ok(())
-}
+        helper.touch("1.txt")?;
 
-#[test]
-fn print_nothing_if_a_file_is_touched() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+        helper.assert_status("");
 
-    let mut index = helper.repo().index;
-    index.load()?;
-    let entry_before = &index.entries["1.txt"];
+        let mut index = helper.repo().index;
+        index.load()?;
+        let entry_after = &index.entries["1.txt"];
 
-    helper.touch("1.txt")?;
+        // The modification time should have been updated in the index
+        assert_ne!(
+            (entry_before.mtime, entry_before.mtime_nsec),
+            (entry_after.mtime, entry_after.mtime_nsec)
+        );
 
-    helper.assert_status("");
+        Ok(())
+    }
 
-    let mut index = helper.repo().index;
-    index.load()?;
-    let entry_after = &index.entries["1.txt"];
+    #[rstest]
+    fn report_deleted_files(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("a/2.txt")?;
 
-    // The modification time should have been updated in the index
-    assert_ne!(
-        (entry_before.mtime, entry_before.mtime_nsec),
-        (entry_after.mtime, entry_after.mtime_nsec)
-    );
+        helper.assert_status(" D a/2.txt\n");
 
-    Ok(())
-}
+        Ok(())
+    }
 
-#[test]
-fn report_deleted_files() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
+    #[rstest]
+    fn report_files_in_deleted_directories(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("a")?;
 
-    helper.delete("a/2.txt")?;
-
-    helper.assert_status(" D a/2.txt\n");
-
-    Ok(())
-}
-
-#[test]
-fn report_files_in_deleted_directories() -> Result<()> {
-    let mut helper = CommandHelper::new();
-    helper.init();
-    setup_index_workspace_changes(&mut helper)?;
-
-    helper.delete("a")?;
-
-    helper.assert_status(
-        " D a/2.txt
+        helper.assert_status(
+            " D a/2.txt
  D a/b/3.txt
 ",
-    );
+        );
 
-    Ok(())
+        Ok(())
+    }
 }

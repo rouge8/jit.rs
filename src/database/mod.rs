@@ -1,10 +1,16 @@
+use crate::database::blob::Blob;
+use crate::database::commit::Commit;
 use crate::database::object::Object;
+use crate::database::tree::Tree;
+use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use itertools::Itertools;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use uuid::Uuid;
 
@@ -18,11 +24,15 @@ pub mod tree;
 #[derive(Debug)]
 pub struct Database {
     pathname: PathBuf,
+    objects: HashMap<String, ParsedObject>,
 }
 
 impl Database {
     pub fn new(pathname: PathBuf) -> Self {
-        Database { pathname }
+        Database {
+            pathname,
+            objects: HashMap::new(),
+        }
     }
 
     pub fn store<T>(&self, object: &T) -> io::Result<()>
@@ -40,8 +50,20 @@ impl Database {
         object.oid()
     }
 
+    pub fn load(&mut self, oid: String) -> io::Result<&ParsedObject> {
+        let object = self.read_object(&oid)?;
+
+        self.objects.insert(oid.clone(), object);
+
+        Ok(&self.objects[&oid])
+    }
+
+    fn object_path(&self, oid: &str) -> PathBuf {
+        self.pathname.join(&oid[0..2]).join(&oid[2..])
+    }
+
     fn write_object(&self, oid: String, content: Vec<u8>) -> io::Result<()> {
-        let object_path = &self.pathname.join(&oid[0..2]).join(&oid[2..]);
+        let object_path = self.object_path(&oid);
 
         if object_path.exists() {
             return Ok(());
@@ -70,4 +92,36 @@ impl Database {
 
         Ok(())
     }
+
+    fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
+        let compressed_data = fs::read(self.object_path(&oid))?;
+        let mut data = vec![];
+        let mut z = ZlibDecoder::new(&compressed_data[..]);
+        z.read_to_end(&mut data)?;
+
+        let (object_type, rest) = data
+            .splitn(2, |c| *c as char == ' ')
+            .collect_tuple()
+            .unwrap();
+        let object_type = std::str::from_utf8(object_type).expect("Invalid UTF-8");
+
+        let (_size, rest) = rest
+            .splitn(2, |c| *c as char == '\0')
+            .collect_tuple()
+            .unwrap();
+
+        match object_type {
+            "blob" => Ok(Blob::parse(rest)),
+            "tree" => Ok(Tree::parse(rest)),
+            "commit" => Ok(Commit::parse(rest)),
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum ParsedObject {
+    Blob(Blob),
+    Commit(Commit),
+    Tree(Tree),
 }

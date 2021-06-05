@@ -1,16 +1,30 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, FixedOffset};
+use itertools::Itertools;
 use std::fmt;
 
 #[derive(Debug)]
 pub struct Author {
     name: String,
     email: String,
-    time: DateTime<Local>,
+    time: DateTime<FixedOffset>,
 }
 
 impl Author {
-    pub fn new(name: String, email: String, time: DateTime<Local>) -> Self {
+    pub fn new(name: String, email: String, time: DateTime<FixedOffset>) -> Self {
         Author { name, email, time }
+    }
+
+    pub fn parse(data: &str) -> Self {
+        let (name, email, time) = data.splitn(3, &['<', '>'][..]).collect_tuple().unwrap();
+
+        let time = time.trim();
+
+        Author {
+            name: name.to_string(),
+            email: email.to_string(),
+            time: DateTime::parse_from_str(time, "%s %z")
+                .expect("Could not parse author timestamp"),
+        }
     }
 }
 

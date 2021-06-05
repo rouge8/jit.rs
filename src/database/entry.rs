@@ -17,11 +17,11 @@ impl Entry {
         Entry { name, oid, mode }
     }
 
-    pub fn mode(&self) -> &str {
+    pub fn mode(&self) -> u32 {
         if is_executable(self.mode) {
-            "100755"
+            0o100755
         } else {
-            "100644"
+            self.mode
         }
     }
 

@@ -1,11 +1,15 @@
 use crate::database::entry::Entry;
 use crate::database::object::Object;
+use crate::database::ParsedObject;
+use itertools::Itertools;
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+pub const TREE_MODE: u32 = 0o40000;
 
 #[derive(Debug)]
 pub struct Tree {
-    entries: BTreeMap<PathBuf, TreeEntry>,
+    pub entries: BTreeMap<PathBuf, TreeEntry>,
 }
 
 #[derive(Debug)]
@@ -15,14 +19,14 @@ pub enum TreeEntry {
 }
 
 impl TreeEntry {
-    fn mode(&self) -> &str {
+    pub fn mode(&self) -> u32 {
         match self {
             TreeEntry::Entry(e) => e.mode(),
-            TreeEntry::Tree(_) => "40000",
+            TreeEntry::Tree(_) => TREE_MODE,
         }
     }
 
-    fn oid(&self) -> String {
+    pub fn oid(&self) -> String {
         match self {
             TreeEntry::Entry(e) => e.oid.clone(),
             TreeEntry::Tree(e) => e.oid(),
@@ -37,7 +41,36 @@ impl Tree {
         }
     }
 
-    /// Assumes `entries` is sorted by `name`.
+    pub fn parse(data: &[u8]) -> ParsedObject {
+        let mut entries: Vec<Entry> = vec![];
+
+        let mut data = data;
+
+        while !data.is_empty() {
+            let (mode, rest) = data
+                .splitn(2, |c| *c as char == ' ')
+                .collect_tuple()
+                .unwrap();
+            // TODO: There has to be a better way to do this...
+            let mode = u32::from_str_radix(std::str::from_utf8(mode).unwrap(), 8).unwrap();
+
+            let (name, rest) = rest
+                .splitn(2, |c| *c as char == '\0')
+                .collect_tuple()
+                .unwrap();
+            let name = std::str::from_utf8(name).unwrap();
+
+            let (oid, rest) = rest.split_at(20);
+            let oid = hex::encode(oid);
+
+            entries.push(Entry::new(Path::new(name), oid, mode));
+
+            data = rest;
+        }
+
+        ParsedObject::Tree(Tree::build(entries))
+    }
+
     pub fn build(entries: Vec<Entry>) -> Self {
         let mut root = Tree::new();
         for entry in entries {
@@ -92,7 +125,7 @@ impl Object for Tree {
         for (name, entry) in self.entries.iter() {
             // TODO: Figure out how to get bytes from `name` instead of calling
             // `name.display()` which is lossy.
-            content.append(&mut format!("{} {}\0", entry.mode(), name.display()).into_bytes());
+            content.append(&mut format!("{:o} {}\0", entry.mode(), name.display()).into_bytes());
             content.append(&mut hex::decode(entry.oid()).unwrap());
         }
         content

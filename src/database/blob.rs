@@ -1,4 +1,5 @@
 use crate::database::object::Object;
+use crate::database::ParsedObject;
 
 #[derive(Debug)]
 pub struct Blob {
@@ -8,6 +9,10 @@ pub struct Blob {
 impl Blob {
     pub fn new(data: Vec<u8>) -> Self {
         Blob { data }
+    }
+
+    pub fn parse(data: &[u8]) -> ParsedObject {
+        ParsedObject::Blob(Blob::new(data.to_vec()))
     }
 }
 

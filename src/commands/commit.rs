@@ -37,7 +37,8 @@ impl Commit {
         let parent = self.repo.refs.read_head()?;
         let name = &self.env["GIT_AUTHOR_NAME"];
         let email = &self.env["GIT_AUTHOR_EMAIL"];
-        let author = Author::new(name.clone(), email.clone(), Local::now());
+        let now = Local::now();
+        let author = Author::new(name.clone(), email.clone(), now.with_timezone(now.offset()));
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
 

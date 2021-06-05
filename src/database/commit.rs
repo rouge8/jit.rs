@@ -1,10 +1,12 @@
 use crate::database::author::Author;
 use crate::database::object::Object;
+use crate::database::ParsedObject;
+use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Commit {
     pub parent: Option<String>,
-    tree: String,
+    pub tree: String,
     author: Author,
     pub message: String,
 }
@@ -16,6 +18,40 @@ impl Commit {
             tree,
             author,
             message,
+        }
+    }
+
+    pub fn parse(data: &[u8]) -> ParsedObject {
+        let mut data = std::str::from_utf8(data).expect("Invalid UTF-8");
+
+        let mut headers: HashMap<&str, &str> = HashMap::new();
+
+        loop {
+            let (line, rest) = data.split_once("\n").unwrap();
+            data = rest;
+            let line = line.trim();
+
+            if line.is_empty() {
+                let parent = headers
+                    .get("parent")
+                    .map(|parent| {
+                        if parent.is_empty() {
+                            None
+                        } else {
+                            Some(parent.to_string())
+                        }
+                    })
+                    .unwrap();
+                break ParsedObject::Commit(Commit::new(
+                    parent,
+                    headers["tree"].to_string(),
+                    Author::parse(headers["author"]),
+                    data.to_string(),
+                ));
+            }
+
+            let (key, value) = line.split_once(" ").unwrap();
+            headers.insert(key, value);
         }
     }
 }

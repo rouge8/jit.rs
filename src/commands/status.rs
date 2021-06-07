@@ -7,13 +7,14 @@ use crate::index::Entry;
 use crate::repository::Repository;
 use crate::util::path_to_string;
 use lazy_static::lazy_static;
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 pub struct Status {
     root_dir: PathBuf,
     repo: Repository,
+    argv: VecDeque<String>,
     stats: HashMap<String, fs::Metadata>,
     changed: BTreeSet<String>,
     index_changes: HashMap<String, ChangeType>,
@@ -43,13 +44,23 @@ lazy_static! {
         m.insert(ChangeType::Modified, "M");
         m
     };
+    static ref LONG_STATUS: HashMap<ChangeType, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(ChangeType::Added, "new file:");
+        m.insert(ChangeType::Deleted, "deleted:");
+        m.insert(ChangeType::Modified, "modified:");
+        m
+    };
 }
+
+static LABEL_WIDTH: usize = 12;
 
 impl Status {
     pub fn new(ctx: CommandContext) -> Self {
         Self {
             root_dir: ctx.dir,
             repo: ctx.repo,
+            argv: ctx.argv,
             stats: HashMap::new(),
             changed: BTreeSet::new(),
             index_changes: HashMap::new(),
@@ -138,12 +149,69 @@ impl Status {
     }
 
     fn print_results(&self) {
+        if self.argv.contains(&String::from("--porcelain")) {
+            self.print_porcelain_format();
+        } else {
+            self.print_long_format();
+        }
+    }
+
+    fn print_porcelain_format(&self) {
         for path in &self.changed {
             let status = self.status_for(&path);
             println!("{} {}", status, path);
         }
         for path in &self.untracked {
             println!("?? {}", path);
+        }
+    }
+
+    fn print_long_format(&self) {
+        self.print_changeset("Changes to be committed", &self.index_changes);
+        self.print_changeset("Changes not staged for commit", &self.workspace_changes);
+        self.print_untracked_files();
+
+        self.print_commit_status();
+    }
+
+    fn print_changeset(&self, message: &str, changeset: &HashMap<String, ChangeType>) {
+        if changeset.is_empty() {
+            return;
+        }
+
+        println!("{}:", message);
+        println!();
+        for (path, change_type) in changeset {
+            let status = format!("{:width$}", LONG_STATUS[change_type], width = LABEL_WIDTH);
+            println!("\t{}{}", status, path);
+        }
+        println!();
+    }
+
+    fn print_untracked_files(&self) {
+        if self.untracked.is_empty() {
+            return;
+        }
+
+        println!("Untracked files:");
+        println!();
+        for path in &self.untracked {
+            println!("\t{}", path);
+        }
+        println!();
+    }
+
+    fn print_commit_status(&self) {
+        if !self.index_changes.is_empty() {
+            return;
+        }
+
+        if !self.workspace_changes.is_empty() {
+            println!("no changes added to commit");
+        } else if !self.untracked.is_empty() {
+            println!("nothing added to commit but untracked files present");
+        } else {
+            println!("nothing to commit, working tree clean");
         }
     }
 

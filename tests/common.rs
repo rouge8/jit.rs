@@ -143,7 +143,9 @@ impl CommandHelper {
     }
 
     pub fn assert_status(&mut self, expected: &'static str) {
-        self.jit_cmd(&["status"]).assert().stdout(expected);
+        self.jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout(expected);
     }
 
     pub fn repo(&self) -> Repository {

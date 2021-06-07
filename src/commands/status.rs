@@ -7,7 +7,7 @@ use crate::index::Entry;
 use crate::repository::Repository;
 use crate::util::path_to_string;
 use lazy_static::lazy_static;
-use std::collections::{BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
@@ -17,8 +17,8 @@ pub struct Status {
     argv: VecDeque<String>,
     stats: HashMap<String, fs::Metadata>,
     changed: BTreeSet<String>,
-    index_changes: HashMap<String, ChangeType>,
-    workspace_changes: HashMap<String, ChangeType>,
+    index_changes: BTreeMap<String, ChangeType>,
+    workspace_changes: BTreeMap<String, ChangeType>,
     untracked: BTreeSet<String>,
     head_tree: HashMap<String, TreeEntry>,
 }
@@ -63,8 +63,8 @@ impl Status {
             argv: ctx.argv,
             stats: HashMap::new(),
             changed: BTreeSet::new(),
-            index_changes: HashMap::new(),
-            workspace_changes: HashMap::new(),
+            index_changes: BTreeMap::new(),
+            workspace_changes: BTreeMap::new(),
             untracked: BTreeSet::new(),
             head_tree: HashMap::new(),
         }
@@ -174,7 +174,7 @@ impl Status {
         self.print_commit_status();
     }
 
-    fn print_changeset(&self, message: &str, changeset: &HashMap<String, ChangeType>) {
+    fn print_changeset(&self, message: &str, changeset: &BTreeMap<String, ChangeType>) {
         if changeset.is_empty() {
             return;
         }

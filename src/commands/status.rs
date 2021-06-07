@@ -25,6 +25,7 @@ enum ChangeType {
     WorkspaceDeleted,
     WorkspaceModified,
     IndexAdded,
+    IndexModified,
 }
 
 impl Status {
@@ -123,6 +124,8 @@ impl Status {
 
         let left = if changes.contains(&ChangeType::IndexAdded) {
             "A"
+        } else if changes.contains(&ChangeType::IndexModified) {
+            "M"
         } else {
             " "
         };
@@ -217,8 +220,13 @@ impl Status {
     }
 
     fn check_index_against_head_tree(&mut self, entry: &Entry) {
-        if self.head_tree.get(&entry.path).is_none() {
-            self.record_change(&entry.path, ChangeType::IndexAdded);
+        match self.head_tree.get(&entry.path) {
+            Some(item) => {
+                if entry.mode != item.mode() || entry.oid != item.oid() {
+                    self.record_change(&entry.path, ChangeType::IndexModified);
+                }
+            }
+            None => self.record_change(&entry.path, ChangeType::IndexAdded),
         }
     }
 }

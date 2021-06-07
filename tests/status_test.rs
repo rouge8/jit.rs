@@ -224,4 +224,24 @@ mod head_index_changes {
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_modified_modes(mut helper: CommandHelper) -> Result<()> {
+        helper.make_executable("1.txt")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status("M  1.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn report_modified_contents(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("a/b/3.txt", "changed")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status("M  a/b/3.txt\n");
+
+        Ok(())
+    }
 }

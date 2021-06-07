@@ -6,7 +6,8 @@ use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::Repository;
 use crate::util::path_to_string;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use lazy_static::lazy_static;
+use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
@@ -14,19 +15,34 @@ pub struct Status {
     root_dir: PathBuf,
     repo: Repository,
     stats: HashMap<String, fs::Metadata>,
-    changes: HashMap<String, HashSet<ChangeType>>,
     changed: BTreeSet<String>,
+    index_changes: HashMap<String, ChangeType>,
+    workspace_changes: HashMap<String, ChangeType>,
     untracked: BTreeSet<String>,
     head_tree: HashMap<String, TreeEntry>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 enum ChangeType {
-    WorkspaceDeleted,
-    WorkspaceModified,
-    IndexAdded,
-    IndexModified,
-    IndexDeleted,
+    Added,
+    Deleted,
+    Modified,
+}
+
+#[derive(Debug)]
+enum ChangeKind {
+    Workspace,
+    Index,
+}
+
+lazy_static! {
+    static ref SHORT_STATUS: HashMap<ChangeType, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(ChangeType::Added, "A");
+        m.insert(ChangeType::Deleted, "D");
+        m.insert(ChangeType::Modified, "M");
+        m
+    };
 }
 
 impl Status {
@@ -35,8 +51,9 @@ impl Status {
             root_dir: ctx.dir,
             repo: ctx.repo,
             stats: HashMap::new(),
-            changes: HashMap::new(),
             changed: BTreeSet::new(),
+            index_changes: HashMap::new(),
+            workspace_changes: HashMap::new(),
             untracked: BTreeSet::new(),
             head_tree: HashMap::new(),
         }
@@ -115,7 +132,7 @@ impl Status {
         let keys: Vec<_> = self.head_tree.keys().cloned().collect();
         for path in keys {
             if !self.repo.index.tracked_file(Path::new(&path)) {
-                self.record_change(&path, ChangeType::IndexDeleted);
+                self.record_change(&path, ChangeKind::Index, ChangeType::Deleted);
             }
         }
     }
@@ -131,23 +148,13 @@ impl Status {
     }
 
     fn status_for(&self, path: &str) -> String {
-        let changes = &self.changes[path];
-
-        let left = if changes.contains(&ChangeType::IndexAdded) {
-            "A"
-        } else if changes.contains(&ChangeType::IndexModified) {
-            "M"
-        } else if changes.contains(&ChangeType::IndexDeleted) {
-            "D"
-        } else {
-            " "
+        let left = match self.index_changes.get(path) {
+            Some(change) => SHORT_STATUS[change],
+            None => " ",
         };
-        let right = if changes.contains(&ChangeType::WorkspaceModified) {
-            "M"
-        } else if changes.contains(&ChangeType::WorkspaceDeleted) {
-            "D"
-        } else {
-            " "
+        let right = match self.workspace_changes.get(path) {
+            Some(change) => SHORT_STATUS[change],
+            None => " ",
         };
 
         left.to_owned() + right
@@ -173,12 +180,15 @@ impl Status {
         Ok(())
     }
 
-    fn record_change(&mut self, path: &str, r#type: ChangeType) {
+    fn record_change(&mut self, path: &str, change_kind: ChangeKind, r#type: ChangeType) {
         self.changed.insert(path.to_string());
-        self.changes
-            .entry(path.to_string())
-            .or_insert_with(HashSet::new)
-            .insert(r#type);
+
+        let changes = match change_kind {
+            ChangeKind::Index => &mut self.index_changes,
+            ChangeKind::Workspace => &mut self.workspace_changes,
+        };
+
+        changes.insert(path.to_string(), r#type);
     }
 
     fn trackable_file(&mut self, path: &Path, stat: &fs::Metadata) -> Result<bool> {
@@ -205,13 +215,13 @@ impl Status {
         let stat = match self.stats.get(&entry.path) {
             Some(stat) => stat,
             None => {
-                self.record_change(&entry.path, ChangeType::WorkspaceDeleted);
+                self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Deleted);
                 return Ok(());
             }
         };
 
         if !entry.stat_match(&stat) {
-            self.record_change(&entry.path, ChangeType::WorkspaceModified);
+            self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Modified);
             return Ok(());
         }
 
@@ -226,7 +236,7 @@ impl Status {
         if entry.oid == oid {
             self.repo.index.update_entry_stat(entry, &stat);
         } else {
-            self.record_change(&entry.path, ChangeType::WorkspaceModified);
+            self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Modified);
         }
 
         Ok(())
@@ -236,10 +246,10 @@ impl Status {
         match self.head_tree.get(&entry.path) {
             Some(item) => {
                 if entry.mode != item.mode() || entry.oid != item.oid() {
-                    self.record_change(&entry.path, ChangeType::IndexModified);
+                    self.record_change(&entry.path, ChangeKind::Index, ChangeType::Modified);
                 }
             }
-            None => self.record_change(&entry.path, ChangeType::IndexAdded),
+            None => self.record_change(&entry.path, ChangeKind::Index, ChangeType::Added),
         }
     }
 }

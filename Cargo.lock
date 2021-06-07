@@ -199,6 +199,7 @@ dependencies = [
  "flate2",
  "hex",
  "itertools",
+ "lazy_static",
  "rand",
  "rstest",
  "sha-1",

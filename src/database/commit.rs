@@ -32,16 +32,7 @@ impl Commit {
             let line = line.trim();
 
             if line.is_empty() {
-                let parent = headers
-                    .get("parent")
-                    .map(|parent| {
-                        if parent.is_empty() {
-                            None
-                        } else {
-                            Some(parent.to_string())
-                        }
-                    })
-                    .unwrap();
+                let parent = headers.get("parent").map(|parent| parent.to_string());
                 break ParsedObject::Commit(Commit::new(
                     parent,
                     headers["tree"].to_string(),

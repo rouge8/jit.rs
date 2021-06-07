@@ -1,5 +1,7 @@
 use crate::commands::CommandContext;
 use crate::database::blob::Blob;
+use crate::database::tree::TreeEntry;
+use crate::database::ParsedObject;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::Repository;
@@ -15,12 +17,14 @@ pub struct Status {
     changes: HashMap<String, HashSet<ChangeType>>,
     changed: BTreeSet<String>,
     untracked: BTreeSet<String>,
+    head_tree: HashMap<String, TreeEntry>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 enum ChangeType {
     WorkspaceDeleted,
     WorkspaceModified,
+    IndexAdded,
 }
 
 impl Status {
@@ -32,6 +36,7 @@ impl Status {
             changes: HashMap::new(),
             changed: BTreeSet::new(),
             untracked: BTreeSet::new(),
+            head_tree: HashMap::new(),
         }
     }
 
@@ -39,11 +44,66 @@ impl Status {
         self.repo.index.load_for_update()?;
 
         self.scan_workspace(&self.root_dir.clone())?;
-        self.detect_workspace_changes()?;
+        self.load_head_tree()?;
+        self.check_index_entries()?;
 
         self.repo.index.write_updates()?;
 
         self.print_results();
+
+        Ok(())
+    }
+
+    fn load_head_tree(&mut self) -> Result<()> {
+        let head_oid = self.repo.refs.read_head()?;
+
+        if let Some(head_oid) = head_oid {
+            let commit = match self.repo.database.load(head_oid)? {
+                ParsedObject::Commit(commit) => commit,
+                _ => unreachable!(),
+            };
+            let tree_oid = commit.tree.clone();
+            self.read_tree(tree_oid, PathBuf::new())?;
+        }
+
+        Ok(())
+    }
+
+    fn read_tree(&mut self, tree_oid: String, pathname: PathBuf) -> Result<()> {
+        let tree = match self.repo.database.load(tree_oid)? {
+            ParsedObject::Tree(tree) => tree,
+            _ => unreachable!(),
+        };
+
+        let entries = tree.entries.clone();
+        for (name, entry) in entries {
+            let path = pathname.join(name);
+
+            if entry.is_tree() {
+                self.read_tree(entry.oid(), path)?;
+            } else {
+                self.head_tree.insert(path_to_string(&path), entry);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn check_index_entries(&mut self) -> Result<()> {
+        // We have to iterate over `cloned_entries` rather than `self.repo.index.entries` because
+        // Rust will not let us borrow self as mutable more than one time: first with
+        // `self.repo.index.entries.values_mut()` and second with `self.check_index_entry()`.
+        let mut cloned_entries = self.repo.index.entries.clone();
+        for mut entry in cloned_entries.values_mut() {
+            self.check_index_against_workspace(&mut entry)?;
+            self.check_index_against_head_tree(&entry);
+        }
+
+        // Update `self.repo.index.entries` with the entries that were modified in
+        // `self.check_index_entry()`
+        for (key, val) in cloned_entries {
+            self.repo.index.entries.insert(key, val);
+        }
 
         Ok(())
     }
@@ -58,16 +118,23 @@ impl Status {
         }
     }
 
-    fn status_for(&self, path: &str) -> &str {
+    fn status_for(&self, path: &str) -> String {
         let changes = &self.changes[path];
 
-        if changes.contains(&ChangeType::WorkspaceModified) {
-            " M"
-        } else if changes.contains(&ChangeType::WorkspaceDeleted) {
-            " D"
+        let left = if changes.contains(&ChangeType::IndexAdded) {
+            "A"
         } else {
-            "  "
-        }
+            " "
+        };
+        let right = if changes.contains(&ChangeType::WorkspaceModified) {
+            "M"
+        } else if changes.contains(&ChangeType::WorkspaceDeleted) {
+            "D"
+        } else {
+            " "
+        };
+
+        left.to_owned() + right
     }
 
     fn scan_workspace(&mut self, prefix: &Path) -> Result<()> {
@@ -85,24 +152,6 @@ impl Status {
                 }
                 self.untracked.insert(path);
             }
-        }
-
-        Ok(())
-    }
-
-    fn detect_workspace_changes(&mut self) -> Result<()> {
-        // We have to iterate over `cloned_entries` rather than `self.repo.index.entries` because
-        // Rust will not let us borrow self as mutable more than one time: first with
-        // `self.repo.index.entries.values_mut()` and second with `self.check_index_entry()`.
-        let mut cloned_entries = self.repo.index.entries.clone();
-        for mut entry in cloned_entries.values_mut() {
-            self.check_index_entry(&mut entry)?;
-        }
-
-        // Update `self.repo.index.entries` with the entries that were modified in
-        // `self.check_index_entry()`
-        for (key, val) in cloned_entries {
-            self.repo.index.entries.insert(key, val);
         }
 
         Ok(())
@@ -136,7 +185,7 @@ impl Status {
         Ok(false)
     }
 
-    fn check_index_entry(&mut self, entry: &mut Entry) -> Result<()> {
+    fn check_index_against_workspace(&mut self, entry: &mut Entry) -> Result<()> {
         let stat = match self.stats.get(&entry.path) {
             Some(stat) => stat,
             None => {
@@ -165,5 +214,11 @@ impl Status {
         }
 
         Ok(())
+    }
+
+    fn check_index_against_head_tree(&mut self, entry: &Entry) {
+        if self.head_tree.get(&entry.path).is_none() {
+            self.record_change(&entry.path, ChangeType::IndexAdded);
+        }
     }
 }

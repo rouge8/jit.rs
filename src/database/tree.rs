@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 pub const TREE_MODE: u32 = 0o40000;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Tree {
     pub entries: BTreeMap<PathBuf, TreeEntry>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TreeEntry {
     Entry(Entry),
     Tree(Tree),
@@ -30,6 +30,13 @@ impl TreeEntry {
         match self {
             TreeEntry::Entry(e) => e.oid.clone(),
             TreeEntry::Tree(e) => e.oid(),
+        }
+    }
+
+    pub fn is_tree(&self) -> bool {
+        match self {
+            TreeEntry::Entry(e) => e.mode() == TREE_MODE,
+            _ => false,
         }
     }
 }

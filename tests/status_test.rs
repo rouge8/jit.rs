@@ -187,3 +187,41 @@ mod index_workspace_changes {
         Ok(())
     }
 }
+
+mod head_index_changes {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        helper.write_file("1.txt", "one").unwrap();
+        helper.write_file("a/2.txt", "two").unwrap();
+        helper.write_file("a/b/3.txt", "three").unwrap();
+        helper.jit_cmd(&["add", "."]);
+        helper.commit("commit message");
+
+        helper
+    }
+
+    #[rstest]
+    fn report_a_file_added_to_a_tracked_directory(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("a/4.txt", "four")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status("A  a/4.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn report_a_file_added_to_an_untracked_directory(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("d/e/5.txt", "five")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status("A  d/e/5.txt\n");
+
+        Ok(())
+    }
+}

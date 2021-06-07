@@ -42,6 +42,7 @@ impl TreeEntry {
 }
 
 impl Tree {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Tree {
             entries: BTreeMap::new(),

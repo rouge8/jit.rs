@@ -29,6 +29,7 @@ pub fn helper() -> CommandHelper {
 }
 
 impl CommandHelper {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         let tmp_dir = TempDir::new().unwrap();
         let repo_path = tmp_dir.into_path().canonicalize().unwrap();

@@ -6,6 +6,7 @@ use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::Repository;
 use crate::util::path_to_string;
+use colored::Colorize;
 use lazy_static::lazy_static;
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::fs;
@@ -167,14 +168,23 @@ impl Status {
     }
 
     fn print_long_format(&self) {
-        self.print_changeset("Changes to be committed", &self.index_changes);
-        self.print_changeset("Changes not staged for commit", &self.workspace_changes);
+        self.print_changeset("Changes to be committed", &self.index_changes, "green");
+        self.print_changeset(
+            "Changes not staged for commit",
+            &self.workspace_changes,
+            "red",
+        );
         self.print_untracked_files();
 
         self.print_commit_status();
     }
 
-    fn print_changeset(&self, message: &str, changeset: &BTreeMap<String, ChangeType>) {
+    fn print_changeset(
+        &self,
+        message: &str,
+        changeset: &BTreeMap<String, ChangeType>,
+        style: &str,
+    ) {
         if changeset.is_empty() {
             return;
         }
@@ -183,7 +193,7 @@ impl Status {
         println!();
         for (path, change_type) in changeset {
             let status = format!("{:width$}", LONG_STATUS[change_type], width = LABEL_WIDTH);
-            println!("\t{}{}", status, path);
+            println!("{}", format!("\t{}{}", status, path).color(style));
         }
         println!();
     }
@@ -196,7 +206,7 @@ impl Status {
         println!("Untracked files:");
         println!();
         for path in &self.untracked {
-            println!("\t{}", path);
+            println!("{}", format!("\t{}", path).red());
         }
         println!();
     }

@@ -102,9 +102,14 @@ impl Index {
         Ok(())
     }
 
+    pub fn tracked_file(&self, path: &Path) -> bool {
+        let key = path_to_string(&path);
+        self.entries.contains_key(&key)
+    }
+
     pub fn tracked(&self, path: &Path) -> bool {
         let key = path_to_string(&path);
-        self.entries.contains_key(&key) || self.parents.contains_key(&key)
+        self.tracked_file(path) || self.parents.contains_key(&key)
     }
 
     pub fn update_entry_stat(&mut self, entry: &mut Entry, stat: &fs::Metadata) {

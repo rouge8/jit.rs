@@ -244,4 +244,31 @@ mod head_index_changes {
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_deleted_files(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("1.txt")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status("D  1.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn report_all_deleted_files_inside_directories(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("a")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+
+        helper.assert_status(
+            "\
+D  a/2.txt
+D  a/b/3.txt
+",
+        );
+
+        Ok(())
+    }
 }

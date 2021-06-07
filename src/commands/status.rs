@@ -26,6 +26,7 @@ enum ChangeType {
     WorkspaceModified,
     IndexAdded,
     IndexModified,
+    IndexDeleted,
 }
 
 impl Status {
@@ -47,6 +48,7 @@ impl Status {
         self.scan_workspace(&self.root_dir.clone())?;
         self.load_head_tree()?;
         self.check_index_entries()?;
+        self.collect_deleted_head_files();
 
         self.repo.index.write_updates()?;
 
@@ -109,6 +111,15 @@ impl Status {
         Ok(())
     }
 
+    fn collect_deleted_head_files(&mut self) {
+        let keys: Vec<_> = self.head_tree.keys().cloned().collect();
+        for path in keys {
+            if !self.repo.index.tracked_file(Path::new(&path)) {
+                self.record_change(&path, ChangeType::IndexDeleted);
+            }
+        }
+    }
+
     fn print_results(&self) {
         for path in &self.changed {
             let status = self.status_for(&path);
@@ -126,6 +137,8 @@ impl Status {
             "A"
         } else if changes.contains(&ChangeType::IndexModified) {
             "M"
+        } else if changes.contains(&ChangeType::IndexDeleted) {
+            "D"
         } else {
             " "
         };

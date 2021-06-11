@@ -5,11 +5,13 @@ use std::path::PathBuf;
 
 mod add;
 mod commit;
+mod diff;
 mod init;
 mod status;
 
 use add::Add;
 use commit::Commit;
+use diff::Diff;
 use init::Init;
 use status::Status;
 
@@ -35,6 +37,10 @@ pub fn execute(
         }
         "status" => {
             let mut cmd = Status::new(ctx);
+            cmd.run()
+        }
+        "diff" => {
+            let mut cmd = Diff::new(ctx);
             cmd.run()
         }
         _ => Err(Error::UnknownCommand(name.to_string())),

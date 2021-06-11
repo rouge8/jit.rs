@@ -31,7 +31,7 @@ pub struct Repository {
     pub workspace: Workspace,
 
     // status-related fields
-    stats: HashMap<String, fs::Metadata>,
+    pub stats: HashMap<String, fs::Metadata>,
     pub changed: BTreeSet<String>,
     pub index_changes: BTreeMap<String, ChangeType>,
     pub workspace_changes: BTreeMap<String, ChangeType>,

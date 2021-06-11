@@ -58,6 +58,10 @@ impl Database {
         Ok(&self.objects[&oid])
     }
 
+    pub fn short_oid(&self, oid: &str) -> String {
+        oid[0..6].to_string()
+    }
+
     fn object_path(&self, oid: &str) -> PathBuf {
         self.pathname.join(&oid[0..2]).join(&oid[2..])
     }

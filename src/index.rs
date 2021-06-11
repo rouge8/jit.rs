@@ -117,6 +117,10 @@ impl Index {
         self.changed = true;
     }
 
+    pub fn entry_for_path(&self, path: &str) -> &Entry {
+        &self.entries[path]
+    }
+
     fn clear(&mut self) {
         self.entries = BTreeMap::new();
         self.parents = HashMap::new();
@@ -262,6 +266,14 @@ impl Entry {
         }
     }
 
+    pub fn mode_for_stat(stat: &fs::Metadata) -> u32 {
+        if is_executable(stat.mode()) {
+            0o100755u32
+        } else {
+            0o100644u32
+        }
+    }
+
     fn parse(data: &[u8]) -> Result<Self> {
         let mut metadata: Vec<u32> = Vec::with_capacity(10);
 
@@ -290,14 +302,6 @@ impl Entry {
             flags,
             path,
         })
-    }
-
-    fn mode_for_stat(stat: &fs::Metadata) -> u32 {
-        if is_executable(stat.mode()) {
-            0o100755u32
-        } else {
-            0o100644u32
-        }
     }
 
     fn parent_directories(&self) -> Vec<PathBuf> {

@@ -59,7 +59,7 @@ impl Database {
     }
 
     pub fn short_oid(&self, oid: &str) -> String {
-        oid[0..6].to_string()
+        oid[0..=6].to_string()
     }
 
     fn object_path(&self, oid: &str) -> PathBuf {

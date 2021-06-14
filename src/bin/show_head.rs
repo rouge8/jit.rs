@@ -8,7 +8,7 @@ use std::path::PathBuf;
 fn show_tree(oid: String, prefix: PathBuf) -> Result<()> {
     let mut repo = repo()?;
 
-    let tree = match repo.database.load(oid)? {
+    let tree = match repo.database.load(&oid)? {
         ParsedObject::Tree(tree) => tree,
         _ => unreachable!(),
     };
@@ -37,7 +37,7 @@ fn main() -> Result<()> {
     let mut repo = repo()?;
 
     let head_oid = repo.refs.read_head()?.unwrap();
-    let commit = match repo.database.load(head_oid)? {
+    let commit = match repo.database.load(&head_oid)? {
         ParsedObject::Commit(commit) => commit,
         _ => unreachable!(),
     };

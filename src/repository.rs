@@ -122,7 +122,7 @@ impl Repository {
         let head_oid = self.refs.read_head()?;
 
         if let Some(head_oid) = head_oid {
-            let commit = match self.database.load(head_oid)? {
+            let commit = match self.database.load(&head_oid)? {
                 ParsedObject::Commit(commit) => commit,
                 _ => unreachable!(),
             };
@@ -134,7 +134,7 @@ impl Repository {
     }
 
     fn read_tree(&mut self, tree_oid: String, pathname: PathBuf) -> Result<()> {
-        let tree = match self.database.load(tree_oid)? {
+        let tree = match self.database.load(&tree_oid)? {
             ParsedObject::Tree(tree) => tree,
             _ => unreachable!(),
         };

@@ -95,14 +95,15 @@ impl Diff {
 
     fn from_head(&mut self, path: &str) -> Result<Target> {
         let entry = &self.repo.head_tree[path];
-        let blob = match self.repo.database.load(entry.oid())? {
+        let oid = entry.oid();
+        let blob = match self.repo.database.load(&oid)? {
             ParsedObject::Blob(blob) => blob,
             _ => unreachable!(),
         };
 
         Ok(Target::new(
             path.to_string(),
-            entry.oid(),
+            oid,
             Some(entry.mode()),
             blob.data.clone(),
         ))
@@ -110,7 +111,7 @@ impl Diff {
 
     fn from_index(&mut self, path: &str) -> Result<Target> {
         let entry = self.repo.index.entry_for_path(path);
-        let blob = match self.repo.database.load(entry.oid.clone())? {
+        let blob = match self.repo.database.load(&entry.oid)? {
             ParsedObject::Blob(blob) => blob,
             _ => unreachable!(),
         };

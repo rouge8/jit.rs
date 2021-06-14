@@ -50,12 +50,12 @@ impl Database {
         object.oid()
     }
 
-    pub fn load(&mut self, oid: String) -> io::Result<&ParsedObject> {
-        let object = self.read_object(&oid)?;
+    pub fn load(&mut self, oid: &str) -> io::Result<&ParsedObject> {
+        let object = self.read_object(oid)?;
 
-        self.objects.insert(oid.clone(), object);
+        self.objects.insert(oid.to_string(), object);
 
-        Ok(&self.objects[&oid])
+        Ok(&self.objects[oid])
     }
 
     pub fn short_oid(&self, oid: &str) -> String {

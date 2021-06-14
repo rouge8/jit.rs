@@ -149,6 +149,10 @@ impl CommandHelper {
             .stdout(expected);
     }
 
+    pub fn assert_diff(&mut self, expected: &'static str) {
+        self.jit_cmd(&["diff"]).assert().stdout(expected);
+    }
+
     pub fn repo(&self) -> Repository {
         Repository::new(self.repo_path.join(".git"))
     }

@@ -1,5 +1,7 @@
 use crate::commands::CommandContext;
 use crate::database::blob::Blob;
+use crate::database::ParsedObject;
+use crate::diff::diff;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::{ChangeType, Repository};
@@ -38,17 +40,28 @@ impl Diff {
         Ok(())
     }
 
-    fn diff_head_index(&self) -> Result<()> {
-        for (path, state) in &self.repo.index_changes {
+    fn diff_head_index(&mut self) -> Result<()> {
+        let paths: Vec<_> = self.repo.index_changes.keys().cloned().collect();
+        for path in paths {
+            let state = &self.repo.index_changes[&path];
             match state {
                 ChangeType::Added => {
-                    self.print_diff(&mut self.from_nothing(&path), &mut self.from_index(&path));
+                    let mut a = self.from_nothing(&path);
+                    let mut b = self.from_index(&path)?;
+
+                    self.print_diff(&mut a, &mut b);
                 }
                 ChangeType::Modified => {
-                    self.print_diff(&mut self.from_head(&path), &mut self.from_index(&path));
+                    let mut a = self.from_head(&path)?;
+                    let mut b = self.from_index(&path)?;
+
+                    self.print_diff(&mut a, &mut b);
                 }
                 ChangeType::Deleted => {
-                    self.print_diff(&mut self.from_head(&path), &mut self.from_nothing(&path));
+                    let mut a = self.from_head(&path)?;
+                    let mut b = self.from_nothing(&path);
+
+                    self.print_diff(&mut a, &mut b);
                 }
             }
         }
@@ -56,14 +69,22 @@ impl Diff {
         Ok(())
     }
 
-    fn diff_index_workspace(&self) -> Result<()> {
-        for (path, state) in &self.repo.workspace_changes {
+    fn diff_index_workspace(&mut self) -> Result<()> {
+        let paths: Vec<_> = self.repo.workspace_changes.keys().cloned().collect();
+        for path in paths {
+            let state = &self.repo.workspace_changes[&path];
             match state {
                 ChangeType::Modified => {
-                    self.print_diff(&mut self.from_index(&path), &mut self.from_file(&path)?);
+                    let mut a = self.from_index(&path)?;
+                    let mut b = self.from_file(&path)?;
+
+                    self.print_diff(&mut a, &mut b);
                 }
                 ChangeType::Deleted => {
-                    self.print_diff(&mut self.from_index(&path), &mut self.from_nothing(&path));
+                    let mut a = self.from_index(&path)?;
+                    let mut b = self.from_nothing(&path);
+
+                    self.print_diff(&mut a, &mut b);
                 }
                 _ => unreachable!(),
             }
@@ -72,16 +93,34 @@ impl Diff {
         Ok(())
     }
 
-    fn from_head(&self, path: &str) -> Target {
+    fn from_head(&mut self, path: &str) -> Result<Target> {
         let entry = &self.repo.head_tree[path];
+        let blob = match self.repo.database.load(entry.oid())? {
+            ParsedObject::Blob(blob) => blob,
+            _ => unreachable!(),
+        };
 
-        Target::new(path.to_string(), entry.oid(), Some(entry.mode()))
+        Ok(Target::new(
+            path.to_string(),
+            entry.oid(),
+            Some(entry.mode()),
+            blob.data.clone(),
+        ))
     }
 
-    fn from_index(&self, path: &str) -> Target {
+    fn from_index(&mut self, path: &str) -> Result<Target> {
         let entry = self.repo.index.entry_for_path(path);
+        let blob = match self.repo.database.load(entry.oid.clone())? {
+            ParsedObject::Blob(blob) => blob,
+            _ => unreachable!(),
+        };
 
-        Target::new(path.to_string(), entry.oid.clone(), Some(entry.mode))
+        Ok(Target::new(
+            path.to_string(),
+            entry.oid.clone(),
+            Some(entry.mode),
+            blob.data.clone(),
+        ))
     }
 
     fn from_file(&self, path: &str) -> Result<Target> {
@@ -89,18 +128,18 @@ impl Diff {
         let oid = self.repo.database.hash_object(&blob);
         let mode = Entry::mode_for_stat(&self.repo.stats[path]);
 
-        Ok(Target::new(path.to_string(), oid, Some(mode)))
+        Ok(Target::new(path.to_string(), oid, Some(mode), blob.data))
     }
 
     fn from_nothing(&self, path: &str) -> Target {
-        Target::new(path.to_string(), NULL_OID.to_string(), None)
+        Target::new(path.to_string(), NULL_OID.to_string(), None, vec![])
     }
 
     fn short(&self, oid: &str) -> String {
         self.repo.database.short_oid(oid)
     }
 
-    fn print_diff(&self, a: &mut Target, b: &mut Target) {
+    fn print_diff(&mut self, a: &mut Target, b: &mut Target) {
         if a.oid == b.oid && a.mode == b.mode {
             return;
         }
@@ -138,6 +177,14 @@ impl Diff {
         println!("{}", oid_range);
         println!("--- {}", a.diff_path());
         println!("+++ {}", b.diff_path());
+
+        let edits = diff(
+            std::str::from_utf8(&a.data).expect("Invalid UTF-8"),
+            std::str::from_utf8(&b.data).expect("Invalid UTF-8"),
+        );
+        for edit in edits {
+            println!("{}", edit);
+        }
     }
 }
 
@@ -145,11 +192,17 @@ struct Target {
     path: String,
     oid: String,
     mode: Option<u32>,
+    data: Vec<u8>,
 }
 
 impl Target {
-    fn new(path: String, oid: String, mode: Option<u32>) -> Self {
-        Target { path, oid, mode }
+    fn new(path: String, oid: String, mode: Option<u32>, data: Vec<u8>) -> Self {
+        Target {
+            path,
+            oid,
+            mode,
+            data,
+        }
     }
 
     fn diff_path(&self) -> &str {

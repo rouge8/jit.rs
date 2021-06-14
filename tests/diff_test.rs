@@ -28,6 +28,8 @@ diff --git a/file.txt b/file.txt
 index 0839b2e..21fb1ec 100644
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
 ",
         );
 
@@ -63,6 +65,8 @@ new mode 100755
 index 0839b2e..21fb1ec
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
 ",
         );
 
@@ -80,6 +84,7 @@ deleted file mode 100644
 index 0839b2e..0000000
 --- a/file.txt
 +++ /dev/null
+-contents
 ",
         );
 
@@ -116,6 +121,8 @@ diff --git a/file.txt b/file.txt
 index 0839b2e..21fb1ec 100644
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
 ",
         );
 
@@ -156,6 +163,8 @@ new mode 100755
 index 0839b2e..21fb1ec
 --- a/file.txt
 +++ b/file.txt
+-contents
++changed
 ",
         );
 
@@ -175,6 +184,7 @@ deleted file mode 100644
 index 0839b2e..0000000
 --- a/file.txt
 +++ /dev/null
+-contents
 ",
         );
 
@@ -193,6 +203,7 @@ new file mode 100644
 index 0000000..b6fc4c6
 --- /dev/null
 +++ b/another.txt
++hello
 ",
         );
 

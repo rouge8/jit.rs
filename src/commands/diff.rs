@@ -3,7 +3,6 @@ use crate::database::blob::Blob;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::{ChangeType, Repository};
-use crate::util::path_to_string;
 use lazy_static::lazy_static;
 use std::path::Path;
 
@@ -27,8 +26,12 @@ impl Diff {
 
         for (path, state) in &self.repo.workspace_changes {
             match state {
-                ChangeType::Modified => self.diff_file_modified(&path)?,
-                ChangeType::Deleted => self.diff_file_deleted(&path),
+                ChangeType::Modified => {
+                    self.print_diff(&mut self.from_index(&path), &mut self.from_file(&path)?);
+                }
+                ChangeType::Deleted => {
+                    self.print_diff(&mut self.from_index(&path), &mut self.from_nothing(&path));
+                }
                 _ => unreachable!(),
             }
         }
@@ -36,66 +39,82 @@ impl Diff {
         Ok(())
     }
 
-    fn diff_file_modified(&self, path: &str) -> Result<()> {
+    fn from_index(&self, path: &str) -> Target {
         let entry = self.repo.index.entry_for_path(path);
-        let a_oid = &entry.oid;
-        let a_mode = format!("{:o}", entry.mode);
-        let a_path = Path::new("a").join(path);
 
-        let blob = Blob::new(self.repo.workspace.read_file(Path::new(path))?);
-        let b_oid = self.repo.database.hash_object(&blob);
-        let b_mode = format!("{:o}", Entry::mode_for_stat(&self.repo.stats[path]));
-        let b_path = Path::new("b").join(path);
-
-        println!(
-            "diff --git {} {}",
-            path_to_string(&a_path),
-            path_to_string(&b_path)
-        );
-
-        if a_mode != b_mode {
-            println!("old mode {}", a_mode);
-            println!("new mode {}", b_mode);
-        }
-
-        if a_oid == &b_oid {
-            return Ok(());
-        }
-
-        let mut oid_range = format!("index {}..{}", self.short(a_oid), self.short(&b_oid));
-        if a_mode == b_mode {
-            oid_range.push(' ');
-            oid_range.push_str(&a_mode);
-        }
-
-        println!("{}", oid_range);
-        println!("--- {}", path_to_string(&a_path));
-        println!("+++ {}", path_to_string(&b_path));
-
-        Ok(())
+        Target::new(path.to_string(), entry.oid.clone(), Some(entry.mode))
     }
 
-    fn diff_file_deleted(&self, path: &str) {
-        let entry = self.repo.index.entry_for_path(path);
-        let a_oid = &entry.oid;
-        let a_mode = format!("{:o}", entry.mode);
-        let a_path = Path::new("a").join(path);
+    fn from_file(&self, path: &str) -> Result<Target> {
+        let blob = Blob::new(self.repo.workspace.read_file(Path::new(path))?);
+        let oid = self.repo.database.hash_object(&blob);
+        let mode = Entry::mode_for_stat(&self.repo.stats[path]);
 
-        let b_oid = &NULL_OID;
-        let b_path = Path::new("b").join(path);
+        Ok(Target::new(path.to_string(), oid, Some(mode)))
+    }
 
-        println!(
-            "diff --git {} {}",
-            path_to_string(&a_path),
-            path_to_string(&b_path)
-        );
-        println!("deleted file mode {}", a_mode);
-        println!("index {}..{}", self.short(a_oid), self.short(&b_oid));
-        println!("--- {}", path_to_string(&a_path));
-        println!("+++ {}", NULL_PATH);
+    fn from_nothing(&self, path: &str) -> Target {
+        Target::new(path.to_string(), NULL_OID.to_string(), None)
     }
 
     fn short(&self, oid: &str) -> String {
         self.repo.database.short_oid(oid)
+    }
+
+    fn print_diff(&self, a: &mut Target, b: &mut Target) {
+        if a.oid == b.oid && a.mode == b.mode {
+            return;
+        }
+
+        a.path = format!("a/{}", a.path);
+        b.path = format!("b/{}", b.path);
+
+        println!("diff --git {} {}", a.path, b.path);
+        self.print_diff_mode(&a, &b);
+        self.print_diff_content(&a, &b);
+    }
+
+    fn print_diff_mode(&self, a: &Target, b: &Target) {
+        if b.mode.is_none() {
+            println!("deleted file mode {:o}", a.mode.unwrap());
+        } else if a.mode != b.mode {
+            println!("old mode {:o}", a.mode.unwrap());
+            println!("new mode {:o}", b.mode.unwrap());
+        }
+    }
+
+    fn print_diff_content(&self, a: &Target, b: &Target) {
+        if a.oid == b.oid {
+            return;
+        }
+
+        let mut oid_range = format!("index {}..{}", self.short(&a.oid), self.short(&b.oid));
+        if a.mode == b.mode {
+            oid_range.push(' ');
+            oid_range.push_str(&format!("{:o}", a.mode.unwrap()));
+        }
+
+        println!("{}", oid_range);
+        println!("--- {}", a.diff_path());
+        println!("+++ {}", b.diff_path());
+    }
+}
+
+struct Target {
+    path: String,
+    oid: String,
+    mode: Option<u32>,
+}
+
+impl Target {
+    fn new(path: String, oid: String, mode: Option<u32>) -> Self {
+        Target { path, oid, mode }
+    }
+
+    fn diff_path(&self) -> &str {
+        match self.mode {
+            Some(_) => &self.path,
+            None => NULL_PATH,
+        }
     }
 }

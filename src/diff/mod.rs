@@ -69,3 +69,47 @@ impl fmt::Display for EditType {
         write!(f, "{}", result)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn it_diffs() {
+        let a = "\
+A
+B
+C
+A
+B
+B
+A";
+        let b = "\
+C
+B
+A
+B
+A
+C";
+
+        let result = diff(a, b)
+            .into_iter()
+            .map(|edit| edit.to_string())
+            .collect::<Vec<_>>()
+            .join("\n");
+
+        assert_eq!(
+            result,
+            "\
+-A
+-B
+ C
++B
+ A
+ B
+-B
+ A
++C"
+        );
+    }
+}

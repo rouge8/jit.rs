@@ -45,7 +45,7 @@ impl Diff {
                     self.print_diff(&mut self.from_nothing(&path), &mut self.from_index(&path));
                 }
                 ChangeType::Modified => {
-                    self.print_diff(&mut self.from_head(&path), &mut self.from_file(&path)?);
+                    self.print_diff(&mut self.from_head(&path), &mut self.from_index(&path));
                 }
                 ChangeType::Deleted => {
                     self.print_diff(&mut self.from_head(&path), &mut self.from_nothing(&path));

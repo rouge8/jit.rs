@@ -107,6 +107,9 @@ mod with_a_head_commit {
         helper.write_file("file.txt", "changed")?;
         helper.jit_cmd(&["add", "."]);
 
+        // This write will not be present in the diff
+        helper.write_file("file.txt", "changed again")?;
+
         helper.assert_diff_cached(
             "\
 diff --git a/file.txt b/file.txt
@@ -141,6 +144,9 @@ new mode 100755
 
         helper.write_file("file.txt", "changed")?;
         helper.jit_cmd(&["add", "."]);
+
+        // This write will not be present in the diff
+        helper.write_file("file.txt", "changed again")?;
 
         helper.assert_diff_cached(
             "\

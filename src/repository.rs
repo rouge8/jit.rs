@@ -36,7 +36,7 @@ pub struct Repository {
     pub index_changes: BTreeMap<String, ChangeType>,
     pub workspace_changes: BTreeMap<String, ChangeType>,
     pub untracked_files: BTreeSet<String>,
-    head_tree: HashMap<String, TreeEntry>,
+    pub head_tree: HashMap<String, TreeEntry>,
 }
 
 impl Repository {

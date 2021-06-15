@@ -1,6 +1,8 @@
+use hunk::Hunk;
 use myers::Myers;
 use std::fmt;
 
+pub mod hunk;
 mod myers;
 
 fn lines(document: &str) -> Vec<Line> {
@@ -15,6 +17,10 @@ fn lines(document: &str) -> Vec<Line> {
 
 pub fn diff(a: &str, b: &str) -> Vec<Edit> {
     Myers::new(lines(a), lines(b)).diff()
+}
+
+pub fn diff_hunks(a: &str, b: &str) -> Vec<Hunk> {
+    Hunk::filter(diff(a, b))
 }
 
 #[derive(Debug, Clone)]
@@ -32,7 +38,7 @@ impl Line {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Edit {
     r#type: EditType,
     a_line: Option<Line>,
@@ -59,7 +65,7 @@ impl fmt::Display for Edit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum EditType {
     Eql,
     Ins,
@@ -119,5 +125,191 @@ C";
  A
 +C"
         );
+    }
+
+    mod diff_hunks {
+        use super::*;
+
+        const DOC: &str = "\
+the
+quick
+brown
+fox
+jumps
+over
+the
+lazy
+dog";
+
+        fn hunks(a: &str, b: &str) -> Vec<(String, Vec<String>)> {
+            diff_hunks(a, b)
+                .iter()
+                .map(|hunk| {
+                    (
+                        hunk.header(),
+                        hunk.edits.iter().map(|edit| edit.to_string()).collect(),
+                    )
+                })
+                .collect()
+        }
+
+        #[test]
+        fn detect_deletion_at_the_start() {
+            let changed = "\
+quick
+brown
+fox
+jumps
+over
+the
+lazy
+dog";
+
+            assert_eq!(
+                hunks(DOC, changed),
+                vec![(
+                    String::from("@@ -1,4 +1,3 @@"),
+                    vec![
+                        String::from("-the"),
+                        String::from(" quick"),
+                        String::from(" brown"),
+                        String::from(" fox")
+                    ]
+                )]
+            );
+        }
+
+        #[test]
+        fn detect_insertion_at_the_start() {
+            let changed = "\
+so
+the
+quick
+brown
+fox
+jumps
+over
+the
+lazy
+dog";
+
+            assert_eq!(
+                hunks(DOC, changed),
+                vec![(
+                    String::from("@@ -1,3 +1,4 @@"),
+                    vec![
+                        String::from("+so"),
+                        String::from(" the"),
+                        String::from(" quick"),
+                        String::from(" brown"),
+                    ]
+                )]
+            );
+        }
+
+        #[test]
+        fn detect_change_skipping_start_and_end() {
+            let changed = "\
+the
+quick
+brown
+fox
+leaps
+right
+over
+the
+lazy
+dog";
+
+            assert_eq!(
+                hunks(DOC, changed),
+                vec![(
+                    String::from("@@ -2,7 +2,8 @@"),
+                    vec![
+                        String::from(" quick"),
+                        String::from(" brown"),
+                        String::from(" fox"),
+                        String::from("-jumps"),
+                        String::from("+leaps"),
+                        String::from("+right"),
+                        String::from(" over"),
+                        String::from(" the"),
+                        String::from(" lazy"),
+                    ]
+                )]
+            );
+        }
+
+        #[test]
+        fn put_nearby_changes_in_the_same_hunk() {
+            let changed = "\
+the
+brown
+fox
+jumps
+over
+the
+lazy
+cat";
+
+            assert_eq!(
+                hunks(DOC, changed),
+                vec![(
+                    String::from("@@ -1,9 +1,8 @@"),
+                    vec![
+                        String::from(" the"),
+                        String::from("-quick"),
+                        String::from(" brown"),
+                        String::from(" fox"),
+                        String::from(" jumps"),
+                        String::from(" over"),
+                        String::from(" the"),
+                        String::from(" lazy"),
+                        String::from("-dog"),
+                        String::from("+cat"),
+                    ]
+                )]
+            );
+        }
+
+        #[test]
+        fn put_distant_changes_in_different_hunks() {
+            let changed = "\
+a
+quick
+brown
+fox
+jumps
+over
+the
+lazy
+cat";
+
+            assert_eq!(
+                hunks(DOC, changed),
+                vec![
+                    (
+                        String::from("@@ -1,4 +1,4 @@"),
+                        vec![
+                            String::from("-the"),
+                            String::from("+a"),
+                            String::from(" quick"),
+                            String::from(" brown"),
+                            String::from(" fox"),
+                        ]
+                    ),
+                    (
+                        String::from("@@ -6,4 +6,4 @@"),
+                        vec![
+                            String::from(" over"),
+                            String::from(" the"),
+                            String::from(" lazy"),
+                            String::from("-dog"),
+                            String::from("+cat"),
+                        ]
+                    ),
+                ]
+            );
+        }
     }
 }

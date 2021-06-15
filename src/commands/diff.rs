@@ -1,7 +1,8 @@
 use crate::commands::CommandContext;
 use crate::database::blob::Blob;
 use crate::database::ParsedObject;
-use crate::diff::diff;
+use crate::diff::diff_hunks;
+use crate::diff::hunk::Hunk;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::{ChangeType, Repository};
@@ -179,11 +180,18 @@ impl Diff {
         println!("--- {}", a.diff_path());
         println!("+++ {}", b.diff_path());
 
-        let edits = diff(
+        let hunks = diff_hunks(
             std::str::from_utf8(&a.data).expect("Invalid UTF-8"),
             std::str::from_utf8(&b.data).expect("Invalid UTF-8"),
         );
-        for edit in edits {
+        for hunk in hunks {
+            self.print_diff_hunk(&hunk);
+        }
+    }
+
+    fn print_diff_hunk(&self, hunk: &Hunk) {
+        println!("{}", hunk.header());
+        for edit in &hunk.edits {
             println!("{}", edit);
         }
     }

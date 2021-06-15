@@ -85,6 +85,8 @@ impl Hunk {
                         counter -= 1;
                     }
                 }
+            } else {
+                counter -= 1
             }
         }
 

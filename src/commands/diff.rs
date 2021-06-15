@@ -1,11 +1,12 @@
 use crate::commands::CommandContext;
 use crate::database::blob::Blob;
 use crate::database::ParsedObject;
-use crate::diff::diff_hunks;
 use crate::diff::hunk::Hunk;
+use crate::diff::{diff_hunks, Edit, EditType};
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::{ChangeType, Repository};
+use colored::Colorize;
 use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -154,14 +155,18 @@ impl Diff {
         self.print_diff_content(&a, &b);
     }
 
+    fn header(&self, string: String) {
+        println!("{}", string.bold());
+    }
+
     fn print_diff_mode(&self, a: &Target, b: &Target) {
         if a.mode.is_none() {
-            println!("new file mode {:o}", b.mode.unwrap());
+            self.header(format!("new file mode {:o}", b.mode.unwrap()));
         } else if b.mode.is_none() {
-            println!("deleted file mode {:o}", a.mode.unwrap());
+            self.header(format!("deleted file mode {:o}", a.mode.unwrap()));
         } else if a.mode != b.mode {
-            println!("old mode {:o}", a.mode.unwrap());
-            println!("new mode {:o}", b.mode.unwrap());
+            self.header(format!("old mode {:o}", a.mode.unwrap()));
+            self.header(format!("new mode {:o}", b.mode.unwrap()));
         }
     }
 
@@ -190,9 +195,19 @@ impl Diff {
     }
 
     fn print_diff_hunk(&self, hunk: &Hunk) {
-        println!("{}", hunk.header());
+        println!("{}", hunk.header().cyan());
         for edit in &hunk.edits {
-            println!("{}", edit);
+            self.print_diff_edit(&edit);
+        }
+    }
+
+    fn print_diff_edit(&self, edit: &Edit) {
+        let text = edit.to_string();
+
+        match edit.r#type {
+            EditType::Eql => println!("{}", text),
+            EditType::Ins => println!("{}", text.green()),
+            EditType::Del => println!("{}", text.red()),
         }
     }
 }

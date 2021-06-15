@@ -40,7 +40,7 @@ impl Line {
 
 #[derive(Debug, Clone)]
 pub struct Edit {
-    r#type: EditType,
+    pub r#type: EditType,
     a_line: Option<Line>,
     b_line: Option<Line>,
 }

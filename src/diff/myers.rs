@@ -29,11 +29,11 @@ impl Myers {
             };
 
             if x == prev_x {
-                diff.push(Edit::new(EditType::Ins, b_line.unwrap()));
+                diff.push(Edit::new(EditType::Ins, None, b_line));
             } else if y == prev_y {
-                diff.push(Edit::new(EditType::Del, a_line.unwrap()));
+                diff.push(Edit::new(EditType::Del, a_line, None));
             } else {
-                diff.push(Edit::new(EditType::Eql, a_line.unwrap()));
+                diff.push(Edit::new(EditType::Eql, a_line, b_line));
             }
         }
 

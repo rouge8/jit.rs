@@ -6,8 +6,8 @@ mod myers;
 fn lines(document: &str) -> Vec<Line> {
     let mut result = vec![];
 
-    for line in document.lines() {
-        result.push(Line::new(line));
+    for (i, line) in document.lines().enumerate() {
+        result.push(Line::new(i + 1, line));
     }
 
     result
@@ -19,12 +19,14 @@ pub fn diff(a: &str, b: &str) -> Vec<Edit> {
 
 #[derive(Debug, Clone)]
 pub struct Line {
+    number: usize,
     text: String,
 }
 
 impl Line {
-    pub fn new(text: &str) -> Self {
+    pub fn new(number: usize, text: &str) -> Self {
         Line {
+            number,
             text: text.to_string(),
         }
     }
@@ -33,21 +35,27 @@ impl Line {
 #[derive(Debug)]
 pub struct Edit {
     r#type: EditType,
-    text: String,
+    a_line: Option<Line>,
+    b_line: Option<Line>,
 }
 
 impl Edit {
-    fn new(r#type: EditType, line: Line) -> Self {
+    fn new(r#type: EditType, a_line: Option<Line>, b_line: Option<Line>) -> Self {
         Edit {
             r#type,
-            text: line.text,
+            a_line,
+            b_line,
         }
     }
 }
 
 impl fmt::Display for Edit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}", self.r#type, self.text)
+        let line = self
+            .a_line
+            .as_ref()
+            .unwrap_or_else(|| self.b_line.as_ref().unwrap());
+        write!(f, "{}{}", self.r#type, line.text)
     }
 }
 

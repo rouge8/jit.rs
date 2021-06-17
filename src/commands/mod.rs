@@ -1,6 +1,8 @@
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
+use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
+use std::io::Write;
 use std::path::PathBuf;
 
 mod add;
@@ -15,10 +17,12 @@ use diff::Diff;
 use init::Init;
 use status::Status;
 
-pub fn execute(
+pub fn execute<O: Write, E: Write>(
     dir: PathBuf,
     env: HashMap<String, String>,
     mut argv: VecDeque<String>,
+    stdout: O,
+    stderr: E,
 ) -> Result<()> {
     let name = if let Some(name) = argv.pop_front() {
         name
@@ -26,11 +30,17 @@ pub fn execute(
         String::from("")
     };
 
-    let ctx = CommandContext::new(dir, env, argv);
+    let ctx = CommandContext::new(dir, env, argv, stdout, stderr);
 
     match name.as_str() {
-        "init" => Init::run(ctx),
-        "add" => Add::run(ctx),
+        "init" => {
+            let cmd = Init::new(ctx);
+            cmd.run()
+        }
+        "add" => {
+            let mut cmd = Add::new(ctx);
+            cmd.run()
+        }
         "commit" => {
             let mut cmd = Commit::new(ctx);
             cmd.run()
@@ -47,15 +57,23 @@ pub fn execute(
     }
 }
 
-pub struct CommandContext {
+pub struct CommandContext<O: Write, E: Write> {
     dir: PathBuf,
     env: HashMap<String, String>,
     argv: VecDeque<String>,
     repo: Repository,
+    stdout: RefCell<O>,
+    stderr: RefCell<E>,
 }
 
-impl CommandContext {
-    pub fn new(dir: PathBuf, env: HashMap<String, String>, argv: VecDeque<String>) -> Self {
+impl<O: Write, E: Write> CommandContext<O, E> {
+    pub fn new(
+        dir: PathBuf,
+        env: HashMap<String, String>,
+        argv: VecDeque<String>,
+        stdout: O,
+        stderr: E,
+    ) -> Self {
         let repo = Repository::new(dir.join(".git"));
 
         Self {
@@ -63,6 +81,8 @@ impl CommandContext {
             env,
             argv,
             repo,
+            stdout: (RefCell::new(stdout)),
+            stderr: (RefCell::new(stderr)),
         }
     }
 }

@@ -3,6 +3,7 @@ use jit::commands;
 use jit::errors::Error;
 use std::collections::{HashMap, VecDeque};
 use std::env;
+use std::io;
 use std::process;
 
 fn main() -> Result<()> {
@@ -15,6 +16,8 @@ fn main() -> Result<()> {
         env::current_dir()?,
         env::vars().collect::<HashMap<String, String>>(),
         argv,
+        io::stdout(),
+        io::stderr(),
     ) {
         Ok(()) => (),
         Err(err) => match err {

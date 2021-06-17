@@ -2,90 +2,102 @@ use crate::commands::CommandContext;
 use crate::database::blob::Blob;
 use crate::database::object::Object;
 use crate::errors::{Error, Result};
-use crate::repository::Repository;
 use std::io;
+use std::io::Write;
 use std::path::PathBuf;
 
-pub struct Add;
+pub struct Add<O: Write, E: Write> {
+    ctx: CommandContext<O, E>,
+}
 
-impl Add {
-    pub fn run(mut ctx: CommandContext) -> Result<()> {
-        if ctx.argv.is_empty() {
-            eprintln!("Nothing specified, nothing added.");
+impl<O: Write, E: Write> Add<O, E> {
+    pub fn new(ctx: CommandContext<O, E>) -> Self {
+        Self { ctx }
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        if self.ctx.argv.is_empty() {
+            let mut stderr = self.ctx.stderr.borrow_mut();
+            writeln!(stderr, "Nothing specified, nothing added.")?;
             return Err(Error::Exit(0));
         }
 
-        match ctx.repo.index.load_for_update() {
+        match self.ctx.repo.index.load_for_update() {
             Ok(()) => (),
-            Err(err) => return Self::handle_locked_index(err),
+            Err(err) => return self.handle_locked_index(err),
         }
 
-        for path in ctx.argv.range(0..) {
-            let path = match PathBuf::from(path).canonicalize() {
+        let paths: Vec<_> = self.ctx.argv.range(0..).cloned().collect();
+        for path in paths {
+            let path = match PathBuf::from(&path).canonicalize() {
                 Ok(path) => path,
-                Err(err) => return Self::handle_missing_file(ctx.repo, path, err),
+                Err(err) => return self.handle_missing_file(&path, err),
             };
 
-            for path in ctx.repo.workspace.list_files(&path)? {
-                Self::add_to_index(&mut ctx.repo, path)?;
+            for path in self.ctx.repo.workspace.list_files(&path)? {
+                self.add_to_index(path)?;
             }
         }
 
-        ctx.repo.index.write_updates()?;
+        self.ctx.repo.index.write_updates()?;
 
         Ok(())
     }
 
-    fn add_to_index(repo: &mut Repository, path: PathBuf) -> Result<()> {
-        let data = match repo.workspace.read_file(&path) {
+    fn add_to_index(&mut self, path: PathBuf) -> Result<()> {
+        let data = match self.ctx.repo.workspace.read_file(&path) {
             Ok(data) => data,
-            Err(err) => return Self::handle_unreadable_file(repo, err),
+            Err(err) => return self.handle_unreadable_file(err),
         };
-        let stat = match repo.workspace.stat_file(&path) {
+        let stat = match self.ctx.repo.workspace.stat_file(&path) {
             Ok(stat) => stat,
-            Err(err) => return Self::handle_unreadable_file(repo, err),
+            Err(err) => return self.handle_unreadable_file(err),
         };
 
         let blob = Blob::new(data);
-        repo.database.store(&blob)?;
-        repo.index.add(path, blob.oid(), stat);
+        self.ctx.repo.database.store(&blob)?;
+        self.ctx.repo.index.add(path, blob.oid(), stat);
 
         Ok(())
     }
 
-    fn handle_locked_index(err: Error) -> Result<()> {
+    fn handle_locked_index(&self, err: Error) -> Result<()> {
+        let mut stderr = self.ctx.stderr.borrow_mut();
         match err {
             Error::LockDenied(..) => {
-                eprintln!("fatal: {}", err);
-                eprintln!(
+                writeln!(stderr, "fatal: {}", err)?;
+                writeln!(
+                    stderr,
                     "
 Another jit process seems to be running in this repository.
 Please make sure all processes are terminated then try again.
 If it still fails, a jit process may have crashed in this
 repository earlier: remove the file manually to continue."
-                );
+                )?;
                 Err(Error::Exit(128))
             }
             _ => Err(err),
         }
     }
 
-    fn handle_missing_file(mut repo: Repository, path: &str, err: io::Error) -> Result<()> {
+    fn handle_missing_file(&mut self, path: &str, err: io::Error) -> Result<()> {
+        let mut stderr = self.ctx.stderr.borrow_mut();
         if err.kind() == io::ErrorKind::NotFound {
-            eprintln!("fatal: pathspec '{}' did not match any files", path);
-            repo.index.release_lock()?;
+            writeln!(stderr, "fatal: pathspec '{}' did not match any files", path)?;
+            self.ctx.repo.index.release_lock()?;
             Err(Error::Exit(128))
         } else {
             Err(Error::Io(err))
         }
     }
 
-    fn handle_unreadable_file(repo: &mut Repository, err: Error) -> Result<()> {
+    fn handle_unreadable_file(&mut self, err: Error) -> Result<()> {
+        let mut stderr = self.ctx.stderr.borrow_mut();
         match err {
             Error::NoPermission { .. } => {
-                eprintln!("error: {}", err);
-                eprintln!("fatal: adding files failed");
-                repo.index.release_lock()?;
+                writeln!(stderr, "error: {}", err)?;
+                writeln!(stderr, "fatal: adding files failed")?;
+                self.ctx.repo.index.release_lock()?;
                 Err(Error::Exit(128))
             }
             _ => Err(err),

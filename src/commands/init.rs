@@ -1,15 +1,22 @@
 use crate::commands::CommandContext;
 use crate::errors::Result;
 use std::fs;
+use std::io::Write;
 
-pub struct Init;
+pub struct Init<O: Write, E: Write> {
+    ctx: CommandContext<O, E>,
+}
 
-impl Init {
-    pub fn run(ctx: CommandContext) -> Result<()> {
-        let root_path = if let Some(path) = ctx.argv.get(1) {
-            ctx.dir.join(path)
+impl<O: Write, E: Write> Init<O, E> {
+    pub fn new(ctx: CommandContext<O, E>) -> Self {
+        Self { ctx }
+    }
+
+    pub fn run(&self) -> Result<()> {
+        let root_path = if let Some(path) = self.ctx.argv.get(1) {
+            self.ctx.dir.join(path)
         } else {
-            ctx.dir
+            self.ctx.dir.clone()
         };
 
         let git_path = root_path.join(".git");
@@ -18,7 +25,8 @@ impl Init {
             fs::create_dir_all(git_path.join(dir))?;
         }
 
-        println!("Initialized empty Jit repository in {:?}", git_path);
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(stdout, "Initialized empty Jit repository in {:?}", git_path)?;
 
         Ok(())
     }

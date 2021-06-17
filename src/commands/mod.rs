@@ -1,5 +1,7 @@
 use crate::errors::{Error, Result};
+use crate::pager::Pager;
 use crate::repository::Repository;
+use atty::Stream;
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::io::Write;
@@ -17,7 +19,7 @@ use diff::Diff;
 use init::Init;
 use status::Status;
 
-pub fn execute<O: Write, E: Write>(
+pub fn execute<O: Write + 'static, E: Write>(
     dir: PathBuf,
     env: HashMap<String, String>,
     mut argv: VecDeque<String>,
@@ -30,7 +32,7 @@ pub fn execute<O: Write, E: Write>(
         String::from("")
     };
 
-    let ctx = CommandContext::new(dir, env, argv, stdout, stderr);
+    let ctx = CommandContext::new(dir, env, argv, Box::new(stdout), stderr);
 
     match name.as_str() {
         "init" => {
@@ -57,21 +59,22 @@ pub fn execute<O: Write, E: Write>(
     }
 }
 
-pub struct CommandContext<O: Write, E: Write> {
+pub struct CommandContext<E: Write> {
     dir: PathBuf,
     env: HashMap<String, String>,
     argv: VecDeque<String>,
     repo: Repository,
-    stdout: RefCell<O>,
+    stdout: RefCell<Box<dyn Write>>,
     stderr: RefCell<E>,
+    using_pager: bool,
 }
 
-impl<O: Write, E: Write> CommandContext<O, E> {
+impl<E: Write> CommandContext<E> {
     pub fn new(
         dir: PathBuf,
         env: HashMap<String, String>,
         argv: VecDeque<String>,
-        stdout: O,
+        stdout: Box<dyn Write>,
         stderr: E,
     ) -> Self {
         let repo = Repository::new(dir.join(".git"));
@@ -83,6 +86,22 @@ impl<O: Write, E: Write> CommandContext<O, E> {
             repo,
             stdout: (RefCell::new(stdout)),
             stderr: (RefCell::new(stderr)),
+            using_pager: false,
         }
+    }
+
+    pub fn setup_pager(&mut self) {
+        // Only setup the pager once
+        if self.using_pager {
+            return;
+        }
+
+        // Only setup the pager if stdout is a tty
+        if !atty::is(Stream::Stdout) {
+            return;
+        }
+
+        self.stdout = RefCell::new(Box::new(Pager::new(&self.env)));
+        self.using_pager = true;
     }
 }

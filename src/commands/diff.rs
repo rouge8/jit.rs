@@ -17,18 +17,20 @@ lazy_static! {
 }
 const NULL_PATH: &str = "/dev/null";
 
-pub struct Diff<O: Write, E: Write> {
-    ctx: CommandContext<O, E>,
+pub struct Diff<E: Write> {
+    ctx: CommandContext<E>,
 }
 
-impl<O: Write, E: Write> Diff<O, E> {
-    pub fn new(ctx: CommandContext<O, E>) -> Self {
+impl<E: Write> Diff<E> {
+    pub fn new(ctx: CommandContext<E>) -> Self {
         Self { ctx }
     }
 
     pub fn run(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
         self.ctx.repo.initialize_status()?;
+
+        self.ctx.setup_pager();
 
         if self.ctx.argv.contains(&String::from("--cached")) {
             self.diff_head_index()?;
@@ -155,13 +157,18 @@ impl<O: Write, E: Write> Diff<O, E> {
         Ok(())
     }
 
-    fn header(&self, stdout: &mut RefMut<O>, string: String) -> Result<()> {
+    fn header(&self, stdout: &mut RefMut<Box<dyn Write>>, string: String) -> Result<()> {
         writeln!(stdout, "{}", string.bold())?;
 
         Ok(())
     }
 
-    fn print_diff_mode(&self, stdout: &mut RefMut<O>, a: &Target, b: &Target) -> Result<()> {
+    fn print_diff_mode(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        a: &Target,
+        b: &Target,
+    ) -> Result<()> {
         if a.mode.is_none() {
             self.header(stdout, format!("new file mode {:o}", b.mode.unwrap()))?;
         } else if b.mode.is_none() {
@@ -174,7 +181,12 @@ impl<O: Write, E: Write> Diff<O, E> {
         Ok(())
     }
 
-    fn print_diff_content(&self, stdout: &mut RefMut<O>, a: &Target, b: &Target) -> Result<()> {
+    fn print_diff_content(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        a: &Target,
+        b: &Target,
+    ) -> Result<()> {
         if a.oid == b.oid {
             return Ok(());
         }
@@ -200,7 +212,7 @@ impl<O: Write, E: Write> Diff<O, E> {
         Ok(())
     }
 
-    fn print_diff_hunk(&self, stdout: &mut RefMut<O>, hunk: &Hunk) -> Result<()> {
+    fn print_diff_hunk(&self, stdout: &mut RefMut<Box<dyn Write>>, hunk: &Hunk) -> Result<()> {
         writeln!(stdout, "{}", hunk.header().cyan())?;
         for edit in &hunk.edits {
             self.print_diff_edit(stdout, &edit)?;
@@ -209,7 +221,7 @@ impl<O: Write, E: Write> Diff<O, E> {
         Ok(())
     }
 
-    fn print_diff_edit(&self, stdout: &mut RefMut<O>, edit: &Edit) -> Result<()> {
+    fn print_diff_edit(&self, stdout: &mut RefMut<Box<dyn Write>>, edit: &Edit) -> Result<()> {
         let text = edit.to_string();
 
         match edit.r#type {

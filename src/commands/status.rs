@@ -6,8 +6,8 @@ use lazy_static::lazy_static;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
-pub struct Status<O: Write, E: Write> {
-    ctx: CommandContext<O, E>,
+pub struct Status<E: Write> {
+    ctx: CommandContext<E>,
 }
 
 lazy_static! {
@@ -29,8 +29,8 @@ lazy_static! {
 
 static LABEL_WIDTH: usize = 12;
 
-impl<O: Write, E: Write> Status<O, E> {
-    pub fn new(ctx: CommandContext<O, E>) -> Self {
+impl<E: Write> Status<E> {
+    pub fn new(ctx: CommandContext<E>) -> Self {
         Self { ctx }
     }
 

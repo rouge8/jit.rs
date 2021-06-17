@@ -10,12 +10,12 @@ use chrono::Local;
 use std::io;
 use std::io::{Read, Write};
 
-pub struct Commit<O: Write, E: Write> {
-    ctx: CommandContext<O, E>,
+pub struct Commit<E: Write> {
+    ctx: CommandContext<E>,
 }
 
-impl<O: Write, E: Write> Commit<O, E> {
-    pub fn new(ctx: CommandContext<O, E>) -> Self {
+impl<E: Write> Commit<E> {
+    pub fn new(ctx: CommandContext<E>) -> Self {
         Self { ctx }
     }
 

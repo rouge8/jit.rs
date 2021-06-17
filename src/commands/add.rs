@@ -6,12 +6,12 @@ use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 
-pub struct Add<O: Write, E: Write> {
-    ctx: CommandContext<O, E>,
+pub struct Add<E: Write> {
+    ctx: CommandContext<E>,
 }
 
-impl<O: Write, E: Write> Add<O, E> {
-    pub fn new(ctx: CommandContext<O, E>) -> Self {
+impl<E: Write> Add<E> {
+    pub fn new(ctx: CommandContext<E>) -> Self {
         Self { ctx }
     }
 

@@ -3,12 +3,12 @@ use crate::errors::Result;
 use std::fs;
 use std::io::Write;
 
-pub struct Init<O: Write, E: Write> {
-    ctx: CommandContext<O, E>,
+pub struct Init<E: Write> {
+    ctx: CommandContext<E>,
 }
 
-impl<O: Write, E: Write> Init<O, E> {
-    pub fn new(ctx: CommandContext<O, E>) -> Self {
+impl<E: Write> Init<E> {
+    pub fn new(ctx: CommandContext<E>) -> Self {
         Self { ctx }
     }
 

@@ -4,6 +4,7 @@ pub mod diff;
 pub mod errors;
 pub mod index;
 pub mod lockfile;
+pub mod pager;
 pub mod refs;
 pub mod repository;
 pub mod util;

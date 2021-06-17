@@ -22,7 +22,7 @@ atty = "0.2.14"
 
 [dev-dependencies]
 tempfile = "3.2.0"
-rand = "0.8.3"
+rand = "0.8.4"
 assert_cmd = "1.0.4"
 filetime = "0.2.14"
 rstest = "0.10.0"

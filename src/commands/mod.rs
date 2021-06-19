@@ -8,12 +8,14 @@ use std::io::Write;
 use std::path::PathBuf;
 
 mod add;
+mod branch;
 mod commit;
 mod diff;
 mod init;
 mod status;
 
 use add::Add;
+use branch::Branch;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
@@ -35,24 +37,28 @@ pub fn execute<O: Write + 'static, E: Write>(
     let ctx = CommandContext::new(dir, env, argv, Box::new(stdout), stderr);
 
     match name.as_str() {
-        "init" => {
-            let cmd = Init::new(ctx);
-            cmd.run()
-        }
         "add" => {
             let mut cmd = Add::new(ctx);
+            cmd.run()
+        }
+        "branch" => {
+            let cmd = Branch::new(ctx);
             cmd.run()
         }
         "commit" => {
             let mut cmd = Commit::new(ctx);
             cmd.run()
         }
-        "status" => {
-            let mut cmd = Status::new(ctx);
-            cmd.run()
-        }
         "diff" => {
             let mut cmd = Diff::new(ctx);
+            cmd.run()
+        }
+        "init" => {
+            let cmd = Init::new(ctx);
+            cmd.run()
+        }
+        "status" => {
+            let mut cmd = Status::new(ctx);
             cmd.run()
         }
         _ => Err(Error::UnknownCommand(name.to_string())),

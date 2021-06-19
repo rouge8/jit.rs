@@ -1,6 +1,6 @@
 mod common;
 
-pub use common::{helper, CommandHelper};
+pub use common::CommandHelper;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
 

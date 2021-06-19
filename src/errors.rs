@@ -14,6 +14,8 @@ pub enum Error {
     InvalidChecksum,
     #[error("Unable to create '{0}': File exists.")]
     LockDenied(PathBuf),
+    #[error("{0}")]
+    InvalidBranch(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

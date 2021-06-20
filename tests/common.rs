@@ -165,7 +165,7 @@ impl CommandHelper {
     }
 
     pub fn resolve_revision(&self, expression: &str) -> Result<String> {
-        Revision::new(&mut self.repo(), expression).resolve()
+        Revision::new(&mut self.repo(), expression).resolve(None)
     }
 }
 

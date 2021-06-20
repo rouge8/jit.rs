@@ -161,4 +161,56 @@ mod with_a_chain_of_commits {
             .code(128)
             .stderr("fatal: Not a valid object name: '@~50'.\n");
     }
+
+    #[rstest]
+    fn fail_for_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
+        let mut repo = helper.repo();
+        let tree_id = {
+            let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
+            match obj {
+                ParsedObject::Commit(commit) => &commit.tree,
+                _ => unreachable!(),
+            }
+        };
+
+        helper
+            .jit_cmd(&["branch", "topic", tree_id])
+            .assert()
+            .code(128)
+            .stderr(format!(
+                "\
+error: object {} is a tree, not a commit
+fatal: Not a valid object name: '{}'.
+",
+                tree_id, tree_id,
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_for_parents_of_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
+        let mut repo = helper.repo();
+        let tree_id = {
+            let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
+            match obj {
+                ParsedObject::Commit(commit) => &commit.tree,
+                _ => unreachable!(),
+            }
+        };
+
+        helper
+            .jit_cmd(&["branch", "topic", &format!("{}^^", tree_id)])
+            .assert()
+            .code(128)
+            .stderr(format!(
+                "\
+error: object {} is a tree, not a commit
+fatal: Not a valid object name: '{}^^'.
+",
+                tree_id, tree_id,
+            ));
+
+        Ok(())
+    }
 }

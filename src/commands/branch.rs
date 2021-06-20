@@ -1,6 +1,6 @@
 use crate::commands::CommandContext;
 use crate::errors::{Error, Result};
-use crate::revision::Revision;
+use crate::revision::{Revision, COMMIT};
 use std::io::Write;
 
 pub struct Branch<E: Write> {
@@ -25,7 +25,7 @@ impl<E: Write> Branch<E> {
         let start_oid = match start_point {
             Some(start_point) => {
                 let mut revision = Revision::new(&mut self.ctx.repo, start_point);
-                match revision.resolve() {
+                match revision.resolve(Some(COMMIT)) {
                     Ok(start_oid) => start_oid,
                     Err(err) => match err {
                         Error::InvalidObject(..) => {

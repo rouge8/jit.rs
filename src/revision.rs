@@ -27,6 +27,8 @@ lazy_static! {
     };
 }
 
+pub const COMMIT: &str = "commit";
+
 #[derive(Debug)]
 pub struct Revision<'a> {
     repo: &'a mut Repository,
@@ -49,10 +51,18 @@ impl<'a> Revision<'a> {
         !INVALID_NAME.is_match(revision)
     }
 
-    pub fn resolve(&mut self) -> Result<String> {
+    pub fn resolve(&mut self, r#type: Option<&str>) -> Result<String> {
         if self.query.is_some() {
             let query = self.query.as_ref().unwrap().clone();
-            let oid = query.resolve(self)?;
+            let mut oid = query.resolve(self)?;
+
+            if r#type.is_some()
+                && self
+                    .load_typed_object(oid.as_ref(), r#type.unwrap())?
+                    .is_none()
+            {
+                oid = None;
+            }
 
             if let Some(oid) = oid {
                 return Ok(oid);
@@ -86,10 +96,10 @@ impl<'a> Revision<'a> {
     pub fn commit_parent(&mut self, oid: Option<String>) -> Result<Option<String>> {
         match oid {
             Some(oid) => {
-                let commit = self.repo.database.load(&oid)?;
+                let commit = self.load_typed_object(Some(&oid), COMMIT)?;
                 match commit {
-                    ParsedObject::Commit(commit) => Ok(commit.parent.clone()),
-                    _ => unreachable!(),
+                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent.clone()),
+                    _ => Ok(None),
                 }
             }
             None => Ok(None),
@@ -114,6 +124,26 @@ impl<'a> Revision<'a> {
             })
         } else {
             None
+        }
+    }
+
+    fn load_typed_object(
+        &mut self,
+        oid: Option<&String>,
+        r#type: &str,
+    ) -> Result<Option<&ParsedObject>> {
+        if let Some(oid) = oid {
+            let object = self.repo.database.load(oid)?;
+
+            if object.r#type() == r#type {
+                Ok(Some(object))
+            } else {
+                let message = format!("object {} is a {}, not a {}", oid, object.r#type(), r#type);
+                self.errors.push(HintedError::new(message, vec![]));
+                Ok(None)
+            }
+        } else {
+            Ok(None)
         }
     }
 

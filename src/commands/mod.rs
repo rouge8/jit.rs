@@ -42,7 +42,7 @@ pub fn execute<O: Write + 'static, E: Write>(
             cmd.run()
         }
         "branch" => {
-            let cmd = Branch::new(ctx);
+            let mut cmd = Branch::new(ctx);
             cmd.run()
         }
         "commit" => {

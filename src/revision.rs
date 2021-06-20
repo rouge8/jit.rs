@@ -1,3 +1,6 @@
+use crate::database::ParsedObject;
+use crate::errors::{Error, Result};
+use crate::repository::Repository;
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
 use std::collections::HashMap;
@@ -24,16 +27,58 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct Revision;
-
-#[derive(Debug, PartialEq, Eq)]
-enum Rev {
-    Ref { name: String },
-    Parent { rev: Box<Rev> },
-    Ancestor { rev: Box<Rev>, n: i32 },
+pub struct Revision<'a> {
+    repo: &'a mut Repository,
+    expr: String,
+    query: Option<Rev>,
 }
 
-impl Revision {
+impl<'a> Revision<'a> {
+    pub fn new(repo: &'a mut Repository, expr: &str) -> Self {
+        Self {
+            repo,
+            expr: expr.to_string(),
+            query: Self::parse(expr),
+        }
+    }
+
+    pub fn valid_ref(revision: &str) -> bool {
+        !INVALID_NAME.is_match(revision)
+    }
+
+    pub fn resolve(&mut self) -> Result<String> {
+        if self.query.is_some() {
+            let query = self.query.as_ref().unwrap().clone();
+            let oid = query.resolve(self)?;
+
+            if let Some(oid) = oid {
+                return Ok(oid);
+            }
+        }
+
+        return Err(Error::InvalidObject(format!(
+            "Not a valid object name: '{}'.",
+            self.expr
+        )));
+    }
+
+    pub fn read_ref(&self, name: &str) -> Result<Option<String>> {
+        self.repo.refs.read_ref(name)
+    }
+
+    pub fn commit_parent(&mut self, oid: Option<String>) -> Result<Option<String>> {
+        match oid {
+            Some(oid) => {
+                let commit = self.repo.database.load(&oid)?;
+                match commit {
+                    ParsedObject::Commit(commit) => Ok(commit.parent.clone()),
+                    _ => unreachable!(),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
     fn parse(revision: &str) -> Option<Rev> {
         if let Some(r#match) = PARENT.captures(revision) {
             Revision::parse(&r#match[1]).map(|rev| Rev::Parent { rev: Box::new(rev) })
@@ -54,9 +99,31 @@ impl Revision {
             None
         }
     }
+}
 
-    pub fn valid_ref(revision: &str) -> bool {
-        !INVALID_NAME.is_match(revision)
+#[derive(Debug, PartialEq, Eq, Clone)]
+enum Rev {
+    Ref { name: String },
+    Parent { rev: Box<Rev> },
+    Ancestor { rev: Box<Rev>, n: i32 },
+}
+
+impl Rev {
+    pub fn resolve(&self, context: &mut Revision) -> Result<Option<String>> {
+        match self {
+            Rev::Ref { name } => context.read_ref(name),
+            Rev::Parent { rev } => {
+                let oid = rev.resolve(context)?;
+                context.commit_parent(oid)
+            }
+            Rev::Ancestor { rev, n } => {
+                let mut oid = rev.resolve(context)?;
+                for _ in 0..*n {
+                    oid = context.commit_parent(oid)?;
+                }
+                Ok(oid)
+            }
+        }
     }
 }
 

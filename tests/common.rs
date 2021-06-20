@@ -3,6 +3,7 @@ use assert_cmd::Command;
 use filetime::FileTime;
 use jit::errors::Result;
 use jit::repository::Repository;
+use jit::revision::Revision;
 use jit::util::path_to_string;
 use rstest::fixture;
 use std::collections::HashMap;
@@ -161,6 +162,10 @@ impl CommandHelper {
 
     pub fn repo(&self) -> Repository {
         Repository::new(self.repo_path.join(".git"))
+    }
+
+    pub fn resolve_revision(&self, expression: &str) -> Result<String> {
+        Revision::new(&mut self.repo(), expression).resolve()
     }
 }
 

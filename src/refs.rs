@@ -42,7 +42,7 @@ impl Refs {
         }
     }
 
-    pub fn create_branch(&self, branch_name: &str) -> Result<()> {
+    pub fn create_branch(&self, branch_name: &str, start_oid: String) -> Result<()> {
         let path = self.heads_path.join(branch_name);
 
         if !Revision::valid_ref(branch_name) {
@@ -59,7 +59,7 @@ impl Refs {
             )));
         }
 
-        self.update_ref_file(path, self.read_head()?.unwrap())?;
+        self.update_ref_file(path, start_oid)?;
 
         Ok(())
     }

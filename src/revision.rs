@@ -24,7 +24,7 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-struct Revision;
+pub struct Revision;
 
 #[derive(Debug, PartialEq, Eq)]
 enum Rev {
@@ -55,7 +55,7 @@ impl Revision {
         }
     }
 
-    fn valid_ref(revision: &str) -> bool {
+    pub fn valid_ref(revision: &str) -> bool {
         !INVALID_NAME.is_match(revision)
     }
 }

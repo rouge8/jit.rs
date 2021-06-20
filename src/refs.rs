@@ -1,24 +1,9 @@
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
-use lazy_static::lazy_static;
-use regex::RegexSet;
+use crate::revision::Revision;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
-
-lazy_static! {
-    static ref INVALID_NAME: RegexSet = RegexSet::new(&[
-        r"^\.",
-        r"^/\.",
-        r"^\.\.",
-        r"^/",
-        r"/$",
-        r"\.lock$",
-        r"@\{",
-        r"[\x00-\x20*:?\[\\^~\x7f]",
-    ])
-    .unwrap();
-}
 
 const HEAD: &str = "HEAD";
 
@@ -60,7 +45,7 @@ impl Refs {
     pub fn create_branch(&self, branch_name: &str) -> Result<()> {
         let path = self.heads_path.join(branch_name);
 
-        if INVALID_NAME.is_match(branch_name) {
+        if !Revision::valid_ref(branch_name) {
             return Err(Error::InvalidBranch(format!(
                 "'{}' is not a valid branch name.",
                 branch_name

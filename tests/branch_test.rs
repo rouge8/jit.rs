@@ -118,6 +118,18 @@ mod with_a_chain_of_commits {
     }
 
     #[rstest]
+    fn create_a_branch_from_a_short_commit_id(mut helper: CommandHelper) -> Result<()> {
+        let repo = helper.repo();
+
+        let commit_id = helper.resolve_revision("@~2")?;
+        helper.jit_cmd(&["branch", "topic", &repo.database.short_oid(&commit_id)]);
+
+        assert_eq!(repo.refs.read_ref("topic")?.unwrap(), commit_id);
+
+        Ok(())
+    }
+
+    #[rstest]
     fn fail_for_invalid_revisions(mut helper: CommandHelper) {
         let cmd = helper.jit_cmd(&["branch", "topic", "^"]);
 

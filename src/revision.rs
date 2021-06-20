@@ -63,7 +63,17 @@ impl<'a> Revision<'a> {
     }
 
     pub fn read_ref(&self, name: &str) -> Result<Option<String>> {
-        self.repo.refs.read_ref(name)
+        let oid = self.repo.refs.read_ref(name)?;
+        if oid.is_some() {
+            return Ok(oid);
+        }
+
+        let candidates = self.repo.database.prefix_match(name)?;
+        if candidates.len() == 1 {
+            return Ok(Some(candidates[0].to_string()));
+        }
+
+        Ok(None)
     }
 
     pub fn commit_parent(&mut self, oid: Option<String>) -> Result<Option<String>> {

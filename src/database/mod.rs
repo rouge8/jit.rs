@@ -62,6 +62,29 @@ impl Database {
         oid[0..=6].to_string()
     }
 
+    pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {
+        let path = self.object_path(name);
+        let dirname = path.parent().unwrap();
+
+        if !dirname.exists() {
+            // No objects match the given name
+            return Ok(vec![]);
+        }
+
+        let oids: Vec<_> = fs::read_dir(&dirname)?
+            .map(|filename| {
+                format!(
+                    "{}{}",
+                    dirname.file_name().unwrap().to_str().unwrap(),
+                    filename.unwrap().file_name().to_str().unwrap()
+                )
+            })
+            .filter(|oid| oid.starts_with(name))
+            .collect();
+
+        Ok(oids)
+    }
+
     fn object_path(&self, oid: &str) -> PathBuf {
         self.pathname.join(&oid[0..2]).join(&oid[2..])
     }

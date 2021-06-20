@@ -1,5 +1,6 @@
 mod common;
 
+use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::{Database, ParsedObject};
 use jit::errors::Result;
@@ -36,25 +37,21 @@ mod with_a_chain_of_commits {
 
     #[rstest]
     fn fail_for_invalid_branch_name(mut helper: CommandHelper) {
-        let cmd = helper.jit_cmd(&["branch", "^"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: '^' is not a valid branch name.\n"
-        );
+        helper
+            .jit_cmd(&["branch", "^"])
+            .assert()
+            .code(128)
+            .stderr("fatal: '^' is not a valid branch name.\n");
     }
 
     #[rstest]
     fn fail_for_existing_branch_name(mut helper: CommandHelper) {
         helper.jit_cmd(&["branch", "topic"]);
-        let cmd = helper.jit_cmd(&["branch", "topic"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: A branch named 'topic' already exists.\n"
-        );
+        helper
+            .jit_cmd(&["branch", "topic"])
+            .assert()
+            .code(128)
+            .stderr("fatal: A branch named 'topic' already exists.\n");
     }
 
     #[rstest]
@@ -131,45 +128,37 @@ mod with_a_chain_of_commits {
 
     #[rstest]
     fn fail_for_invalid_revisions(mut helper: CommandHelper) {
-        let cmd = helper.jit_cmd(&["branch", "topic", "^"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: Not a valid object name: '^'.\n",
-        );
+        helper
+            .jit_cmd(&["branch", "topic", "^"])
+            .assert()
+            .code(128)
+            .stderr("fatal: Not a valid object name: '^'.\n");
     }
 
     #[rstest]
     fn fail_for_invalid_refs(mut helper: CommandHelper) {
-        let cmd = helper.jit_cmd(&["branch", "topic", "no-such-branch"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: Not a valid object name: 'no-such-branch'.\n",
-        );
+        helper
+            .jit_cmd(&["branch", "topic", "no-such-branch"])
+            .assert()
+            .code(128)
+            .stderr("fatal: Not a valid object name: 'no-such-branch'.\n");
     }
 
     #[rstest]
     fn fail_for_invalid_parents(mut helper: CommandHelper) {
-        let cmd = helper.jit_cmd(&["branch", "topic", "@^^^^"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: Not a valid object name: '@^^^^'.\n",
-        );
+        helper
+            .jit_cmd(&["branch", "topic", "@^^^^"])
+            .assert()
+            .code(128)
+            .stderr("fatal: Not a valid object name: '@^^^^'.\n");
     }
 
     #[rstest]
     fn fail_for_invalid_ancestors(mut helper: CommandHelper) {
-        let cmd = helper.jit_cmd(&["branch", "topic", "@~50"]);
-
-        assert_eq!(cmd.status.code().unwrap(), 128);
-        assert_eq!(
-            String::from_utf8(cmd.stderr).unwrap(),
-            "fatal: Not a valid object name: '@~50'.\n",
-        );
+        helper
+            .jit_cmd(&["branch", "topic", "@~50"])
+            .assert()
+            .code(128)
+            .stderr("fatal: Not a valid object name: '@~50'.\n");
     }
 }

@@ -30,6 +30,14 @@ impl<E: Write> Branch<E> {
                     Err(err) => match err {
                         Error::InvalidObject(..) => {
                             let mut stderr = self.ctx.stderr.borrow_mut();
+
+                            for error in revision.errors {
+                                writeln!(stderr, "error: {}", error.message)?;
+                                for line in error.hint {
+                                    writeln!(stderr, "hint: {}", line)?;
+                                }
+                            }
+
                             writeln!(stderr, "fatal: {}", err)?;
                             return Err(Error::Exit(128));
                         }

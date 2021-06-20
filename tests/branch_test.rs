@@ -1,7 +1,7 @@
 mod common;
 
 pub use common::CommandHelper;
-use jit::database::ParsedObject;
+use jit::database::{Database, ParsedObject};
 use jit::errors::Result;
 use rstest::{fixture, rstest};
 
@@ -122,7 +122,7 @@ mod with_a_chain_of_commits {
         let repo = helper.repo();
 
         let commit_id = helper.resolve_revision("@~2")?;
-        helper.jit_cmd(&["branch", "topic", &repo.database.short_oid(&commit_id)]);
+        helper.jit_cmd(&["branch", "topic", &Database::short_oid(&commit_id)]);
 
         assert_eq!(repo.refs.read_ref("topic")?.unwrap(), commit_id);
 

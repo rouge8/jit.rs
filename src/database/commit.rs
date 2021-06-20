@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub struct Commit {
     pub parent: Option<String>,
     pub tree: String,
-    author: Author,
+    pub author: Author,
     pub message: String,
 }
 
@@ -44,6 +44,10 @@ impl Commit {
             let (key, value) = line.split_once(" ").unwrap();
             headers.insert(key, value);
         }
+    }
+
+    pub fn title_line(&self) -> String {
+        self.message.lines().next().unwrap().to_string()
     }
 }
 

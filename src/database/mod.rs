@@ -35,6 +35,10 @@ impl Database {
         }
     }
 
+    pub fn short_oid(oid: &str) -> String {
+        oid[0..=6].to_string()
+    }
+
     pub fn store<T>(&self, object: &T) -> io::Result<()>
     where
         T: Object,
@@ -56,10 +60,6 @@ impl Database {
         self.objects.insert(oid.to_string(), object);
 
         Ok(&self.objects[oid])
-    }
-
-    pub fn short_oid(&self, oid: &str) -> String {
-        oid[0..=6].to_string()
     }
 
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {
@@ -151,4 +151,22 @@ pub enum ParsedObject {
     Blob(Blob),
     Commit(Commit),
     Tree(Tree),
+}
+
+impl ParsedObject {
+    pub fn oid(&self) -> String {
+        match self {
+            ParsedObject::Blob(obj) => obj.oid(),
+            ParsedObject::Commit(obj) => obj.oid(),
+            ParsedObject::Tree(obj) => obj.oid(),
+        }
+    }
+
+    pub fn r#type(&self) -> &str {
+        match self {
+            ParsedObject::Blob(obj) => obj.r#type(),
+            ParsedObject::Commit(obj) => obj.r#type(),
+            ParsedObject::Tree(obj) => obj.r#type(),
+        }
+    }
 }

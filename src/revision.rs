@@ -1,3 +1,4 @@
+use crate::database::Database;
 use crate::database::ParsedObject;
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
@@ -31,6 +32,7 @@ pub struct Revision<'a> {
     repo: &'a mut Repository,
     expr: String,
     query: Option<Rev>,
+    pub errors: Vec<HintedError>,
 }
 
 impl<'a> Revision<'a> {
@@ -39,6 +41,7 @@ impl<'a> Revision<'a> {
             repo,
             expr: expr.to_string(),
             query: Self::parse(expr),
+            errors: vec![],
         }
     }
 
@@ -62,7 +65,7 @@ impl<'a> Revision<'a> {
         )));
     }
 
-    pub fn read_ref(&self, name: &str) -> Result<Option<String>> {
+    pub fn read_ref(&mut self, name: &str) -> Result<Option<String>> {
         let oid = self.repo.refs.read_ref(name)?;
         if oid.is_some() {
             return Ok(oid);
@@ -71,6 +74,10 @@ impl<'a> Revision<'a> {
         let candidates = self.repo.database.prefix_match(name)?;
         if candidates.len() == 1 {
             return Ok(Some(candidates[0].to_string()));
+        }
+
+        if candidates.len() > 1 {
+            self.log_ambiguous_sha1(name, candidates)?;
         }
 
         Ok(None)
@@ -109,6 +116,33 @@ impl<'a> Revision<'a> {
             None
         }
     }
+
+    fn log_ambiguous_sha1(&mut self, name: &str, mut candidates: Vec<String>) -> Result<()> {
+        let message = format!("short SHA1 {} is ambiguous", name);
+        let mut hint = vec![String::from("The candidates are:")];
+
+        candidates.sort();
+        for oid in candidates {
+            let object = self.repo.database.load(&oid)?;
+            let short = Database::short_oid(&object.oid());
+            let info = format!("  {} {}", short, object.r#type());
+
+            hint.push(if let ParsedObject::Commit(commit) = object {
+                format!(
+                    "{} {} - {}",
+                    info,
+                    commit.author.short_date(),
+                    commit.title_line(),
+                )
+            } else {
+                info
+            });
+        }
+
+        self.errors.push(HintedError::new(message, hint));
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -134,6 +168,18 @@ impl Rev {
                 Ok(oid)
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct HintedError {
+    pub message: String,
+    pub hint: Vec<String>,
+}
+
+impl HintedError {
+    pub fn new(message: String, hint: Vec<String>) -> Self {
+        Self { message, hint }
     }
 }
 

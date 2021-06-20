@@ -1,6 +1,6 @@
 use crate::commands::CommandContext;
 use crate::database::blob::Blob;
-use crate::database::ParsedObject;
+use crate::database::{Database, ParsedObject};
 use crate::diff::hunk::Hunk;
 use crate::diff::{diff_hunks, Edit, EditType};
 use crate::errors::Result;
@@ -138,7 +138,7 @@ impl<E: Write> Diff<E> {
     }
 
     fn short(&self, oid: &str) -> String {
-        self.ctx.repo.database.short_oid(oid)
+        Database::short_oid(oid)
     }
 
     fn print_diff(&self, a: &mut Target, b: &mut Target) -> Result<()> {

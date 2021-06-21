@@ -1,4 +1,6 @@
-use crate::database::{blob::Blob, tree::TreeEntry, Database, ParsedObject};
+use crate::database::{
+    blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database, ParsedObject,
+};
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::index::Index;
@@ -8,6 +10,10 @@ use crate::workspace::Workspace;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
+
+mod migration;
+
+use migration::Migration;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum ChangeType {
@@ -65,6 +71,10 @@ impl Repository {
         self.collect_deleted_head_files();
 
         Ok(())
+    }
+
+    pub fn migration(&mut self, tree_diff: TreeDiffChanges) -> Migration {
+        Migration::new(self, tree_diff)
     }
 
     fn record_change(&mut self, path: &str, change_kind: ChangeKind, r#type: ChangeType) {

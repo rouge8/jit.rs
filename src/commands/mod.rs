@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 mod add;
 mod branch;
+mod checkout;
 mod commit;
 mod diff;
 mod init;
@@ -16,6 +17,7 @@ mod status;
 
 use add::Add;
 use branch::Branch;
+use checkout::Checkout;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
@@ -43,6 +45,10 @@ pub fn execute<O: Write + 'static, E: Write>(
         }
         "branch" => {
             let mut cmd = Branch::new(ctx);
+            cmd.run()
+        }
+        "checkout" => {
+            let mut cmd = Checkout::new(ctx);
             cmd.run()
         }
         "commit" => {
@@ -90,8 +96,8 @@ impl<E: Write> CommandContext<E> {
             env,
             argv,
             repo,
-            stdout: (RefCell::new(stdout)),
-            stderr: (RefCell::new(stderr)),
+            stdout: RefCell::new(stdout),
+            stderr: RefCell::new(stderr),
             using_pager: false,
         }
     }

@@ -5,9 +5,11 @@ use crate::errors::Result;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 
+pub type TreeDiffChanges = HashMap<PathBuf, (Option<Entry>, Option<Entry>)>;
+
 pub struct TreeDiff<'a> {
     database: &'a mut Database,
-    pub changes: HashMap<PathBuf, (Option<Entry>, Option<Entry>)>,
+    pub changes: TreeDiffChanges,
 }
 
 impl<'a> TreeDiff<'a> {

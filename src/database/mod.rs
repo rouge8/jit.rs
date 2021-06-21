@@ -1,9 +1,8 @@
 use crate::database::blob::Blob;
 use crate::database::commit::Commit;
-use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
-use crate::database::tree_diff::TreeDiff;
+use crate::database::tree_diff::{TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
@@ -89,12 +88,7 @@ impl Database {
         Ok(oids)
     }
 
-    #[allow(clippy::type_complexity)]
-    pub fn tree_diff(
-        &mut self,
-        a: String,
-        b: String,
-    ) -> Result<HashMap<PathBuf, (Option<Entry>, Option<Entry>)>> {
+    pub fn tree_diff(&mut self, a: String, b: String) -> Result<TreeDiffChanges> {
         let mut diff = TreeDiff::new(self);
         diff.compare_oids(Some(a), Some(b), Path::new(""))?;
         Ok(diff.changes)

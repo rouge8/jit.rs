@@ -1,7 +1,10 @@
 use crate::database::blob::Blob;
 use crate::database::commit::Commit;
+use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
+use crate::database::tree_diff::TreeDiff;
+use crate::errors::Result;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
@@ -11,7 +14,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub mod author;
@@ -20,6 +23,7 @@ pub mod commit;
 pub mod entry;
 pub mod object;
 pub mod tree;
+pub mod tree_diff;
 
 #[derive(Debug)]
 pub struct Database {
@@ -83,6 +87,17 @@ impl Database {
             .collect();
 
         Ok(oids)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn tree_diff(
+        &mut self,
+        a: String,
+        b: String,
+    ) -> Result<HashMap<PathBuf, (Option<Entry>, Option<Entry>)>> {
+        let mut diff = TreeDiff::new(self);
+        diff.compare_oids(Some(a), Some(b), Path::new(""))?;
+        Ok(diff.changes)
     }
 
     fn object_path(&self, oid: &str) -> PathBuf {
@@ -167,6 +182,195 @@ impl ParsedObject {
             ParsedObject::Blob(obj) => obj.r#type(),
             ParsedObject::Commit(obj) => obj.r#type(),
             ParsedObject::Tree(obj) => obj.r#type(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod tree_diff {
+        use super::*;
+        use crate::database::entry::Entry;
+        use rstest::{fixture, rstest};
+        use std::path::Path;
+        use tempfile::TempDir;
+
+        fn store_tree(database: &Database, contents: HashMap<&str, &str>) -> String {
+            let entries: Vec<_> = contents
+                .into_iter()
+                .map(|(path, data)| {
+                    let blob = Blob::new(data.as_bytes().to_vec());
+                    database.store(&blob).unwrap();
+
+                    Entry::new(Path::new(path), blob.oid(), 0o100644)
+                })
+                .collect();
+
+            let tree = Tree::build(entries);
+            tree.traverse(&|t| database.store(t).unwrap());
+
+            tree.oid()
+        }
+
+        #[fixture]
+        fn database() -> Database {
+            Database::new(TempDir::new().unwrap().path().to_path_buf())
+        }
+
+        #[rstest]
+        fn report_a_changed_file(mut database: Database) -> Result<()> {
+            let mut tree_a_contents = HashMap::new();
+            tree_a_contents.insert("alice.txt", "alice");
+            tree_a_contents.insert("bob.txt", "bob");
+            let tree_a = store_tree(&database, tree_a_contents);
+
+            let mut tree_b_contents = HashMap::new();
+            tree_b_contents.insert("alice.txt", "changed");
+            tree_b_contents.insert("bob.txt", "bob");
+            let tree_b = store_tree(&database, tree_b_contents);
+
+            let mut expected = HashMap::new();
+            expected.insert(
+                PathBuf::from("alice.txt"),
+                (
+                    Some(Entry::new(
+                        Path::new("alice.txt"),
+                        String::from("ca56b59dbf8c0884b1b9ceb306873b24b73de969"),
+                        0o100644,
+                    )),
+                    Some(Entry::new(
+                        Path::new("alice.txt"),
+                        String::from("21fb1eca31e64cd3914025058b21992ab76edcf9"),
+                        0o100644,
+                    )),
+                ),
+            );
+
+            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn report_an_added_file(mut database: Database) -> Result<()> {
+            let mut tree_a_contents = HashMap::new();
+            tree_a_contents.insert("alice.txt", "alice");
+            let tree_a = store_tree(&database, tree_a_contents);
+
+            let mut tree_b_contents = HashMap::new();
+            tree_b_contents.insert("alice.txt", "alice");
+            tree_b_contents.insert("bob.txt", "bob");
+            let tree_b = store_tree(&database, tree_b_contents);
+
+            let mut expected = HashMap::new();
+            expected.insert(
+                PathBuf::from("bob.txt"),
+                (
+                    None,
+                    Some(Entry::new(
+                        Path::new("bob.txt"),
+                        String::from("2529de8969e5ee206e572ed72a0389c3115ad95c"),
+                        0o100644,
+                    )),
+                ),
+            );
+
+            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn report_a_deleted_file(mut database: Database) -> Result<()> {
+            let mut tree_a_contents = HashMap::new();
+            tree_a_contents.insert("alice.txt", "alice");
+            tree_a_contents.insert("bob.txt", "bob");
+            let tree_a = store_tree(&database, tree_a_contents);
+
+            let mut tree_b_contents = HashMap::new();
+            tree_b_contents.insert("alice.txt", "alice");
+            let tree_b = store_tree(&database, tree_b_contents);
+
+            let mut expected = HashMap::new();
+            expected.insert(
+                PathBuf::from("bob.txt"),
+                (
+                    Some(Entry::new(
+                        Path::new("bob.txt"),
+                        String::from("2529de8969e5ee206e572ed72a0389c3115ad95c"),
+                        0o100644,
+                    )),
+                    None,
+                ),
+            );
+
+            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn report_an_added_file_inside_a_directory(mut database: Database) -> Result<()> {
+            let mut tree_a_contents = HashMap::new();
+            tree_a_contents.insert("1.txt", "1");
+            tree_a_contents.insert("outer/2.txt", "2");
+            let tree_a = store_tree(&database, tree_a_contents);
+
+            let mut tree_b_contents = HashMap::new();
+            tree_b_contents.insert("1.txt", "1");
+            tree_b_contents.insert("outer/2.txt", "2");
+            tree_b_contents.insert("outer/new/4.txt", "4");
+            let tree_b = store_tree(&database, tree_b_contents);
+
+            let mut expected = HashMap::new();
+            expected.insert(
+                PathBuf::from("outer/new/4.txt"),
+                (
+                    None,
+                    Some(Entry::new(
+                        Path::new("4.txt"),
+                        String::from("bf0d87ab1b2b0ec1a11a3973d2845b42413d9767"),
+                        0o100644,
+                    )),
+                ),
+            );
+
+            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn report_a_deleted_file_inside_a_directory(mut database: Database) -> Result<()> {
+            let mut tree_a_contents = HashMap::new();
+            tree_a_contents.insert("1.txt", "1");
+            tree_a_contents.insert("outer/2.txt", "2");
+            tree_a_contents.insert("outer/inner/3.txt", "3");
+            let tree_a = store_tree(&database, tree_a_contents);
+
+            let mut tree_b_contents = HashMap::new();
+            tree_b_contents.insert("1.txt", "1");
+            tree_b_contents.insert("outer/2.txt", "2");
+            let tree_b = store_tree(&database, tree_b_contents);
+
+            let mut expected = HashMap::new();
+            expected.insert(
+                PathBuf::from("outer/inner/3.txt"),
+                (
+                    Some(Entry::new(
+                        Path::new("3.txt"),
+                        String::from("e440e5c842586965a7fb77deda2eca68612b1f53"),
+                        0o100644,
+                    )),
+                    None,
+                ),
+            );
+
+            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+
+            Ok(())
         }
     }
 }

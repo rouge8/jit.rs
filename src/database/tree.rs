@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 pub const TREE_MODE: u32 = 0o40000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Tree {
     pub entries: BTreeMap<PathBuf, TreeEntry>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TreeEntry {
     Entry(Entry),
     Tree(Tree),

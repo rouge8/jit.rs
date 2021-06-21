@@ -4,7 +4,7 @@ use crate::util::is_executable;
 use crate::util::parent_directories;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Entry {
     pub name: String,
     pub oid: String,

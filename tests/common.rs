@@ -160,6 +160,31 @@ impl CommandHelper {
             .stdout(expected);
     }
 
+    pub fn assert_workspace(&self, contents: &HashMap<&str, &str>) -> Result<()> {
+        let mut expected = HashMap::new();
+        for (name, data) in contents {
+            expected.insert(name.to_string(), data.to_string());
+        }
+
+        let mut files = HashMap::new();
+        let repo = self.repo();
+
+        for pathname in repo.workspace.list_files(&self.repo_path)? {
+            files.insert(
+                path_to_string(&pathname),
+                String::from_utf8(repo.workspace.read_file(&pathname)?).unwrap(),
+            );
+        }
+
+        assert_eq!(files, expected);
+
+        Ok(())
+    }
+
+    pub fn assert_noent(&self, filename: &str) {
+        assert!(!self.repo_path.join(filename).exists());
+    }
+
     pub fn repo(&self) -> Repository {
         Repository::new(self.repo_path.join(".git"))
     }

@@ -1,7 +1,11 @@
 use crate::errors::{Error, Result};
+use crate::repository::migration::{Action, Migration};
 use std::collections::HashMap;
 use std::fs;
+use std::fs::OpenOptions;
 use std::io;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 // TODO: Remove `target` once we have .gitignore support
@@ -22,7 +26,7 @@ impl Workspace {
 
         if self.should_ignore(&relative_path) {
             Ok(vec![])
-        } else if relative_path.is_file() {
+        } else if path.is_file() {
             Ok(vec![relative_path.to_path_buf()])
         } else {
             let mut files: Vec<PathBuf> = Vec::new();
@@ -78,9 +82,83 @@ impl Workspace {
         })
     }
 
+    pub fn apply_migration(&self, migration: &Migration) -> Result<()> {
+        self.apply_change_list(migration, Action::Delete)?;
+        for dir in migration.rmdirs.iter().rev() {
+            self.remove_directory(dir)?;
+        }
+
+        for dir in &migration.mkdirs {
+            self.make_directory(dir)?;
+        }
+        self.apply_change_list(migration, Action::Update)?;
+        self.apply_change_list(migration, Action::Create)?;
+
+        Ok(())
+    }
+
     fn should_ignore(&self, path: &Path) -> bool {
         IGNORE
             .iter()
             .any(|ignore_path| path == PathBuf::from(ignore_path))
+    }
+
+    fn apply_change_list(&self, migration: &Migration, action: Action) -> Result<()> {
+        for (filename, entry) in &migration.changes[&action] {
+            let path = self.pathname.join(filename);
+
+            if path.is_dir() {
+                fs::remove_dir_all(&path)?;
+            } else if path.is_file() {
+                fs::remove_file(&path)?;
+            }
+            if action == Action::Delete {
+                continue;
+            }
+
+            let entry = entry.as_ref().unwrap();
+            let data = migration.blob_data(&entry.oid)?;
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&path)?;
+            file.write_all(&data)?;
+
+            let mut perms = fs::metadata(&path)?.permissions();
+            perms.set_mode(entry.mode());
+            fs::set_permissions(&path, perms)?;
+        }
+
+        Ok(())
+    }
+
+    fn remove_directory(&self, dirname: &Path) -> Result<()> {
+        match fs::remove_dir(self.pathname.join(dirname)) {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                let description = err.to_string();
+                if err.kind() == io::ErrorKind::NotFound
+                    || description.starts_with("Not a directory (os error")
+                    || description.starts_with("Directory not empty (os error")
+                {
+                    Ok(())
+                } else {
+                    Err(Error::Io(err))
+                }
+            }
+        }
+    }
+
+    fn make_directory(&self, dirname: &Path) -> Result<()> {
+        let path = self.pathname.join(dirname);
+
+        if path.is_file() {
+            fs::remove_file(&path)?;
+        } else if !path.is_dir() {
+            fs::create_dir(&path)?;
+        }
+
+        Ok(())
     }
 }

@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
-mod migration;
+pub mod migration;
 
 use migration::Migration;
 

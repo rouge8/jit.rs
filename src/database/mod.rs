@@ -94,6 +94,31 @@ impl Database {
         Ok(diff.changes)
     }
 
+    pub fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
+        let compressed_data = fs::read(self.object_path(&oid))?;
+        let mut data = vec![];
+        let mut z = ZlibDecoder::new(&compressed_data[..]);
+        z.read_to_end(&mut data)?;
+
+        let (object_type, rest) = data
+            .splitn(2, |c| *c as char == ' ')
+            .collect_tuple()
+            .unwrap();
+        let object_type = std::str::from_utf8(object_type).expect("Invalid UTF-8");
+
+        let (_size, rest) = rest
+            .splitn(2, |c| *c as char == '\0')
+            .collect_tuple()
+            .unwrap();
+
+        match object_type {
+            "blob" => Ok(Blob::parse(rest)),
+            "tree" => Ok(Tree::parse(rest)),
+            "commit" => Ok(Commit::parse(rest)),
+            _ => unreachable!(),
+        }
+    }
+
     fn object_path(&self, oid: &str) -> PathBuf {
         self.pathname.join(&oid[0..2]).join(&oid[2..])
     }
@@ -127,31 +152,6 @@ impl Database {
         fs::rename(&temp_path, &object_path)?;
 
         Ok(())
-    }
-
-    fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
-        let compressed_data = fs::read(self.object_path(&oid))?;
-        let mut data = vec![];
-        let mut z = ZlibDecoder::new(&compressed_data[..]);
-        z.read_to_end(&mut data)?;
-
-        let (object_type, rest) = data
-            .splitn(2, |c| *c as char == ' ')
-            .collect_tuple()
-            .unwrap();
-        let object_type = std::str::from_utf8(object_type).expect("Invalid UTF-8");
-
-        let (_size, rest) = rest
-            .splitn(2, |c| *c as char == '\0')
-            .collect_tuple()
-            .unwrap();
-
-        match object_type {
-            "blob" => Ok(Blob::parse(rest)),
-            "tree" => Ok(Tree::parse(rest)),
-            "commit" => Ok(Commit::parse(rest)),
-            _ => unreachable!(),
-        }
     }
 }
 

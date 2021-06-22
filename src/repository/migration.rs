@@ -1,20 +1,21 @@
 use crate::database::entry::Entry;
 use crate::database::tree_diff::TreeDiffChanges;
+use crate::database::ParsedObject;
 use crate::errors::Result;
 use crate::repository::Repository;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 
 pub struct Migration<'a> {
-    repo: &'a Repository,
+    repo: &'a mut Repository,
     diff: TreeDiffChanges,
-    changes: HashMap<Action, Vec<(PathBuf, Option<Entry>)>>,
-    mkdirs: HashSet<PathBuf>,
-    rmdirs: HashSet<PathBuf>,
+    pub changes: HashMap<Action, Vec<(PathBuf, Option<Entry>)>>,
+    pub mkdirs: BTreeSet<PathBuf>,
+    pub rmdirs: BTreeSet<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
-enum Action {
+pub enum Action {
     Create,
     Delete,
     Update,
@@ -35,8 +36,8 @@ impl<'a> Migration<'a> {
             repo,
             diff,
             changes,
-            mkdirs: HashSet::new(),
-            rmdirs: HashSet::new(),
+            mkdirs: BTreeSet::new(),
+            rmdirs: BTreeSet::new(),
         }
     }
 
@@ -45,6 +46,16 @@ impl<'a> Migration<'a> {
         self.update_workspace()?;
 
         Ok(())
+    }
+
+    pub fn blob_data(&self, oid: &str) -> Result<Vec<u8>> {
+        // We use `read_object()` instead of `load()` here in order to avoid writing the object to
+        // `self.repo.database`, which would make this method and all of its callers require
+        // borrowing `&mut self`.
+        match self.repo.database.read_object(oid)? {
+            ParsedObject::Blob(blob) => Ok(blob.data),
+            _ => unreachable!(),
+        }
     }
 
     fn plan_changes(&mut self) -> Result<()> {
@@ -86,6 +97,7 @@ impl<'a> Migration<'a> {
     }
 
     fn update_workspace(&self) -> Result<()> {
+        self.repo.workspace.apply_migration(&self)?;
         Ok(())
     }
 }

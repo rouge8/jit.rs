@@ -139,8 +139,8 @@ impl Workspace {
             Ok(()) => Ok(()),
             Err(err) => {
                 if err.kind() == io::ErrorKind::NotFound
-                    || err.raw_os_error().unwrap() == Errno::ENOTDIR as i32
-                    || err.raw_os_error().unwrap() == Errno::ENOTEMPTY as i32
+                    || err.raw_os_error() == Some(Errno::ENOTDIR as i32)
+                    || err.raw_os_error() == Some(Errno::ENOTEMPTY as i32)
                 {
                     Ok(())
                 } else {

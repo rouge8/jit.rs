@@ -1,5 +1,6 @@
 use crate::errors::{Error, Result};
 use crate::repository::migration::{Action, Migration};
+use nix::errno::Errno;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
@@ -137,10 +138,9 @@ impl Workspace {
         match fs::remove_dir(self.pathname.join(dirname)) {
             Ok(()) => Ok(()),
             Err(err) => {
-                let description = err.to_string();
                 if err.kind() == io::ErrorKind::NotFound
-                    || description.starts_with("Not a directory (os error")
-                    || description.starts_with("Directory not empty (os error")
+                    || err.raw_os_error().unwrap() == Errno::ENOTDIR as i32
+                    || err.raw_os_error().unwrap() == Errno::ENOTEMPTY as i32
                 {
                     Ok(())
                 } else {

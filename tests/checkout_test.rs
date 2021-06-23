@@ -161,4 +161,49 @@ mod with_a_set_of_files {
 
         Ok(())
     }
+
+    #[rstest]
+    fn maintain_workspace_modifications(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt", "hello")?;
+        helper.delete("outer/inner")?;
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = HashMap::new();
+        expected.insert("1.txt", "1");
+        expected.insert("outer/2.txt", "hello");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status(
+            " M outer/2.txt
+ D outer/inner/3.txt\n",
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn maintain_index_modifications(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt", "hello")?;
+        helper.write_file("outer/inner/4.txt", "world")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = BASE_FILES.clone();
+        expected.insert("outer/2.txt", "hello");
+        expected.insert("outer/inner/4.txt", "world");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status(
+            "M  outer/2.txt
+A  outer/inner/4.txt\n",
+        );
+
+        Ok(())
+    }
 }

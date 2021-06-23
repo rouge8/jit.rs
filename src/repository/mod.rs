@@ -20,6 +20,7 @@ pub enum ChangeType {
     Added,
     Deleted,
     Modified,
+    Untracked,
 }
 
 #[derive(Debug)]
@@ -183,44 +184,23 @@ impl Repository {
     }
 
     fn check_index_against_workspace(&mut self, entry: &mut Entry) -> Result<()> {
-        let stat = match self.stats.get(&entry.path) {
-            Some(stat) => stat,
-            None => {
-                self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Deleted);
-                return Ok(());
-            }
-        };
+        let stat = self.stats.get(&entry.path);
+        let status = self.compare_index_to_workspace(Some(&entry), stat)?;
 
-        if !entry.stat_match(&stat) {
-            self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Modified);
-            return Ok(());
-        }
-
-        if entry.times_match(&stat) {
-            return Ok(());
-        }
-
-        let data = self.workspace.read_file(&PathBuf::from(&entry.path))?;
-        let blob = Blob::new(data);
-        let oid = self.database.hash_object(&blob);
-
-        if entry.oid == oid {
-            self.index.update_entry_stat(entry, &stat);
-        } else {
-            self.record_change(&entry.path, ChangeKind::Workspace, ChangeType::Modified);
+        match status {
+            Some(status) => self.record_change(&entry.path, ChangeKind::Workspace, status),
+            None => self.index.update_entry_stat(entry, &stat.unwrap()),
         }
 
         Ok(())
     }
 
     fn check_index_against_head_tree(&mut self, entry: &Entry) {
-        match self.head_tree.get(&entry.path) {
-            Some(item) => {
-                if entry.mode != item.mode() || entry.oid != item.oid() {
-                    self.record_change(&entry.path, ChangeKind::Index, ChangeType::Modified);
-                }
-            }
-            None => self.record_change(&entry.path, ChangeKind::Index, ChangeType::Added),
+        let item = self.head_tree.get(&entry.path);
+        let status = self.compare_tree_to_index(item, Some(&entry));
+
+        if let Some(status) = status {
+            self.record_change(&entry.path, ChangeKind::Index, status)
         }
     }
 
@@ -230,6 +210,60 @@ impl Repository {
             if !self.index.tracked_file(Path::new(&path)) {
                 self.record_change(&path, ChangeKind::Index, ChangeType::Deleted);
             }
+        }
+    }
+
+    fn compare_index_to_workspace(
+        &self,
+        entry: Option<&Entry>,
+        stat: Option<&fs::Metadata>,
+    ) -> Result<Option<ChangeType>> {
+        if entry.is_none() {
+            return Ok(Some(ChangeType::Untracked));
+        } else if stat.is_none() {
+            return Ok(Some(ChangeType::Deleted));
+        }
+
+        let entry = entry.unwrap();
+        let stat = stat.unwrap();
+
+        if !entry.stat_match(&stat) {
+            return Ok(Some(ChangeType::Modified));
+        } else if entry.times_match(&stat) {
+            return Ok(None);
+        }
+
+        let data = self.workspace.read_file(Path::new(&entry.path))?;
+        let blob = Blob::new(data);
+        let oid = self.database.hash_object(&blob);
+
+        if entry.oid != oid {
+            Ok(Some(ChangeType::Modified))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn compare_tree_to_index(
+        &self,
+        item: Option<&TreeEntry>,
+        entry: Option<&Entry>,
+    ) -> Option<ChangeType> {
+        if item.is_none() && entry.is_none() {
+            return None;
+        } else if item.is_none() {
+            return Some(ChangeType::Added);
+        } else if entry.is_none() {
+            return Some(ChangeType::Deleted);
+        }
+
+        let item = item.unwrap();
+        let entry = entry.unwrap();
+
+        if !(entry.mode == item.mode() && entry.oid == item.oid()) {
+            Some(ChangeType::Modified)
+        } else {
+            None
         }
     }
 }

@@ -64,6 +64,7 @@ impl<E: Write> Diff<E> {
 
                     self.print_diff(&mut a, &mut b)?;
                 }
+                ChangeType::Untracked => unreachable!(),
             }
         }
 

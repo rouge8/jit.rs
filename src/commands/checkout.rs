@@ -35,9 +35,18 @@ impl<E: Write> Checkout<E> {
             }
         };
 
-        let tree_diff = self.ctx.repo.database.tree_diff(current_oid, target_oid)?;
+        self.ctx.repo.index.load_for_update()?;
+
+        let tree_diff = self
+            .ctx
+            .repo
+            .database
+            .tree_diff(&current_oid, &target_oid)?;
         let mut migration = self.ctx.repo.migration(tree_diff);
         migration.apply_changes()?;
+
+        self.ctx.repo.index.write_updates()?;
+        self.ctx.repo.refs.update_head(target_oid)?;
 
         Ok(())
     }

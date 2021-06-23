@@ -44,6 +44,7 @@ impl<'a> Migration<'a> {
     pub fn apply_changes(&mut self) -> Result<()> {
         self.plan_changes()?;
         self.update_workspace()?;
+        self.update_index()?;
 
         Ok(())
     }
@@ -98,6 +99,25 @@ impl<'a> Migration<'a> {
 
     fn update_workspace(&self) -> Result<()> {
         self.repo.workspace.apply_migration(&self)?;
+        Ok(())
+    }
+
+    fn update_index(&mut self) -> Result<()> {
+        for (path, _) in &self.changes[&Action::Delete] {
+            self.repo.index.remove(path);
+        }
+
+        for action in [Action::Create, Action::Update] {
+            for (path, entry) in &self.changes[&action] {
+                let stat = self.repo.workspace.stat_file(path)?;
+                self.repo.index.add(
+                    path.to_path_buf(),
+                    entry.as_ref().unwrap().oid.clone(),
+                    stat,
+                );
+            }
+        }
+
         Ok(())
     }
 }

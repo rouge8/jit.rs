@@ -88,7 +88,7 @@ impl Database {
         Ok(oids)
     }
 
-    pub fn tree_diff(&mut self, a: String, b: String) -> Result<TreeDiffChanges> {
+    pub fn tree_diff(&mut self, a: &str, b: &str) -> Result<TreeDiffChanges> {
         let mut diff = TreeDiff::new(self);
         diff.compare_oids(Some(a), Some(b), Path::new(""))?;
         Ok(diff.changes)
@@ -242,7 +242,7 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+            assert_eq!(database.tree_diff(&tree_a, &tree_b)?, expected);
 
             Ok(())
         }
@@ -271,7 +271,7 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+            assert_eq!(database.tree_diff(&tree_a, &tree_b)?, expected);
 
             Ok(())
         }
@@ -300,7 +300,7 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+            assert_eq!(database.tree_diff(&tree_a, &tree_b)?, expected);
 
             Ok(())
         }
@@ -331,7 +331,7 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+            assert_eq!(database.tree_diff(&tree_a, &tree_b)?, expected);
 
             Ok(())
         }
@@ -362,7 +362,7 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(tree_a, tree_b)?, expected);
+            assert_eq!(database.tree_diff(&tree_a, &tree_b)?, expected);
 
             Ok(())
         }

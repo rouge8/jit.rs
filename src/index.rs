@@ -121,6 +121,13 @@ impl Index {
         &self.entries[path]
     }
 
+    pub fn remove(&mut self, pathname: &Path) {
+        let pathname = path_to_string(pathname);
+        self.remove_entry(&pathname);
+        self.remove_children(&pathname);
+        self.changed = true;
+    }
+
     fn clear(&mut self) {
         self.entries = BTreeMap::new();
         self.parents = HashMap::new();

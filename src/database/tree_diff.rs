@@ -20,12 +20,7 @@ impl<'a> TreeDiff<'a> {
         }
     }
 
-    pub fn compare_oids(
-        &mut self,
-        a: Option<String>,
-        b: Option<String>,
-        prefix: &Path,
-    ) -> Result<()> {
+    pub fn compare_oids(&mut self, a: Option<&str>, b: Option<&str>, prefix: &Path) -> Result<()> {
         if a == b {
             return Ok(());
         }
@@ -88,7 +83,7 @@ impl<'a> TreeDiff<'a> {
             } else {
                 None
             };
-            self.compare_oids(tree_a, tree_b, &path)?;
+            self.compare_oids(tree_a.as_deref(), tree_b.as_deref(), &path)?;
 
             let blob_a = if entry.is_tree() {
                 None
@@ -141,7 +136,7 @@ impl<'a> TreeDiff<'a> {
                     TreeEntry::Tree(_) => unreachable!(),
                 }
             } else {
-                self.compare_oids(None, Some(entry.oid()), &path)?;
+                self.compare_oids(None, Some(&entry.oid()), &path)?;
             }
         }
 

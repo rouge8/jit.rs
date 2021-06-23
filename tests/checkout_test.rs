@@ -56,6 +56,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -66,6 +67,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -76,6 +78,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -86,6 +89,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -96,6 +100,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -106,6 +111,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -116,6 +122,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -126,6 +133,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -137,6 +145,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }
@@ -148,6 +157,7 @@ mod with_a_set_of_files {
         commit_and_checkout(&mut helper, "@^")?;
 
         helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }

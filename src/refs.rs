@@ -197,7 +197,7 @@ impl Refs {
             Some(Ref::Ref { .. }) | None => self.write_lockfile(&mut lockfile, &oid),
             Some(Ref::SymRef { path }) => {
                 match self.update_symref(self.pathname.join(path), &oid) {
-                    Ok(()) => Ok(()),
+                    Ok(()) => lockfile.rollback(),
                     Err(err) => {
                         lockfile.rollback()?;
                         Err(err)

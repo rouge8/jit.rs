@@ -56,6 +56,9 @@ mod committing_to_branches {
 
             assert_eq!(helper.resolve_revision("@^")?, head_before.unwrap());
 
+            // The lock should be rolled back
+            assert!(!helper.repo_path.join(".git/HEAD.lock").exists());
+
             Ok(())
         }
     }

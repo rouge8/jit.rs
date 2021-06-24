@@ -8,23 +8,23 @@ default-run = "jit"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sha-1 = "0.9.6"
-uuid = { version = "0.8", features = ["v4"] }
+anyhow = "1.0.40"
+atty = "0.2.14"
+chrono = "0.4.19"
+colored = "2.0.0"
 flate2 = "1.0.20"
 hex = { version = "0.4.3", features = ["alloc"] }
-chrono = "0.4.19"
-anyhow = "1.0.40"
-thiserror = "1.0.25"
 itertools = "0.10.0"
 lazy_static = "1.4.0"
-colored = "2.0.0"
-atty = "0.2.14"
-regex = "1.5.4"
 nix = "0.21.0"
+regex = "1.5.4"
+sha-1 = "0.9.6"
+thiserror = "1.0.25"
+uuid = { version = "0.8", features = ["v4"] }
 
 [dev-dependencies]
-tempfile = "3.2.0"
-rand = "0.8.4"
 assert_cmd = "1.0.4"
 filetime = "0.2.14"
+rand = "0.8.4"
 rstest = "0.10.0"
+tempfile = "3.2.0"

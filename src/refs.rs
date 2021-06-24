@@ -51,7 +51,7 @@ impl Refs {
     }
 
     pub fn update_head(&self, oid: String) -> Result<()> {
-        self.update_ref_file(self.pathname.join(HEAD), &oid)
+        self.update_symref(self.pathname.join(HEAD), &oid)
     }
 
     pub fn read_head(&self) -> Result<Option<String>> {
@@ -153,10 +153,7 @@ impl Refs {
                 _ => return Err(err),
             },
         }
-        lockfile.write(&format!("{}\n", oid).into_bytes())?;
-        lockfile.commit()?;
-
-        Ok(())
+        self.write_lockfile(&mut lockfile, &oid)
     }
 
     fn read_oid_or_symref(&self, path: &Path) -> Result<Option<Ref>> {
@@ -188,5 +185,30 @@ impl Refs {
             Some(Ref::Ref { oid }) => Ok(Some(oid)),
             None => Ok(None),
         }
+    }
+
+    fn update_symref(&self, path: PathBuf, oid: &str) -> Result<()> {
+        let mut lockfile = Lockfile::new(path.clone());
+        lockfile.hold_for_update()?;
+
+        let r#ref = self.read_oid_or_symref(&path)?;
+
+        match r#ref {
+            Some(Ref::Ref { .. }) | None => self.write_lockfile(&mut lockfile, &oid),
+            Some(Ref::SymRef { path }) => {
+                match self.update_symref(self.pathname.join(path), &oid) {
+                    Ok(()) => Ok(()),
+                    Err(err) => {
+                        lockfile.rollback()?;
+                        Err(err)
+                    }
+                }
+            }
+        }
+    }
+
+    fn write_lockfile(&self, lockfile: &mut Lockfile, oid: &str) -> Result<()> {
+        lockfile.write(&format!("{}\n", oid).into_bytes())?;
+        lockfile.commit()
     }
 }

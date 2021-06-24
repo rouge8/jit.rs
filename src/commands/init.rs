@@ -16,7 +16,7 @@ impl<E: Write> Init<E> {
     }
 
     pub fn run(&self) -> Result<()> {
-        let root_path = if let Some(path) = self.ctx.argv.get(1) {
+        let root_path = if let Some(path) = self.ctx.argv.get(0) {
             self.ctx.dir.join(path)
         } else {
             self.ctx.dir.clone()

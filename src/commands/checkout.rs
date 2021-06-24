@@ -62,7 +62,7 @@ impl<E: Write> Checkout<E> {
         }
 
         self.ctx.repo.index.write_updates()?;
-        self.ctx.repo.refs.update_head(target_oid)?;
+        self.ctx.repo.refs.set_head(&target, &target_oid)?;
 
         Ok(())
     }

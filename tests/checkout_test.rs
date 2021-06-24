@@ -3,6 +3,7 @@ mod common;
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
+use jit::refs::Ref;
 use lazy_static::lazy_static;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
@@ -825,5 +826,88 @@ D  outer/inner/3.txt\n",
         helper.assert_status("");
 
         Ok(())
+    }
+}
+
+mod with_a_chain_of_commits {
+    use super::*;
+
+    #[fixture]
+    fn base_helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        for message in ["first", "second", "third"] {
+            helper.write_file("file.txt", "message").unwrap();
+            helper.jit_cmd(&["add", "."]);
+            helper.commit(message);
+        }
+
+        helper.jit_cmd(&["branch", "topic"]);
+        helper.jit_cmd(&["branch", "second", "@^"]);
+
+        helper
+    }
+
+    mod checking_out_a_branch {
+        use super::*;
+
+        #[fixture]
+        fn helper(mut base_helper: CommandHelper) -> CommandHelper {
+            base_helper.jit_cmd(&["checkout", "topic"]);
+
+            base_helper
+        }
+
+        #[rstest]
+        fn link_head_to_the_branch(helper: CommandHelper) -> Result<()> {
+            let path = match helper.repo().refs.current_ref("HEAD")? {
+                Ref::SymRef { path } => path,
+                _ => unreachable!(),
+            };
+            assert_eq!(path, "refs/heads/topic");
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn resolve_head_to_the_same_object_as_the_branch(helper: CommandHelper) -> Result<()> {
+            let repo = helper.repo();
+            assert_eq!(repo.refs.read_head()?, repo.refs.read_ref("topic")?);
+
+            Ok(())
+        }
+    }
+
+    mod checking_out_a_relative_revision {
+        use super::*;
+
+        #[fixture]
+        fn helper(mut base_helper: CommandHelper) -> CommandHelper {
+            base_helper.jit_cmd(&["checkout", "topic^"]);
+
+            base_helper
+        }
+
+        #[rstest]
+        fn detach_head(helper: CommandHelper) -> Result<()> {
+            let path = match helper.repo().refs.current_ref("HEAD")? {
+                Ref::SymRef { path } => path,
+                _ => unreachable!(),
+            };
+            assert_eq!(path, "HEAD");
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn put_the_revision_value_in_head(helper: CommandHelper) -> Result<()> {
+            assert_eq!(
+                helper.repo().refs.read_head()?,
+                Some(helper.resolve_revision("topic^")?),
+            );
+
+            Ok(())
+        }
     }
 }

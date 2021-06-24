@@ -1,11 +1,26 @@
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::revision::Revision;
+use crate::util::path_to_string;
+use lazy_static::lazy_static;
+use regex::Regex;
 use std::fs;
+use std::fs::File;
 use std::io;
-use std::path::PathBuf;
+use std::io::Read;
+use std::path::{Path, PathBuf};
 
 const HEAD: &str = "HEAD";
+
+lazy_static! {
+    static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
+}
+
+#[derive(Debug)]
+pub enum Ref {
+    SymRef { path: String },
+    Ref { oid: String },
+}
 
 #[derive(Debug)]
 pub struct Refs {
@@ -17,7 +32,7 @@ pub struct Refs {
 impl Refs {
     pub fn new(pathname: PathBuf) -> Self {
         let refs_path = pathname.join("refs");
-        let heads_path = pathname.join("heads");
+        let heads_path = refs_path.join("heads");
 
         Refs {
             pathname,
@@ -27,16 +42,16 @@ impl Refs {
     }
 
     pub fn update_head(&self, oid: String) -> Result<()> {
-        self.update_ref_file(self.pathname.join(HEAD), oid)
+        self.update_ref_file(self.pathname.join(HEAD), &oid)
     }
 
     pub fn read_head(&self) -> Result<Option<String>> {
-        self.read_ref_file(self.pathname.join(HEAD))
+        self.read_symref(&self.pathname.join(HEAD))
     }
 
     pub fn read_ref(&self, name: &str) -> Result<Option<String>> {
         if let Some(path) = self.path_for_name(name) {
-            self.read_ref_file(path)
+            self.read_symref(&path)
         } else {
             Ok(None)
         }
@@ -59,9 +74,34 @@ impl Refs {
             )));
         }
 
-        self.update_ref_file(path, start_oid)?;
+        self.update_ref_file(path, &start_oid)?;
 
         Ok(())
+    }
+
+    pub fn set_head(&self, revision: &str, oid: &str) -> Result<()> {
+        let head = self.pathname.join(HEAD);
+        let path = self.heads_path.join(revision);
+
+        if path.is_file() {
+            let relative = path.strip_prefix(&self.pathname).unwrap();
+            self.update_ref_file(head, &format!("ref: {}", path_to_string(relative)))?;
+        } else {
+            self.update_ref_file(head, &oid)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn current_ref(&self, source: &str) -> Result<Ref> {
+        let r#ref = self.read_oid_or_symref(&self.pathname.join(source))?;
+
+        match r#ref {
+            Some(Ref::SymRef { path }) => self.current_ref(&path),
+            Some(Ref::Ref { .. }) | None => Ok(Ref::SymRef {
+                path: source.to_string(),
+            }),
+        }
     }
 
     fn path_for_name(&self, name: &str) -> Option<PathBuf> {
@@ -79,15 +119,7 @@ impl Refs {
         None
     }
 
-    fn read_ref_file(&self, path: PathBuf) -> Result<Option<String>> {
-        if path.exists() {
-            Ok(Some(fs::read_to_string(path)?.trim().to_string()))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn update_ref_file(&self, path: PathBuf, oid: String) -> Result<()> {
+    fn update_ref_file(&self, path: PathBuf, oid: &str) -> Result<()> {
         let mut lockfile = Lockfile::new(path.clone());
 
         match lockfile.hold_for_update() {
@@ -109,5 +141,36 @@ impl Refs {
         lockfile.commit()?;
 
         Ok(())
+    }
+
+    fn read_oid_or_symref(&self, path: &Path) -> Result<Option<Ref>> {
+        if path.exists() {
+            let mut data = String::new();
+            let mut file = File::open(&path)?;
+            file.read_to_string(&mut data)?;
+            let data = data.trim();
+
+            if let Some(r#match) = SYMREF.captures(&data) {
+                Ok(Some(Ref::SymRef {
+                    path: r#match[1].to_string(),
+                }))
+            } else {
+                Ok(Some(Ref::Ref {
+                    oid: data.to_string(),
+                }))
+            }
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn read_symref(&self, path: &Path) -> Result<Option<String>> {
+        let r#ref = self.read_oid_or_symref(&path)?;
+
+        match r#ref {
+            Some(Ref::SymRef { path }) => self.read_symref(&self.pathname.join(path)),
+            Some(Ref::Ref { oid }) => Ok(Some(oid)),
+            None => Ok(None),
+        }
     }
 }

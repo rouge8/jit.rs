@@ -10,16 +10,25 @@ use std::io;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-const HEAD: &str = "HEAD";
+pub const HEAD: &str = "HEAD";
 
 lazy_static! {
     static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Ref {
     SymRef { path: String },
     Ref { oid: String },
+}
+
+impl Ref {
+    pub fn is_head(&self) -> bool {
+        match self {
+            Ref::SymRef { path } => path == HEAD,
+            Ref::Ref { .. } => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -101,6 +110,13 @@ impl Refs {
             Some(Ref::Ref { .. }) | None => Ok(Ref::SymRef {
                 path: source.to_string(),
             }),
+        }
+    }
+
+    pub fn read_oid(&self, r#ref: &Ref) -> Result<Option<String>> {
+        match r#ref {
+            Ref::SymRef { path } => self.read_ref(&path),
+            Ref::Ref { oid } => Ok(Some(oid.to_owned())),
         }
     }
 

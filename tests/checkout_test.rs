@@ -2,6 +2,7 @@ mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
+use jit::database::Database;
 use jit::errors::Result;
 use jit::refs::Ref;
 use lazy_static::lazy_static;
@@ -877,6 +878,45 @@ mod with_a_chain_of_commits {
 
             Ok(())
         }
+
+        #[rstest]
+        fn print_a_message_when_switching_to_the_same_branch(mut helper: CommandHelper) {
+            helper
+                .jit_cmd(&["checkout", "topic"])
+                .assert()
+                .stderr("Already on 'topic'\n");
+        }
+
+        #[rstest]
+        fn print_a_message_when_switching_to_another_branch(mut helper: CommandHelper) {
+            helper
+                .jit_cmd(&["checkout", "second"])
+                .assert()
+                .stderr("Switched to branch 'second'\n");
+        }
+
+        #[rstest]
+        fn print_a_warning_when_detaching_head(mut helper: CommandHelper) -> Result<()> {
+            let short_oid = Database::short_oid(&helper.resolve_revision("@")?);
+            helper.jit_cmd(&["checkout", "@"]).assert().stderr(format!(
+                "\
+Note: checking out '@'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using the branch command. Example:
+
+  jit branch <new-branch-name>
+
+HEAD is now at {} third\n",
+                short_oid
+            ));
+
+            Ok(())
+        }
     }
 
     mod checking_out_a_relative_revision {
@@ -906,6 +946,56 @@ mod with_a_chain_of_commits {
                 helper.repo().refs.read_head()?,
                 Some(helper.resolve_revision("topic^")?),
             );
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn print_a_message_when_switching_to_the_same_commit(
+            mut helper: CommandHelper,
+        ) -> Result<()> {
+            let short_oid = Database::short_oid(&helper.resolve_revision("@")?);
+
+            helper
+                .jit_cmd(&["checkout", "@"])
+                .assert()
+                .stderr(format!("HEAD is now at {} second\n", short_oid));
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn print_a_message_when_switching_to_a_different_commit(
+            mut helper: CommandHelper,
+        ) -> Result<()> {
+            let a = Database::short_oid(&helper.resolve_revision("@")?);
+            let b = Database::short_oid(&helper.resolve_revision("@^")?);
+
+            helper.jit_cmd(&["checkout", "@^"]).assert().stderr(format!(
+                "\
+Previous HEAD position was {} second
+HEAD is now at {} first\n",
+                a, b
+            ));
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn print_a_message_when_switching_to_a_different_branch(
+            mut helper: CommandHelper,
+        ) -> Result<()> {
+            let short_oid = Database::short_oid(&helper.resolve_revision("@")?);
+
+            helper
+                .jit_cmd(&["checkout", "topic"])
+                .assert()
+                .stderr(format!(
+                    "\
+Previous HEAD position was {} second
+Switched to branch 'topic'\n",
+                    short_oid
+                ));
 
             Ok(())
         }

@@ -18,6 +18,8 @@ pub enum Error {
     InvalidBranch(String),
     #[error("{0}")]
     InvalidObject(String),
+    #[error("MigrationConflict")]
+    MigrationConflict,
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

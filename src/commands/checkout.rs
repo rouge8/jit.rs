@@ -43,7 +43,23 @@ impl<E: Write> Checkout<E> {
             .database
             .tree_diff(&current_oid, &target_oid)?;
         let mut migration = self.ctx.repo.migration(tree_diff);
-        migration.apply_changes()?;
+
+        match migration.apply_changes() {
+            Ok(()) => (),
+            Err(Error::MigrationConflict) => {
+                let mut stderr = self.ctx.stderr.borrow_mut();
+
+                for message in migration.errors {
+                    writeln!(stderr, "error: {}", message)?;
+                }
+                writeln!(stderr, "Aborting")?;
+
+                self.ctx.repo.index.release_lock()?;
+
+                return Err(Error::Exit(1));
+            }
+            Err(err) => return Err(err),
+        }
 
         self.ctx.repo.index.write_updates()?;
         self.ctx.repo.refs.update_head(target_oid)?;

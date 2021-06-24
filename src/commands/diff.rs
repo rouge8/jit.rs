@@ -112,7 +112,7 @@ impl<E: Write> Diff<E> {
     }
 
     fn from_index(&mut self, path: &str) -> Result<Target> {
-        let entry = self.ctx.repo.index.entry_for_path(path);
+        let entry = self.ctx.repo.index.entry_for_path(path).unwrap();
         let blob = match self.ctx.repo.database.load(&entry.oid)? {
             ParsedObject::Blob(blob) => blob,
             _ => unreachable!(),

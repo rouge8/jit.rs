@@ -155,7 +155,8 @@ impl Workspace {
 
         if path.is_file() {
             fs::remove_file(&path)?;
-        } else if !path.is_dir() {
+        }
+        if !path.is_dir() {
             fs::create_dir(&path)?;
         }
 

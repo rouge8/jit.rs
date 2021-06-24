@@ -2,8 +2,7 @@ use crate::database::{
     blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database, ParsedObject,
 };
 use crate::errors::Result;
-use crate::index::Entry;
-use crate::index::Index;
+use crate::index::{Entry as IndexEntry, Index};
 use crate::refs::Refs;
 use crate::util::path_to_string;
 use crate::workspace::Workspace;
@@ -109,9 +108,9 @@ impl Repository {
         Ok(())
     }
 
-    fn trackable_file(&mut self, path: &Path, stat: &fs::Metadata) -> Result<bool> {
+    fn trackable_file(&self, path: &Path, stat: &fs::Metadata) -> Result<bool> {
         if stat.is_file() {
-            return Ok(!self.index.tracked(path));
+            return Ok(!self.index.tracked_file(path));
         } else if !stat.is_dir() {
             return Ok(false);
         }
@@ -183,7 +182,7 @@ impl Repository {
         Ok(())
     }
 
-    fn check_index_against_workspace(&mut self, entry: &mut Entry) -> Result<()> {
+    fn check_index_against_workspace(&mut self, entry: &mut IndexEntry) -> Result<()> {
         let stat = self.stats.get(&entry.path);
         let status = self.compare_index_to_workspace(Some(&entry), stat)?;
 
@@ -195,7 +194,7 @@ impl Repository {
         Ok(())
     }
 
-    fn check_index_against_head_tree(&mut self, entry: &Entry) {
+    fn check_index_against_head_tree(&mut self, entry: &IndexEntry) {
         let item = self.head_tree.get(&entry.path);
         let status = self.compare_tree_to_index(item, Some(&entry));
 
@@ -215,7 +214,7 @@ impl Repository {
 
     fn compare_index_to_workspace(
         &self,
-        entry: Option<&Entry>,
+        entry: Option<&IndexEntry>,
         stat: Option<&fs::Metadata>,
     ) -> Result<Option<ChangeType>> {
         if entry.is_none() {
@@ -247,7 +246,7 @@ impl Repository {
     fn compare_tree_to_index(
         &self,
         item: Option<&TreeEntry>,
-        entry: Option<&Entry>,
+        entry: Option<&IndexEntry>,
     ) -> Option<ChangeType> {
         if item.is_none() && entry.is_none() {
             return None;

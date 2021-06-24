@@ -1,10 +1,50 @@
 use crate::database::entry::Entry;
+use crate::database::tree::TreeEntry;
 use crate::database::tree_diff::TreeDiffChanges;
 use crate::database::ParsedObject;
-use crate::errors::Result;
+use crate::errors::{Error, Result};
+use crate::index::Entry as IndexEntry;
 use crate::repository::Repository;
+use crate::util::path_to_string;
+use lazy_static::lazy_static;
 use std::collections::{BTreeSet, HashMap};
+use std::fs;
 use std::path::{Path, PathBuf};
+
+lazy_static! {
+    static ref MESSAGES: HashMap<ConflictType, (&'static str, &'static str)> = {
+        let mut m = HashMap::new();
+        m.insert(
+            ConflictType::StaleFile,
+            (
+                "Your local changes to the following files would be overwritten by checkout:",
+                "Please commit your changes or stash them before you switch branches.",
+            ),
+        );
+        m.insert(
+            ConflictType::StaleDirectory,
+            (
+                "Updating the following directories would lose untracked files in them:",
+                "",
+            ),
+        );
+        m.insert(
+            ConflictType::UntrackedOverwritten,
+            (
+                "The following untracked working tree files would be overwritten by checkout:",
+                "Please move or remove them before you switch branches.",
+            ),
+        );
+        m.insert(
+            ConflictType::UntrackedRemoved,
+            (
+                "The following untracked working tree files would be removed by checkout:",
+                "Please move or remove them before you switch branches.",
+            ),
+        );
+        m
+    };
+}
 
 pub struct Migration<'a> {
     repo: &'a mut Repository,
@@ -12,6 +52,8 @@ pub struct Migration<'a> {
     pub changes: HashMap<Action, Vec<(PathBuf, Option<Entry>)>>,
     pub mkdirs: BTreeSet<PathBuf>,
     pub rmdirs: BTreeSet<PathBuf>,
+    pub errors: Vec<String>,
+    pub conflicts: HashMap<ConflictType, BTreeSet<PathBuf>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -19,6 +61,14 @@ pub enum Action {
     Create,
     Delete,
     Update,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum ConflictType {
+    StaleFile,
+    StaleDirectory,
+    UntrackedOverwritten,
+    UntrackedRemoved,
 }
 
 impl<'a> Migration<'a> {
@@ -32,12 +82,24 @@ impl<'a> Migration<'a> {
             changes
         };
 
+        let conflicts = {
+            let mut conflicts = HashMap::new();
+            conflicts.insert(ConflictType::StaleFile, BTreeSet::new());
+            conflicts.insert(ConflictType::StaleDirectory, BTreeSet::new());
+            conflicts.insert(ConflictType::UntrackedOverwritten, BTreeSet::new());
+            conflicts.insert(ConflictType::UntrackedRemoved, BTreeSet::new());
+
+            conflicts
+        };
+
         Self {
             repo,
             diff,
             changes,
             mkdirs: BTreeSet::new(),
             rmdirs: BTreeSet::new(),
+            errors: Vec::new(),
+            conflicts,
         }
     }
 
@@ -62,8 +124,11 @@ impl<'a> Migration<'a> {
     fn plan_changes(&mut self) -> Result<()> {
         // TODO: Pass `diff` as an argument to `apply_changes()` instead of cloning?
         for (path, (old_item, new_item)) in &self.diff.clone() {
+            self.check_for_conflict(path, old_item, new_item)?;
             self.record_change(path, old_item, new_item);
         }
+
+        self.collect_errors()?;
 
         Ok(())
     }
@@ -119,5 +184,131 @@ impl<'a> Migration<'a> {
         }
 
         Ok(())
+    }
+
+    fn insert_conflict(&mut self, conflict_type: ConflictType, path: &Path) {
+        if let Some(conflicts) = self.conflicts.get_mut(&conflict_type) {
+            conflicts.insert(path.to_path_buf());
+        }
+    }
+
+    fn check_for_conflict(
+        &mut self,
+        path: &Path,
+        old_item: &Option<Entry>,
+        new_item: &Option<Entry>,
+    ) -> Result<()> {
+        let entry = self.repo.index.entry_for_path(&path_to_string(path));
+
+        if self.index_differs_from_trees(entry, old_item.as_ref(), new_item.as_ref()) {
+            self.insert_conflict(ConflictType::StaleFile, path);
+            return Ok(());
+        }
+
+        let stat = self.repo.workspace.stat_file(path).ok();
+        let error_type = self.get_error_type(stat.as_ref(), entry, new_item);
+
+        if stat.is_none() {
+            let parent = self.untracked_parent(path)?;
+            if let Some(parent) = parent {
+                let conflict_path = if entry.is_some() {
+                    path.to_path_buf()
+                } else {
+                    parent
+                };
+                self.insert_conflict(error_type, &conflict_path);
+            }
+        } else if stat.as_ref().unwrap().is_file() {
+            let changed = self.repo.compare_index_to_workspace(entry, stat.as_ref())?;
+            if changed.is_some() {
+                self.insert_conflict(error_type, &path);
+            }
+        } else if stat.as_ref().unwrap().is_dir() {
+            let trackable = self.repo.trackable_file(path, &stat.unwrap())?;
+            if trackable {
+                self.insert_conflict(error_type, &path);
+            }
+        }
+
+        Ok(())
+    }
+
+    fn index_differs_from_trees(
+        &self,
+        entry: Option<&IndexEntry>,
+        old_item: Option<&Entry>,
+        new_item: Option<&Entry>,
+    ) -> bool {
+        let old_item = old_item.map(|old_item| TreeEntry::Entry(old_item.clone()));
+        let new_item = new_item.map(|new_item| TreeEntry::Entry(new_item.clone()));
+
+        self.repo
+            .compare_tree_to_index(old_item.as_ref(), entry)
+            .is_some()
+            && self
+                .repo
+                .compare_tree_to_index(new_item.as_ref(), entry)
+                .is_some()
+    }
+
+    fn untracked_parent(&self, path: &Path) -> Result<Option<PathBuf>> {
+        let dirname = path.parent().unwrap();
+        for parent in dirname.ancestors() {
+            if parent == Path::new("") {
+                continue;
+            }
+
+            if let Ok(parent_stat) = self.repo.workspace.stat_file(parent) {
+                if !parent_stat.is_file() {
+                    continue;
+                }
+
+                if self.repo.trackable_file(parent, &parent_stat)? {
+                    return Ok(Some(parent.to_path_buf()));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    fn get_error_type(
+        &self,
+        stat: Option<&fs::Metadata>,
+        entry: Option<&IndexEntry>,
+        item: &Option<Entry>,
+    ) -> ConflictType {
+        if entry.is_some() {
+            ConflictType::StaleFile
+        } else if stat.is_some() && stat.unwrap().is_dir() {
+            ConflictType::StaleDirectory
+        } else if item.is_some() {
+            ConflictType::UntrackedOverwritten
+        } else {
+            ConflictType::UntrackedRemoved
+        }
+    }
+
+    fn collect_errors(&mut self) -> Result<()> {
+        for (conflict_type, paths) in &self.conflicts {
+            if paths.is_empty() {
+                continue;
+            }
+
+            let (header, footer) = MESSAGES[&conflict_type];
+
+            let mut error = vec![header.to_string()];
+            for name in paths {
+                error.push(format!("\t{}", path_to_string(&name)));
+            }
+            error.push(footer.to_string());
+
+            self.errors.push(error.join("\n"));
+        }
+
+        if !self.errors.is_empty() {
+            Err(Error::MigrationConflict)
+        } else {
+            Ok(())
+        }
     }
 }

@@ -6,6 +6,7 @@ use jit::errors::Result;
 use lazy_static::lazy_static;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
+use std::process::Output;
 
 mod with_a_set_of_files {
     use super::*;
@@ -34,6 +35,62 @@ mod with_a_set_of_files {
         helper.jit_cmd(&["checkout", revision]).assert().code(0);
 
         Ok(())
+    }
+
+    fn assert_stale_file(output: Output, filename: &str) {
+        output
+            .assert()
+            .stderr(format!(
+                "\
+error: Your local changes to the following files would be overwritten by checkout:
+\t{}
+Please commit your changes or stash them before you switch branches.
+Aborting\n",
+                filename
+            ))
+            .code(1);
+    }
+
+    fn assert_stale_directory(output: Output, filename: &str) {
+        output
+            .assert()
+            .stderr(format!(
+                "\
+error: Updating the following directories would lose untracked files in them:
+\t{}
+
+Aborting\n",
+                filename
+            ))
+            .code(1);
+    }
+
+    fn assert_overwrite_conflict(output: Output, filename: &str) {
+        output
+            .assert()
+            .stderr(format!(
+                "\
+error: The following untracked working tree files would be overwritten by checkout:
+\t{}
+Please move or remove them before you switch branches.
+Aborting\n",
+                filename
+            ))
+            .code(1);
+    }
+
+    fn assert_remove_conflict(output: Output, filename: &str) {
+        output
+            .assert()
+            .stderr(format!(
+                "\
+error: The following untracked working tree files would be removed by checkout:
+\t{}
+Please move or remove them before you switch branches.
+Aborting\n",
+                filename
+            ))
+            .code(1);
     }
 
     #[fixture]
@@ -203,6 +260,569 @@ mod with_a_set_of_files {
             "M  outer/2.txt
 A  outer/inner/4.txt\n",
         );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_a_modified_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("1.txt", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_a_modified_equal_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("1.txt", "1")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_a_changed_mode_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.make_executable("1.txt")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn restore_a_deleted_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("1.txt")?;
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn restore_files_from_a_deleted_directory(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/3.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer")?;
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = HashMap::new();
+        expected.insert("1.txt", "1");
+        expected.insert("outer/inner/3.txt", "3");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status(" D outer/2.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_a_staged_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("1.txt", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn update_a_staged_equal_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("1.txt", "1")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_a_staged_changed_mode_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.make_executable("1.txt")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_an_unindexed_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("1.txt")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_an_unindexed_and_untracked_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("1.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("1.txt")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.write_file("1.txt", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "1.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_an_unindexed_directory(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/3.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/inner/3.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_with_a_file_at_a_parent_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/3.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/inner/3.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_with_a_staged_file_at_a_parent_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/3.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/inner/3.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_with_an_unstaged_file_at_a_parent_path(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.write_file("outer/inner/3.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.write_file("outer/inner", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/inner/3.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_with_a_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/2.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/2.txt")?;
+        helper.write_file("outer/2.txt/extra.log", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/2.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_update_with_a_staged_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/2.txt", "changed")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/2.txt")?;
+        helper.write_file("outer/2.txt/extra.log", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/2.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_a_modified_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/94.txt", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_a_changed_mode_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.make_executable("outer/94.txt")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn leave_a_deleted_file_deleted(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/94.txt")?;
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn leave_a_deleted_directory_deleted(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = HashMap::new();
+        expected.insert("1.txt", "1");
+        expected.insert("outer/2.txt", "2");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status(" D outer/inner/3.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_a_staged_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/94.txt", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_a_staged_changed_mode_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.make_executable("outer/94.txt")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn leave_an_unindexed_file_deleted(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/94.txt")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_an_unindexed_and_untracked_file(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/94.txt")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.write_file("outer/94.txt", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_remove_conflict(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn leave_an_unindexed_directory_deleted(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = HashMap::new();
+        expected.insert("1.txt", "1");
+        expected.insert("outer/2.txt", "2");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status("D  outer/inner/3.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_with_a_file_at_a_parent_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/inner/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn remove_a_file_with_a_staged_file_at_a_parent_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        let mut expected = HashMap::new();
+        expected.insert("1.txt", "1");
+        expected.insert("outer/2.txt", "2");
+        expected.insert("outer/inner", "conflict");
+        helper.assert_workspace(&expected)?;
+
+        helper.assert_status(
+            "\
+A  outer/inner
+D  outer/inner/3.txt\n",
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_with_an_unstaged_file_at_a_parent_path(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.write_file("outer/inner/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.delete(".git/index")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.write_file("outer/inner", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_remove_conflict(output, "outer/inner");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_remove_with_a_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/94.txt")?;
+        helper.write_file("outer/94.txt/extra.log", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/94.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn remove_a_file_with_a_staged_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/94.txt", "94")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/94.txt")?;
+        helper.write_file("outer/94.txt/extra.log", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_add_an_untracked_file(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/2.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_overwrite_conflict(output, "outer/2.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_add_an_added_file(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/2.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_file(output, "outer/2.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn add_a_staged_equal_file(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/2.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt", "2")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_add_with_an_untracked_file_at_a_parent_path(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.delete("outer/inner/3.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_overwrite_conflict(output, "outer/inner");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn add_a_file_with_an_added_file_at_a_parent_path(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/inner/3.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.delete("outer/inner")?;
+        helper.write_file("outer/inner", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_add_with_an_untracked_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/2.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt/extra.log", "conflict")?;
+
+        let output = helper.jit_cmd(&["checkout", "@^"]);
+        assert_stale_directory(output, "outer/2.txt");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn add_a_file_with_an_added_file_at_a_child_path(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("outer/2.txt")?;
+        commit_all(&mut helper)?;
+
+        helper.write_file("outer/2.txt/extra.log", "conflict")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["checkout", "@^"]);
+
+        helper.assert_workspace(&*BASE_FILES)?;
+        helper.assert_status("");
 
         Ok(())
     }

@@ -117,8 +117,8 @@ impl Index {
         self.changed = true;
     }
 
-    pub fn entry_for_path(&self, path: &str) -> &Entry {
-        &self.entries[path]
+    pub fn entry_for_path(&self, path: &str) -> Option<&Entry> {
+        self.entries.get(path)
     }
 
     pub fn remove(&mut self, pathname: &Path) {

@@ -37,10 +37,15 @@ pub enum Command {
         files: Vec<PathBuf>,
     },
     Branch {
-        branch_name: Option<String>,
-        start_point: Option<String>,
+        args: Vec<String>,
         #[structopt(short, long)]
         verbose: bool,
+        #[structopt(short, long)]
+        delete: bool,
+        #[structopt(short, long)]
+        force: bool,
+        #[structopt(short = "D")]
+        force_delete: bool,
     },
     Checkout {
         tree_ish: String,

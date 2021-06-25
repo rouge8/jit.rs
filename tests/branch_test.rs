@@ -249,4 +249,73 @@ fatal: Not a valid object name: '{}^^'.
 
         Ok(())
     }
+
+    #[rstest]
+    fn delete_a_branch(mut helper: CommandHelper) -> Result<()> {
+        let repo = helper.repo();
+
+        let head = repo.refs.read_head()?.unwrap();
+
+        helper.jit_cmd(&["branch", "bug-fix"]);
+
+        helper
+            .jit_cmd(&["branch", "-D", "bug-fix"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "Deleted branch bug-fix (was {}).\n",
+                Database::short_oid(&head)
+            ));
+
+        let branches: Vec<_> = repo
+            .refs
+            .list_branches()?
+            .iter()
+            .map(|r#ref| repo.refs.short_name(&r#ref))
+            .collect();
+        assert_eq!(branches, vec![String::from("main")]);
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn delete_the_empty_parent_directories_of_a_branch(mut helper: CommandHelper) -> Result<()> {
+        let repo = helper.repo();
+
+        let head = repo.refs.read_head()?.unwrap();
+
+        helper.jit_cmd(&["branch", "fix/bug/1"]);
+        helper.jit_cmd(&["branch", "fix/2"]);
+
+        helper
+            .jit_cmd(&["branch", "-D", "fix/bug/1"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "Deleted branch fix/bug/1 (was {}).\n",
+                Database::short_oid(&head)
+            ));
+
+        let branches: Vec<_> = repo
+            .refs
+            .list_branches()?
+            .iter()
+            .map(|r#ref| repo.refs.short_name(&r#ref))
+            .collect();
+        assert_eq!(branches, vec![String::from("fix/2"), String::from("main")]);
+
+        // The empty parent directory was deleted
+        assert!(!helper.repo_path.join(".git/refs/heads/fix/bug").exists());
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_delete_a_non_existent_branch(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["branch", "-D", "no-such-branch"])
+            .assert()
+            .code(1)
+            .stderr("error: branch 'no-such-branch' not found.\n");
+    }
 }

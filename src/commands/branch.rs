@@ -9,39 +9,47 @@ use std::io::Write;
 
 pub struct Branch<'a> {
     ctx: CommandContext<'a>,
-    /// `jit branch <branch_name>`
-    branch_name: Option<String>,
-    /// `jit branch <branch_name> [start_point]`
-    start_point: Option<String>,
+    /// `jit branch [branch_name]...`
+    args: Vec<String>,
     /// `jit branch --verbose`
     verbose: bool,
+    /// `jit branch -d | --delete
+    delete: bool,
+    /// `jit branch -f | --force
+    force: bool,
 }
 
 impl<'a> Branch<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (branch_name, start_point, verbose) = match &ctx.opt.cmd {
+        let (args, verbose, delete, force) = match &ctx.opt.cmd {
             Command::Branch {
-                branch_name,
-                start_point,
+                args,
                 verbose,
+                delete,
+                force,
+                force_delete,
             } => (
-                branch_name.to_owned(),
-                start_point.to_owned(),
+                args.to_owned(),
                 verbose.to_owned(),
+                *delete || *force_delete,
+                *force || *force_delete,
             ),
             _ => unreachable!(),
         };
 
         Self {
             ctx,
-            branch_name,
-            start_point,
+            args,
             verbose,
+            delete,
+            force,
         }
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.branch_name.is_none() {
+        if self.delete {
+            self.delete_branches()?;
+        } else if self.args.is_empty() {
             self.list_branches()?;
         } else {
             self.create_branch()?;
@@ -51,7 +59,8 @@ impl<'a> Branch<'a> {
     }
 
     fn create_branch(&mut self) -> Result<()> {
-        let start_oid = match &self.start_point {
+        let branch_name = &self.args[0];
+        let start_oid = match &self.args.get(1) {
             Some(start_point) => {
                 let mut revision = Revision::new(&mut self.ctx.repo, &start_point);
                 match revision.resolve(Some(COMMIT)) {
@@ -77,12 +86,7 @@ impl<'a> Branch<'a> {
             None => self.ctx.repo.refs.read_head()?.unwrap(),
         };
 
-        match self
-            .ctx
-            .repo
-            .refs
-            .create_branch(self.branch_name.as_ref().unwrap(), start_oid)
-        {
+        match self.ctx.repo.refs.create_branch(&branch_name, start_oid) {
             Ok(()) => Ok(()),
             Err(err) => match err {
                 Error::InvalidBranch(..) => {
@@ -122,6 +126,14 @@ impl<'a> Branch<'a> {
         Ok(())
     }
 
+    fn delete_branches(&self) -> Result<()> {
+        for branch_name in &self.args {
+            self.delete_branch(&branch_name)?;
+        }
+
+        Ok(())
+    }
+
     fn format_ref(&self, r#ref: &Ref, current: &Ref) -> String {
         let short_name = self.ctx.repo.refs.short_name(&r#ref);
 
@@ -150,5 +162,30 @@ impl<'a> Branch<'a> {
         let space = " ".repeat(max_width - self.ctx.repo.refs.short_name(&r#ref).len());
 
         Ok(format!("{} {} {}", space, short, commit.title_line()))
+    }
+
+    fn delete_branch(&self, branch_name: &str) -> Result<()> {
+        if !self.force {
+            return Ok(());
+        }
+
+        match self.ctx.repo.refs.delete_branch(&branch_name) {
+            Ok(oid) => {
+                let short = Database::short_oid(&oid);
+
+                let mut stdout = self.ctx.stdout.borrow_mut();
+                writeln!(stdout, "Deleted branch {} (was {}).", branch_name, short)?;
+
+                Ok(())
+            }
+            Err(err) => match err {
+                Error::BranchNotFound(..) => {
+                    let mut stderr = self.ctx.stderr.borrow_mut();
+                    writeln!(stderr, "error: {}", err)?;
+                    Err(Error::Exit(1))
+                }
+                _ => Err(err),
+            },
+        }
     }
 }

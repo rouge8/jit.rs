@@ -3,6 +3,7 @@ use crate::lockfile::Lockfile;
 use crate::revision::Revision;
 use crate::util::path_to_string;
 use lazy_static::lazy_static;
+use nix::errno::Errno;
 use regex::Regex;
 use std::fs;
 use std::fs::File;
@@ -146,6 +147,29 @@ impl Refs {
         }
     }
 
+    pub fn delete_branch(&self, branch_name: &str) -> Result<String> {
+        let path = self.heads_path.join(branch_name);
+
+        let mut lockfile = Lockfile::new(path.clone());
+        lockfile.hold_for_update()?;
+
+        match self.read_symref(&path)? {
+            Some(oid) => {
+                fs::remove_file(&path)?;
+                lockfile.rollback()?;
+
+                self.delete_parent_directories(&path)?;
+
+                Ok(oid)
+            }
+            None => {
+                lockfile.rollback()?;
+
+                Err(Error::BranchNotFound(branch_name.to_string()))
+            }
+        }
+    }
+
     fn path_for_name(&self, name: &str) -> Option<PathBuf> {
         let prefixes = [
             self.pathname.clone(),
@@ -255,5 +279,26 @@ impl Refs {
         }
 
         Ok(result)
+    }
+
+    fn delete_parent_directories(&self, path: &Path) -> Result<()> {
+        for dir in path.parent().unwrap().ancestors() {
+            if dir == self.heads_path {
+                break;
+            }
+
+            match fs::remove_dir(&dir) {
+                Ok(()) => continue,
+                Err(err) => {
+                    if err.raw_os_error() == Some(Errno::ENOTEMPTY as i32) {
+                        break;
+                    } else {
+                        return Err(Error::Io(err));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 }

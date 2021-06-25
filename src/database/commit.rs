@@ -3,7 +3,7 @@ use crate::database::object::Object;
 use crate::database::ParsedObject;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Commit {
     pub parent: Option<String>,
     pub tree: String,

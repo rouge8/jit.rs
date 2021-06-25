@@ -37,8 +37,10 @@ pub enum Command {
         files: Vec<PathBuf>,
     },
     Branch {
-        branch_name: String,
+        branch_name: Option<String>,
         start_point: Option<String>,
+        #[structopt(short, long)]
+        verbose: bool,
     },
     Checkout {
         tree_ish: String,

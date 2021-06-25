@@ -120,6 +120,32 @@ impl Refs {
         }
     }
 
+    pub fn list_branches(&self) -> Result<Vec<Ref>> {
+        self.list_refs(&self.heads_path)
+    }
+
+    pub fn short_name(&self, r#ref: &Ref) -> String {
+        match r#ref {
+            Ref::SymRef { path } => {
+                let path = self.pathname.join(&path);
+
+                let dirs = [self.heads_path.clone(), self.pathname.clone()];
+                let prefix = dirs
+                    .iter()
+                    .find(|dir| {
+                        path.parent()
+                            .unwrap()
+                            .ancestors()
+                            .any(|parent| &parent == dir)
+                    })
+                    .unwrap();
+
+                path_to_string(&path.strip_prefix(&prefix).unwrap())
+            }
+            Ref::Ref { .. } => unreachable!(),
+        }
+    }
+
     fn path_for_name(&self, name: &str) -> Option<PathBuf> {
         let prefixes = [
             self.pathname.clone(),
@@ -210,5 +236,24 @@ impl Refs {
     fn write_lockfile(&self, lockfile: &mut Lockfile, oid: &str) -> Result<()> {
         lockfile.write(&format!("{}\n", oid).into_bytes())?;
         lockfile.commit()
+    }
+
+    fn list_refs(&self, dirname: &Path) -> Result<Vec<Ref>> {
+        let mut result = vec![];
+
+        for name in fs::read_dir(self.pathname.join(dirname))? {
+            let path = name?.path();
+
+            if path.is_dir() {
+                result.append(&mut self.list_refs(&path)?);
+            } else {
+                let path = path.strip_prefix(&self.pathname).unwrap();
+                result.push(Ref::SymRef {
+                    path: path_to_string(path),
+                });
+            }
+        }
+
+        Ok(result)
     }
 }

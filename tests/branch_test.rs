@@ -2,6 +2,7 @@ mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
+use jit::database::object::Object;
 use jit::database::{Database, ParsedObject};
 use jit::errors::Result;
 use rstest::{fixture, rstest};
@@ -209,6 +210,41 @@ error: object {} is a tree, not a commit
 fatal: Not a valid object name: '{}^^'.
 ",
                 tree_id, tree_id,
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn list_existing_branches(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["branch", "new-feature"]);
+
+        helper.jit_cmd(&["branch"]).assert().code(0).stdout(
+            "\
+* main
+  new-feature\n",
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn list_existing_branches_with_verbose_info(mut helper: CommandHelper) -> Result<()> {
+        let a = helper.load_commit("@^")?;
+        let b = helper.load_commit("@")?;
+
+        helper.jit_cmd(&["branch", "new-feature", "@^"]);
+
+        helper
+            .jit_cmd(&["branch", "--verbose"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+* main        {} third
+  new-feature {} second\n",
+                Database::short_oid(&b.oid()),
+                Database::short_oid(&a.oid())
             ));
 
         Ok(())

@@ -4,7 +4,7 @@ use std::fmt;
 
 const TIME_FORMAT: &str = "%s %z";
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Author {
     name: String,
     email: String,

@@ -1,5 +1,6 @@
 use crate::commands::{Command, CommandContext};
 use crate::errors::Result;
+use crate::refs::HEAD;
 use crate::repository::ChangeType;
 use colored::Colorize;
 use lazy_static::lazy_static;
@@ -76,6 +77,8 @@ impl<'a> Status<'a> {
     }
 
     fn print_long_format(&self) -> Result<()> {
+        self.print_branch_status()?;
+
         self.print_changeset(
             "Changes to be committed",
             &self.ctx.repo.index_changes,
@@ -89,6 +92,27 @@ impl<'a> Status<'a> {
         self.print_untracked_files()?;
 
         self.print_commit_status()?;
+
+        Ok(())
+    }
+
+    fn print_branch_status(&self) -> Result<()> {
+        let current = self.ctx.repo.refs.current_ref(HEAD)?;
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        if current.is_head() {
+            writeln!(
+                stdout,
+                "{}",
+                String::from("Not currently on any branch.").red()
+            )?;
+        } else {
+            writeln!(
+                stdout,
+                "On branch {}",
+                self.ctx.repo.refs.short_name(&current)
+            )?;
+        }
 
         Ok(())
     }

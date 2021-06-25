@@ -1,4 +1,4 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::errors::Result;
 use crate::repository::ChangeType;
 use colored::Colorize;
@@ -6,8 +6,10 @@ use lazy_static::lazy_static;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
-pub struct Status<E: Write> {
-    ctx: CommandContext<E>,
+pub struct Status<'a> {
+    ctx: CommandContext<'a>,
+    /// `jit status --porcelain`
+    porcelain: bool,
 }
 
 lazy_static! {
@@ -29,9 +31,14 @@ lazy_static! {
 
 static LABEL_WIDTH: usize = 12;
 
-impl<E: Write> Status<E> {
-    pub fn new(ctx: CommandContext<E>) -> Self {
-        Self { ctx }
+impl<'a> Status<'a> {
+    pub fn new(ctx: CommandContext<'a>) -> Self {
+        let porcelain = match ctx.opt.cmd {
+            Command::Status { porcelain } => porcelain,
+            _ => unreachable!(),
+        };
+
+        Self { ctx, porcelain }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -45,7 +52,7 @@ impl<E: Write> Status<E> {
     }
 
     fn print_results(&self) -> Result<()> {
-        if self.ctx.argv.contains(&String::from("--porcelain")) {
+        if self.porcelain {
             self.print_porcelain_format()?;
         } else {
             self.print_long_format()?;

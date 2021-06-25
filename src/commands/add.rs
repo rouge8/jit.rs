@@ -1,22 +1,30 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
 use crate::database::object::Object;
 use crate::errors::{Error, Result};
+use crate::util::path_to_string;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
 
-pub struct Add<E: Write> {
-    ctx: CommandContext<E>,
+pub struct Add<'a> {
+    ctx: CommandContext<'a>,
+    /// `jit add <paths>...`
+    paths: Vec<PathBuf>,
 }
 
-impl<E: Write> Add<E> {
-    pub fn new(ctx: CommandContext<E>) -> Self {
-        Self { ctx }
+impl<'a> Add<'a> {
+    pub fn new(ctx: CommandContext<'a>) -> Self {
+        let paths = match &ctx.opt.cmd {
+            Command::Add { files } => files.to_owned(),
+            _ => unreachable!(),
+        };
+
+        Self { ctx, paths }
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.ctx.argv.is_empty() {
+        if self.paths.is_empty() {
             let mut stderr = self.ctx.stderr.borrow_mut();
             writeln!(stderr, "Nothing specified, nothing added.")?;
             return Err(Error::Exit(0));
@@ -27,11 +35,11 @@ impl<E: Write> Add<E> {
             Err(err) => return self.handle_locked_index(err),
         }
 
-        let paths: Vec<_> = self.ctx.argv.range(0..).cloned().collect();
-        for path in paths {
-            let path = match PathBuf::from(&path).canonicalize() {
+        let paths = self.paths.clone();
+        for path in &paths {
+            let path = match path.canonicalize() {
                 Ok(path) => path,
-                Err(err) => return self.handle_missing_file(&path, err),
+                Err(err) => return self.handle_missing_file(&path_to_string(&path), err),
             };
 
             for path in self.ctx.repo.workspace.list_files(&path)? {

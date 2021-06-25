@@ -1,21 +1,19 @@
 use anyhow::Result;
 use jit::commands;
 use jit::errors::Error;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::env;
 use std::io;
 use std::process;
+use structopt::StructOpt;
 
 fn main() -> Result<()> {
-    let mut argv: VecDeque<String> = env::args().collect();
-
-    // Remove the executable name from argv
-    argv.pop_front();
+    let opt = commands::Jit::from_args();
 
     match commands::execute(
         env::current_dir()?,
         env::vars().collect::<HashMap<String, String>>(),
-        argv,
+        opt,
         io::stdout(),
         io::stderr(),
     ) {

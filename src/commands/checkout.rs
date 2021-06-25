@@ -1,4 +1,4 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};
@@ -15,22 +15,27 @@ do so (now or later) by using the branch command. Example:
 
   jit branch <new-branch-name>\n";
 
-pub struct Checkout<E: Write> {
-    ctx: CommandContext<E>,
+pub struct Checkout<'a> {
+    ctx: CommandContext<'a>,
+    /// `jit checkout <target>`
+    target: String,
 }
 
-impl<E: Write> Checkout<E> {
-    pub fn new(ctx: CommandContext<E>) -> Self {
-        Self { ctx }
+impl<'a> Checkout<'a> {
+    pub fn new(ctx: CommandContext<'a>) -> Self {
+        let target = match &ctx.opt.cmd {
+            Command::Checkout { tree_ish } => tree_ish.to_owned(),
+            _ => unreachable!(),
+        };
+
+        Self { ctx, target }
     }
 
     pub fn run(&mut self) -> Result<()> {
-        let target = &self.ctx.argv[0].clone();
-
         let current_ref = self.ctx.repo.refs.current_ref(HEAD)?;
         let current_oid = self.ctx.repo.refs.read_oid(&current_ref)?.unwrap();
 
-        let mut revision = Revision::new(&mut self.ctx.repo, target);
+        let mut revision = Revision::new(&mut self.ctx.repo, &self.target);
         let target_oid = match revision.resolve(Some(COMMIT)) {
             Ok(oid) => oid,
             Err(error) => {
@@ -75,9 +80,10 @@ impl<E: Write> Checkout<E> {
         }
 
         self.ctx.repo.index.write_updates()?;
-        self.ctx.repo.refs.set_head(&target, &target_oid)?;
+        self.ctx.repo.refs.set_head(&self.target, &target_oid)?;
         let new_ref = self.ctx.repo.refs.current_ref(HEAD)?;
 
+        let target = self.target.clone();
         self.print_previous_head(&current_ref, &current_oid, &target_oid)?;
         self.print_detachment_notice(&current_ref, &new_ref, &target)?;
         self.print_new_head(&current_ref, &new_ref, &target, &target_oid)?;

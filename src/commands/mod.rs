@@ -1,11 +1,12 @@
-use crate::errors::{Error, Result};
+use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
 use atty::Stream;
 use std::cell::RefCell;
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::io::Write;
 use std::path::PathBuf;
+use structopt::StructOpt;
 
 mod add;
 mod branch;
@@ -23,78 +24,107 @@ use diff::Diff;
 use init::Init;
 use status::Status;
 
-pub fn execute<O: Write + 'static, E: Write>(
+#[derive(StructOpt, Debug)]
+pub struct Jit {
+    #[structopt(subcommand)]
+    pub cmd: Command,
+}
+
+#[derive(StructOpt, Debug)]
+pub enum Command {
+    Add {
+        #[structopt(parse(from_os_str))]
+        files: Vec<PathBuf>,
+    },
+    Branch {
+        branch_name: String,
+        start_point: Option<String>,
+    },
+    Checkout {
+        tree_ish: String,
+    },
+    Commit,
+    Diff {
+        #[structopt(long)]
+        cached: bool,
+        #[structopt(long)]
+        staged: bool,
+    },
+    Init {
+        #[structopt(parse(from_os_str))]
+        directory: Option<PathBuf>,
+    },
+    Status {
+        #[structopt(long)]
+        porcelain: bool,
+    },
+}
+
+pub fn execute<O: Write + 'static, E: Write + 'static>(
     dir: PathBuf,
     env: HashMap<String, String>,
-    mut argv: VecDeque<String>,
+    opt: Jit,
     stdout: O,
     stderr: E,
 ) -> Result<()> {
-    let name = if let Some(name) = argv.pop_front() {
-        name
-    } else {
-        String::from("")
-    };
+    let ctx = CommandContext::new(dir, env, &opt, Box::new(stdout), Box::new(stderr));
 
-    let ctx = CommandContext::new(dir, env, argv, Box::new(stdout), stderr);
-
-    match name.as_str() {
-        "add" => {
+    match &opt.cmd {
+        Command::Add { .. } => {
             let mut cmd = Add::new(ctx);
             cmd.run()
         }
-        "branch" => {
+        Command::Branch { .. } => {
             let mut cmd = Branch::new(ctx);
             cmd.run()
         }
-        "checkout" => {
+        Command::Checkout { .. } => {
             let mut cmd = Checkout::new(ctx);
             cmd.run()
         }
-        "commit" => {
+        Command::Commit { .. } => {
             let mut cmd = Commit::new(ctx);
             cmd.run()
         }
-        "diff" => {
+        Command::Diff { .. } => {
             let mut cmd = Diff::new(ctx);
             cmd.run()
         }
-        "init" => {
+        Command::Init { .. } => {
             let cmd = Init::new(ctx);
             cmd.run()
         }
-        "status" => {
+        Command::Status { .. } => {
             let mut cmd = Status::new(ctx);
             cmd.run()
         }
-        _ => Err(Error::UnknownCommand(name.to_string())),
     }
 }
 
-pub struct CommandContext<E: Write> {
+pub struct CommandContext<'a> {
     dir: PathBuf,
     env: HashMap<String, String>,
-    argv: VecDeque<String>,
+    opt: &'a Jit,
     repo: Repository,
     stdout: RefCell<Box<dyn Write>>,
-    stderr: RefCell<E>,
+    stderr: RefCell<Box<dyn Write>>,
     using_pager: bool,
 }
 
-impl<E: Write> CommandContext<E> {
+impl<'a> CommandContext<'a> {
     pub fn new(
         dir: PathBuf,
         env: HashMap<String, String>,
-        argv: VecDeque<String>,
+        opt: &'a Jit,
         stdout: Box<dyn Write>,
-        stderr: E,
+        stderr: Box<dyn Write>,
     ) -> Self {
         let repo = Repository::new(dir.join(".git"));
 
         Self {
             dir,
             env,
-            argv,
+            opt,
             repo,
             stdout: RefCell::new(stdout),
             stderr: RefCell::new(stderr),

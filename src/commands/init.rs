@@ -1,22 +1,30 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::errors::Result;
 use crate::refs::Refs;
 use std::fs;
 use std::io::Write;
+use std::path::PathBuf;
 
 const DEFAULT_BRANCH: &str = "main";
 
-pub struct Init<E: Write> {
-    ctx: CommandContext<E>,
+pub struct Init<'a> {
+    ctx: CommandContext<'a>,
+    /// `jit init <directory>`
+    directory: Option<PathBuf>,
 }
 
-impl<E: Write> Init<E> {
-    pub fn new(ctx: CommandContext<E>) -> Self {
-        Self { ctx }
+impl<'a> Init<'a> {
+    pub fn new(ctx: CommandContext<'a>) -> Self {
+        let directory = match &ctx.opt.cmd {
+            Command::Init { directory } => directory.to_owned(),
+            _ => unreachable!(),
+        };
+
+        Self { ctx, directory }
     }
 
     pub fn run(&self) -> Result<()> {
-        let root_path = if let Some(path) = self.ctx.argv.get(0) {
+        let root_path = if let Some(path) = &self.directory {
             self.ctx.dir.join(path)
         } else {
             self.ctx.dir.clone()

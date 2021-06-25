@@ -1,4 +1,4 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
 use crate::database::{Database, ParsedObject};
 use crate::diff::hunk::Hunk;
@@ -17,13 +17,20 @@ lazy_static! {
 }
 const NULL_PATH: &str = "/dev/null";
 
-pub struct Diff<E: Write> {
-    ctx: CommandContext<E>,
+pub struct Diff<'a> {
+    ctx: CommandContext<'a>,
+    /// `jit diff --cached` or `jit diff --staged`
+    cached: bool,
 }
 
-impl<E: Write> Diff<E> {
-    pub fn new(ctx: CommandContext<E>) -> Self {
-        Self { ctx }
+impl<'a> Diff<'a> {
+    pub fn new(ctx: CommandContext<'a>) -> Self {
+        let cached = match ctx.opt.cmd {
+            Command::Diff { cached, staged } => cached || staged,
+            _ => unreachable!(),
+        };
+
+        Self { ctx, cached }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -32,7 +39,7 @@ impl<E: Write> Diff<E> {
 
         self.ctx.setup_pager();
 
-        if self.ctx.argv.contains(&String::from("--cached")) {
+        if self.cached {
             self.diff_head_index()?;
         } else {
             self.diff_index_workspace()?;

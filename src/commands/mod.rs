@@ -14,6 +14,7 @@ mod checkout;
 mod commit;
 mod diff;
 mod init;
+mod log;
 mod status;
 
 use add::Add;
@@ -22,6 +23,7 @@ use checkout::Checkout;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
+use log::Log;
 use status::Status;
 
 #[derive(StructOpt, Debug)]
@@ -61,6 +63,7 @@ pub enum Command {
         #[structopt(parse(from_os_str))]
         directory: Option<PathBuf>,
     },
+    Log,
     Status {
         #[structopt(long)]
         porcelain: bool,
@@ -99,6 +102,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Init { .. } => {
             let cmd = Init::new(ctx);
+            cmd.run()
+        }
+        Command::Log => {
+            let mut cmd = Log::new(ctx);
             cmd.run()
         }
         Command::Status { .. } => {

@@ -7,6 +7,15 @@ use crate::repository::Repository;
 use colored::Colorize;
 use std::cell::RefCell;
 use std::io::Write;
+use structopt::clap::arg_enum;
+
+arg_enum! {
+    #[derive(Debug, Clone)]
+    pub enum LogFormat {
+        Medium,
+        OneLine,
+    }
+}
 
 pub struct Log<'a> {
     ctx: CommandContext<'a>,
@@ -14,12 +23,30 @@ pub struct Log<'a> {
     blank_line: RefCell<bool>,
     /// `jit log --abbrev-commit`
     abbrev: bool,
+    /// `jit log --pretty=<format>` or `jit log --format=<format>`
+    format: LogFormat,
 }
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let abbrev = match &ctx.opt.cmd {
-            Command::Log { abbrev, .. } => *abbrev,
+        let (abbrev, format) = match &ctx.opt.cmd {
+            Command::Log {
+                abbrev,
+                no_abbrev,
+                format,
+                one_line,
+                ..
+            } => {
+                let format = if *one_line {
+                    LogFormat::OneLine
+                } else {
+                    format.to_owned()
+                };
+                // `--oneline --no-abbrev-commit` sets `abbrev = false`
+                let abbrev = (*abbrev || *one_line) && !*no_abbrev;
+
+                (abbrev, format)
+            }
             _ => unreachable!(),
         };
 
@@ -27,6 +54,7 @@ impl<'a> Log<'a> {
             ctx,
             blank_line: RefCell::new(false),
             abbrev,
+            format,
         }
     }
 
@@ -42,6 +70,13 @@ impl<'a> Log<'a> {
     }
 
     fn show_commit(&self, commit: &Commit) -> Result<()> {
+        match self.format {
+            LogFormat::Medium => self.show_commit_medium(&commit),
+            LogFormat::OneLine => self.show_commit_oneline(&commit),
+        }
+    }
+
+    fn show_commit_medium(&self, commit: &Commit) -> Result<()> {
         let author = &commit.author;
 
         self.blank_line()?;
@@ -60,6 +95,18 @@ impl<'a> Log<'a> {
         for line in commit.message.lines() {
             writeln!(stdout, "    {}", line)?;
         }
+
+        Ok(())
+    }
+
+    fn show_commit_oneline(&self, commit: &Commit) -> Result<()> {
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(
+            stdout,
+            "{} {}",
+            self.maybe_abbrev(&commit).yellow(),
+            commit.title_line(),
+        )?;
 
         Ok(())
     }

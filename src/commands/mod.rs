@@ -23,7 +23,7 @@ use checkout::Checkout;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
-use log::Log;
+use log::{Log, LogFormat};
 use status::Status;
 
 #[derive(StructOpt, Debug)]
@@ -67,7 +67,11 @@ pub enum Command {
         #[structopt(long = "abbrev-commit")]
         abbrev: bool,
         #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hidden = true)]
-        _no_abbrev: bool,
+        no_abbrev: bool,
+        #[structopt(long, visible_alias = "pretty", default_value = "medium")]
+        format: LogFormat,
+        #[structopt(long = "oneline")]
+        one_line: bool,
     },
     Status {
         #[structopt(long)]

@@ -108,4 +108,40 @@ Date:   {}
                 commits[2].author.readable_time(),
             ));
     }
+
+    #[rstest]
+    fn print_a_log_in_oneline_format(mut helper: CommandHelper, commits: Vec<Commit>) {
+        helper
+            .jit_cmd(&["log", "--oneline"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} C
+{} B
+{} A\n",
+                Database::short_oid(&commits[0].oid()),
+                Database::short_oid(&commits[1].oid()),
+                Database::short_oid(&commits[2].oid()),
+            ));
+    }
+
+    #[rstest]
+    #[case(vec!["log", "--pretty=oneline"])]
+    #[case(vec!["log", "--oneline", "--no-abbrev-commit"])]
+    fn print_a_log_in_oneline_format_without_abbreviated_commit_ids(
+        #[case] cmd: Vec<&str>,
+        mut helper: CommandHelper,
+        commits: Vec<Commit>,
+    ) {
+        helper.jit_cmd(&cmd).assert().code(0).stdout(format!(
+            "\
+{} C
+{} B
+{} A\n",
+            &commits[0].oid(),
+            &commits[1].oid(),
+            &commits[2].oid(),
+        ));
+    }
 }

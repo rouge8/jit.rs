@@ -4,6 +4,7 @@ use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::commit::Commit;
 use jit::database::object::Object;
+use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
 
@@ -69,5 +70,42 @@ Date:   {}
             commits[2].oid(),
             commits[2].author.readable_time(),
         ));
+    }
+
+    #[rstest]
+    fn print_a_log_in_medium_format_with_abbreviated_commit_ids(
+        mut helper: CommandHelper,
+        commits: Vec<Commit>,
+    ) {
+        helper
+            .jit_cmd(&["log", "--abbrev-commit"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+commit {}
+Author: A. U. Thor <author@example.com>
+Date:   {}
+
+    C
+
+commit {}
+Author: A. U. Thor <author@example.com>
+Date:   {}
+
+    B
+
+commit {}
+Author: A. U. Thor <author@example.com>
+Date:   {}
+
+    A\n",
+                Database::short_oid(&commits[0].oid()),
+                commits[0].author.readable_time(),
+                Database::short_oid(&commits[1].oid()),
+                commits[1].author.readable_time(),
+                Database::short_oid(&commits[2].oid()),
+                commits[2].author.readable_time(),
+            ));
     }
 }

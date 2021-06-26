@@ -63,7 +63,12 @@ pub enum Command {
         #[structopt(parse(from_os_str))]
         directory: Option<PathBuf>,
     },
-    Log,
+    Log {
+        #[structopt(long = "abbrev-commit")]
+        abbrev: bool,
+        #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hidden = true)]
+        _no_abbrev: bool,
+    },
     Status {
         #[structopt(long)]
         porcelain: bool,
@@ -104,7 +109,7 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
             let cmd = Init::new(ctx);
             cmd.run()
         }
-        Command::Log => {
+        Command::Log { .. } => {
             let mut cmd = Log::new(ctx);
             cmd.run()
         }

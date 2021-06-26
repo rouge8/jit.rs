@@ -1,7 +1,7 @@
-use crate::commands::CommandContext;
+use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
-use crate::database::ParsedObject;
+use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
 use colored::Colorize;
@@ -12,13 +12,21 @@ pub struct Log<'a> {
     ctx: CommandContext<'a>,
     /// When false, calls to `Log.blank_line()` will not actually print a blank line.
     blank_line: RefCell<bool>,
+    /// `jit log --abbrev-commit`
+    abbrev: bool,
 }
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
+        let abbrev = match &ctx.opt.cmd {
+            Command::Log { abbrev, .. } => *abbrev,
+            _ => unreachable!(),
+        };
+
         Self {
             ctx,
             blank_line: RefCell::new(false),
+            abbrev,
         }
     }
 
@@ -38,7 +46,11 @@ impl<'a> Log<'a> {
 
         self.blank_line()?;
         let mut stdout = self.ctx.stdout.borrow_mut();
-        writeln!(stdout, "{}", format!("commit {}", commit.oid()).yellow())?;
+        writeln!(
+            stdout,
+            "{}",
+            format!("commit {}", self.maybe_abbrev(&commit)).yellow()
+        )?;
         writeln!(stdout, "Author: {} <{}>", author.name, author.email)?;
         writeln!(stdout, "Date:   {}", author.readable_time())?;
         drop(stdout);
@@ -62,6 +74,14 @@ impl<'a> Log<'a> {
         *blank_line = true;
 
         Ok(())
+    }
+
+    fn maybe_abbrev(&self, commit: &Commit) -> String {
+        if self.abbrev {
+            Database::short_oid(&commit.oid())
+        } else {
+            commit.oid()
+        }
     }
 }
 

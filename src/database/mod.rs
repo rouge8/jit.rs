@@ -106,7 +106,7 @@ impl Database {
         match object_type {
             "blob" => Ok(Blob::parse(rest)),
             "tree" => Ok(Tree::parse(rest)),
-            "commit" => Ok(Commit::parse(rest)),
+            "commit" => Ok(Commit::parse(rest, &oid)),
             _ => unreachable!(),
         }
     }

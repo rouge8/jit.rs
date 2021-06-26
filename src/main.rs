@@ -16,6 +16,7 @@ fn main() -> Result<()> {
         opt,
         io::stdout(),
         io::stderr(),
+        atty::is(atty::Stream::Stdout),
     ) {
         Ok(()) => (),
         Err(err) => match err {

@@ -3,9 +3,11 @@ use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
+use crate::refs::Ref;
 use crate::repository::Repository;
 use colored::Colorize;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::Write;
 use structopt::clap::arg_enum;
 
@@ -17,6 +19,16 @@ arg_enum! {
     }
 }
 
+arg_enum! {
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum LogDecoration {
+        Short,
+        Full,
+        Auto,
+        No,
+    }
+}
+
 pub struct Log<'a> {
     ctx: CommandContext<'a>,
     /// When false, calls to `Log.blank_line()` will not actually print a blank line.
@@ -25,17 +37,22 @@ pub struct Log<'a> {
     abbrev: bool,
     /// `jit log --pretty=<format>` or `jit log --format=<format>`
     format: LogFormat,
+    /// `jit log --decorate=<format>` or `jit log --no-decorate`
+    decorate: LogDecoration,
+    reverse_refs: Option<HashMap<String, Vec<Ref>>>,
+    current_ref: Option<Ref>,
 }
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (abbrev, format) = match &ctx.opt.cmd {
+        let (abbrev, format, decorate) = match &ctx.opt.cmd {
             Command::Log {
                 abbrev,
                 no_abbrev,
                 format,
                 one_line,
-                ..
+                decorate,
+                no_decorate,
             } => {
                 let format = if *one_line {
                     LogFormat::OneLine
@@ -45,7 +62,17 @@ impl<'a> Log<'a> {
                 // `--oneline --no-abbrev-commit` sets `abbrev = false`
                 let abbrev = (*abbrev || *one_line) && !*no_abbrev;
 
-                (abbrev, format)
+                let decorate = if *no_decorate {
+                    LogDecoration::No
+                } else {
+                    match decorate {
+                        Some(None) => LogDecoration::Short,
+                        Some(Some(decorate)) => decorate.to_owned(),
+                        None => LogDecoration::Auto,
+                    }
+                };
+
+                (abbrev, format, decorate)
             }
             _ => unreachable!(),
         };
@@ -55,11 +82,17 @@ impl<'a> Log<'a> {
             blank_line: RefCell::new(false),
             abbrev,
             format,
+            decorate,
+            reverse_refs: None,
+            current_ref: None,
         }
     }
 
     pub fn run(&mut self) -> Result<()> {
         self.ctx.setup_pager();
+
+        self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
+        self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
         for commit in Commits::new(&self.ctx.repo)? {
             let commit = commit?;
@@ -83,8 +116,9 @@ impl<'a> Log<'a> {
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(
             stdout,
-            "{}",
-            format!("commit {}", self.maybe_abbrev(&commit)).yellow()
+            "{}{}",
+            format!("commit {}", self.maybe_abbrev(&commit)).yellow(),
+            self.decorate(&commit),
         )?;
         writeln!(stdout, "Author: {} <{}>", author.name, author.email)?;
         writeln!(stdout, "Date:   {}", author.readable_time())?;
@@ -103,12 +137,61 @@ impl<'a> Log<'a> {
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(
             stdout,
-            "{} {}",
+            "{}{} {}",
             self.maybe_abbrev(&commit).yellow(),
+            self.decorate(&commit),
             commit.title_line(),
         )?;
 
         Ok(())
+    }
+
+    fn decorate(&self, commit: &Commit) -> String {
+        if (self.decorate == LogDecoration::Auto && !self.ctx.isatty)
+            || self.decorate == LogDecoration::No
+        {
+            return String::new();
+        }
+
+        let refs = self.reverse_refs.as_ref().unwrap().get(&commit.oid());
+        if let Some(refs) = refs {
+            let (head, refs): (Vec<_>, Vec<_>) = refs.iter().partition(|r#ref| {
+                r#ref.is_head() && !self.current_ref.as_ref().unwrap().is_head()
+            });
+            let names: Vec<_> = refs
+                .iter()
+                .map(|r#ref| self.decoration_name(head.first(), r#ref))
+                .collect();
+
+            format!(
+                " {}{}{}",
+                "(".yellow(),
+                names.join(&", ".yellow()),
+                ")".yellow()
+            )
+        } else {
+            String::new()
+        }
+    }
+
+    fn decoration_name(&self, head: Option<&&Ref>, r#ref: &Ref) -> String {
+        let mut name = match self.decorate {
+            LogDecoration::Short | LogDecoration::Auto => self.ctx.repo.refs.short_name(&r#ref),
+            LogDecoration::Full => match r#ref {
+                Ref::SymRef { path } => path.to_owned(),
+                _ => unreachable!(),
+            },
+            _ => unreachable!(),
+        };
+        name = name.bold().color(self.ref_color(&r#ref)).to_string();
+
+        if let Some(head) = head {
+            if r#ref == self.current_ref.as_ref().unwrap() {
+                name = format!("{} {}", "HEAD ->".bold().color(self.ref_color(&head)), name);
+            }
+        }
+
+        name
     }
 
     fn blank_line(&self) -> Result<()> {
@@ -128,6 +211,14 @@ impl<'a> Log<'a> {
             Database::short_oid(&commit.oid())
         } else {
             commit.oid()
+        }
+    }
+
+    fn ref_color(&self, r#ref: &Ref) -> &str {
+        if r#ref.is_head() {
+            "cyan"
+        } else {
+            "green"
         }
     }
 }

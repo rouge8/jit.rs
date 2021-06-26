@@ -31,6 +31,8 @@ mod with_a_chain_of_commits {
             commit_file(&mut helper, message).unwrap();
         }
 
+        helper.jit_cmd(&["branch", "topic", "@^^"]);
+
         helper
     }
 
@@ -143,5 +145,57 @@ Date:   {}
             &commits[1].oid(),
             &commits[2].oid(),
         ));
+    }
+
+    #[rstest]
+    fn print_a_log_with_short_decorations(mut helper: CommandHelper, commits: Vec<Commit>) {
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--decorate=short"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} (HEAD -> main) C
+{} B
+{} (topic) A\n",
+                &commits[0].oid(),
+                &commits[1].oid(),
+                &commits[2].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn print_a_log_with_detached_head(mut helper: CommandHelper, commits: Vec<Commit>) {
+        helper.jit_cmd(&["checkout", "@"]);
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--decorate=short"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} (HEAD, main) C
+{} B
+{} (topic) A\n",
+                &commits[0].oid(),
+                &commits[1].oid(),
+                &commits[2].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn print_a_log_with_full_decorations(mut helper: CommandHelper, commits: Vec<Commit>) {
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--decorate=full"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} (HEAD -> refs/heads/main) C
+{} B
+{} (refs/heads/topic) A\n",
+                &commits[0].oid(),
+                &commits[1].oid(),
+                &commits[2].oid(),
+            ));
     }
 }

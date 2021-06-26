@@ -5,6 +5,7 @@ use crate::util::path_to_string;
 use lazy_static::lazy_static;
 use nix::errno::Errno;
 use regex::Regex;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io;
@@ -170,6 +171,23 @@ impl Refs {
         }
     }
 
+    pub fn reverse_refs(&self) -> Result<HashMap<String, Vec<Ref>>> {
+        let mut table = HashMap::new();
+
+        for r#ref in self.list_all_refs()? {
+            let oid = self.read_oid(&r#ref)?;
+
+            if let Some(oid) = oid {
+                if table.get(&oid).is_none() {
+                    table.insert(oid.clone(), vec![]);
+                }
+                table.get_mut(&oid).unwrap().push(r#ref);
+            }
+        }
+
+        Ok(table)
+    }
+
     fn path_for_name(&self, name: &str) -> Option<PathBuf> {
         let prefixes = [
             self.pathname.clone(),
@@ -277,6 +295,15 @@ impl Refs {
                 });
             }
         }
+
+        Ok(result)
+    }
+
+    fn list_all_refs(&self) -> Result<Vec<Ref>> {
+        let mut result = vec![Ref::SymRef {
+            path: HEAD.to_string(),
+        }];
+        result.append(&mut self.list_refs(&self.refs_path)?);
 
         Ok(result)
     }

@@ -1,7 +1,6 @@
 use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
-use atty::Stream;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
@@ -23,7 +22,7 @@ use checkout::Checkout;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
-use log::{Log, LogFormat};
+use log::{Log, LogDecoration, LogFormat};
 use status::Status;
 
 #[derive(StructOpt, Debug)]
@@ -72,6 +71,13 @@ pub enum Command {
         format: LogFormat,
         #[structopt(long = "oneline")]
         one_line: bool,
+        /// The default option, if using `--decorate` alone is `short`.  If `--decorate` is not
+        /// used, the default is `auto`. Otherwise, the value of `--decorate=<format>` is used.
+        #[structopt(long, value_name = "format")]
+        #[allow(clippy::option_option)]
+        decorate: Option<Option<LogDecoration>>,
+        #[structopt(long)]
+        no_decorate: bool,
     },
     Status {
         #[structopt(long)]
@@ -85,8 +91,9 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
     opt: Jit,
     stdout: O,
     stderr: E,
+    isatty: bool,
 ) -> Result<()> {
-    let ctx = CommandContext::new(dir, env, &opt, Box::new(stdout), Box::new(stderr));
+    let ctx = CommandContext::new(dir, env, &opt, Box::new(stdout), Box::new(stderr), isatty);
 
     match &opt.cmd {
         Command::Add { .. } => {
@@ -132,6 +139,7 @@ pub struct CommandContext<'a> {
     stdout: RefCell<Box<dyn Write>>,
     stderr: RefCell<Box<dyn Write>>,
     using_pager: bool,
+    isatty: bool,
 }
 
 impl<'a> CommandContext<'a> {
@@ -141,6 +149,7 @@ impl<'a> CommandContext<'a> {
         opt: &'a Jit,
         stdout: Box<dyn Write>,
         stderr: Box<dyn Write>,
+        isatty: bool,
     ) -> Self {
         let repo = Repository::new(dir.join(".git"));
 
@@ -152,6 +161,7 @@ impl<'a> CommandContext<'a> {
             stdout: RefCell::new(stdout),
             stderr: RefCell::new(stderr),
             using_pager: false,
+            isatty,
         }
     }
 
@@ -162,7 +172,7 @@ impl<'a> CommandContext<'a> {
         }
 
         // Only setup the pager if stdout is a tty
-        if !atty::is(Stream::Stdout) {
+        if !self.isatty {
             return;
         }
 

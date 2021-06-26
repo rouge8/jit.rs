@@ -48,10 +48,9 @@ impl<'a> Diff<'a> {
         Ok(())
     }
 
-    fn diff_head_index(&mut self) -> Result<()> {
-        let paths: Vec<_> = self.ctx.repo.index_changes.keys().cloned().collect();
-        for path in paths {
-            let state = &self.ctx.repo.index_changes[&path];
+    fn diff_head_index(&self) -> Result<()> {
+        for path in self.ctx.repo.index_changes.keys() {
+            let state = &self.ctx.repo.index_changes[path];
             match state {
                 ChangeType::Added => {
                     let mut a = self.from_nothing(&path);
@@ -78,10 +77,9 @@ impl<'a> Diff<'a> {
         Ok(())
     }
 
-    fn diff_index_workspace(&mut self) -> Result<()> {
-        let paths: Vec<_> = self.ctx.repo.workspace_changes.keys().cloned().collect();
-        for path in paths {
-            let state = &self.ctx.repo.workspace_changes[&path];
+    fn diff_index_workspace(&self) -> Result<()> {
+        for path in self.ctx.repo.workspace_changes.keys() {
+            let state = &self.ctx.repo.workspace_changes[path];
             match state {
                 ChangeType::Modified => {
                     let mut a = self.from_index(&path)?;
@@ -102,7 +100,7 @@ impl<'a> Diff<'a> {
         Ok(())
     }
 
-    fn from_head(&mut self, path: &str) -> Result<Target> {
+    fn from_head(&self, path: &str) -> Result<Target> {
         let entry = &self.ctx.repo.head_tree[path];
         let oid = entry.oid();
         let blob = match self.ctx.repo.database.load(&oid)? {
@@ -114,11 +112,11 @@ impl<'a> Diff<'a> {
             path.to_string(),
             oid,
             Some(entry.mode()),
-            blob.data.clone(),
+            blob.data,
         ))
     }
 
-    fn from_index(&mut self, path: &str) -> Result<Target> {
+    fn from_index(&self, path: &str) -> Result<Target> {
         let entry = self.ctx.repo.index.entry_for_path(path).unwrap();
         let blob = match self.ctx.repo.database.load(&entry.oid)? {
             ParsedObject::Blob(blob) => blob,
@@ -129,7 +127,7 @@ impl<'a> Diff<'a> {
             path.to_string(),
             entry.oid.clone(),
             Some(entry.mode),
-            blob.data.clone(),
+            blob.data,
         ))
     }
 

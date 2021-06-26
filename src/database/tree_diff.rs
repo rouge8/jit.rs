@@ -8,12 +8,12 @@ use std::path::{Path, PathBuf};
 pub type TreeDiffChanges = HashMap<PathBuf, (Option<Entry>, Option<Entry>)>;
 
 pub struct TreeDiff<'a> {
-    database: &'a mut Database,
+    database: &'a Database,
     pub changes: TreeDiffChanges,
 }
 
 impl<'a> TreeDiff<'a> {
-    pub fn new(database: &'a mut Database) -> Self {
+    pub fn new(database: &'a Database) -> Self {
         Self {
             database,
             changes: HashMap::new(),
@@ -42,15 +42,15 @@ impl<'a> TreeDiff<'a> {
         Ok(())
     }
 
-    fn oid_to_tree(&mut self, oid: &str) -> Result<Tree> {
+    fn oid_to_tree(&self, oid: &str) -> Result<Tree> {
         let tree_oid = match self.database.load(oid)? {
-            ParsedObject::Commit(commit) => commit.tree.clone(),
-            ParsedObject::Tree(tree) => return Ok(tree.to_owned()),
+            ParsedObject::Commit(commit) => commit.tree,
+            ParsedObject::Tree(tree) => return Ok(tree),
             ParsedObject::Blob(_) => unreachable!(),
         };
 
         match self.database.load(&tree_oid)? {
-            ParsedObject::Tree(tree) => Ok(tree.to_owned()),
+            ParsedObject::Tree(tree) => Ok(tree),
             _ => unreachable!(),
         }
     }

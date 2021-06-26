@@ -6,7 +6,7 @@ use std::env;
 use std::path::PathBuf;
 
 fn show_tree(oid: String, prefix: PathBuf) -> Result<()> {
-    let mut repo = repo()?;
+    let repo = repo()?;
 
     let tree = match repo.database.load(&oid)? {
         ParsedObject::Tree(tree) => tree,
@@ -34,7 +34,7 @@ fn repo() -> Result<Repository> {
 }
 
 fn main() -> Result<()> {
-    let mut repo = repo()?;
+    let repo = repo()?;
 
     let head_oid = repo.refs.read_head()?.unwrap();
     let commit = match repo.database.load(&head_oid)? {
@@ -42,9 +42,7 @@ fn main() -> Result<()> {
         _ => unreachable!(),
     };
 
-    let tree = commit.tree.clone();
-
-    show_tree(tree, PathBuf::from(""))?;
+    show_tree(commit.tree, PathBuf::from(""))?;
 
     Ok(())
 }

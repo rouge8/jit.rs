@@ -59,7 +59,7 @@ mod with_a_chain_of_commits {
     fn create_a_branch_pointing_at_heads_parent(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["branch", "topic", "HEAD^"]);
 
-        let mut repo = helper.repo();
+        let repo = helper.repo();
 
         let head = repo.database.load(&repo.refs.read_head()?.unwrap())?;
         let head = match head {
@@ -79,14 +79,14 @@ mod with_a_chain_of_commits {
     fn create_a_branch_pointing_at_heads_grandparent(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["branch", "topic", "@~2"]);
 
-        let mut repo = helper.repo();
+        let repo = helper.repo();
         let head = repo.database.load(&repo.refs.read_head()?.unwrap())?;
         let head = match head {
             ParsedObject::Commit(commit) => commit,
             _ => unreachable!(),
         };
 
-        let mut repo = helper.repo();
+        let repo = helper.repo();
         let parent = repo.database.load(head.parent.as_ref().unwrap())?;
         let parent = match parent {
             ParsedObject::Commit(commit) => commit,
@@ -165,17 +165,17 @@ mod with_a_chain_of_commits {
 
     #[rstest]
     fn fail_for_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
-        let mut repo = helper.repo();
+        let repo = helper.repo();
         let tree_id = {
             let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
             match obj {
-                ParsedObject::Commit(commit) => &commit.tree,
+                ParsedObject::Commit(commit) => commit.tree,
                 _ => unreachable!(),
             }
         };
 
         helper
-            .jit_cmd(&["branch", "topic", tree_id])
+            .jit_cmd(&["branch", "topic", &tree_id])
             .assert()
             .code(128)
             .stderr(format!(
@@ -191,11 +191,11 @@ fatal: Not a valid object name: '{}'.
 
     #[rstest]
     fn fail_for_parents_of_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
-        let mut repo = helper.repo();
+        let repo = helper.repo();
         let tree_id = {
             let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
             match obj {
-                ParsedObject::Commit(commit) => &commit.tree,
+                ParsedObject::Commit(commit) => commit.tree,
                 _ => unreachable!(),
             }
         };

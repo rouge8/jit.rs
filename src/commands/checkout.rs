@@ -35,7 +35,7 @@ impl<'a> Checkout<'a> {
         let current_ref = self.ctx.repo.refs.current_ref(HEAD)?;
         let current_oid = self.ctx.repo.refs.read_oid(&current_ref)?.unwrap();
 
-        let mut revision = Revision::new(&mut self.ctx.repo, &self.target);
+        let mut revision = Revision::new(&self.ctx.repo, &self.target);
         let target_oid = match revision.resolve(Some(COMMIT)) {
             Ok(oid) => oid,
             Err(error) => {
@@ -92,7 +92,7 @@ impl<'a> Checkout<'a> {
     }
 
     fn print_previous_head(
-        &mut self,
+        &self,
         current_ref: &Ref,
         current_oid: &str,
         target_oid: &str,
@@ -122,7 +122,7 @@ impl<'a> Checkout<'a> {
     }
 
     fn print_new_head(
-        &mut self,
+        &self,
         current_ref: &Ref,
         new_ref: &Ref,
         target: &str,
@@ -141,7 +141,7 @@ impl<'a> Checkout<'a> {
         Ok(())
     }
 
-    fn print_head_position(&mut self, message: &str, oid: &str) -> Result<()> {
+    fn print_head_position(&self, message: &str, oid: &str) -> Result<()> {
         match self.ctx.repo.database.load(&oid)? {
             ParsedObject::Commit(commit) => {
                 let short = Database::short_oid(&oid);

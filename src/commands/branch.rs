@@ -58,11 +58,11 @@ impl<'a> Branch<'a> {
         Ok(())
     }
 
-    fn create_branch(&mut self) -> Result<()> {
+    fn create_branch(&self) -> Result<()> {
         let branch_name = &self.args[0];
         let start_oid = match &self.args.get(1) {
             Some(start_point) => {
-                let mut revision = Revision::new(&mut self.ctx.repo, &start_point);
+                let mut revision = Revision::new(&self.ctx.repo, &start_point);
                 match revision.resolve(Some(COMMIT)) {
                     Ok(start_oid) => start_oid,
                     Err(err) => match err {

@@ -31,14 +31,14 @@ pub const COMMIT: &str = "commit";
 
 #[derive(Debug)]
 pub struct Revision<'a> {
-    repo: &'a mut Repository,
+    repo: &'a Repository,
     expr: String,
     query: Option<Rev>,
     pub errors: Vec<HintedError>,
 }
 
 impl<'a> Revision<'a> {
-    pub fn new(repo: &'a mut Repository, expr: &str) -> Self {
+    pub fn new(repo: &'a Repository, expr: &str) -> Self {
         Self {
             repo,
             expr: expr.to_string(),
@@ -98,7 +98,7 @@ impl<'a> Revision<'a> {
             Some(oid) => {
                 let commit = self.load_typed_object(Some(&oid), COMMIT)?;
                 match commit {
-                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent.clone()),
+                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent),
                     _ => Ok(None),
                 }
             }
@@ -131,7 +131,7 @@ impl<'a> Revision<'a> {
         &mut self,
         oid: Option<&String>,
         r#type: &str,
-    ) -> Result<Option<&ParsedObject>> {
+    ) -> Result<Option<ParsedObject>> {
         if let Some(oid) = oid {
             let object = self.repo.database.load(oid)?;
 

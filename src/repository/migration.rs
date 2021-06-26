@@ -112,10 +112,7 @@ impl<'a> Migration<'a> {
     }
 
     pub fn blob_data(&self, oid: &str) -> Result<Vec<u8>> {
-        // We use `read_object()` instead of `load()` here in order to avoid writing the object to
-        // `self.repo.database`, which would make this method and all of its callers require
-        // borrowing `&mut self`.
-        match self.repo.database.read_object(oid)? {
+        match self.repo.database.load(oid)? {
             ParsedObject::Blob(blob) => Ok(blob.data),
             _ => unreachable!(),
         }

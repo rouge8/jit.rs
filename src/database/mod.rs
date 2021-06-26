@@ -8,7 +8,6 @@ use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io;
@@ -27,15 +26,11 @@ pub mod tree_diff;
 #[derive(Debug)]
 pub struct Database {
     pathname: PathBuf,
-    objects: HashMap<String, ParsedObject>,
 }
 
 impl Database {
     pub fn new(pathname: PathBuf) -> Self {
-        Database {
-            pathname,
-            objects: HashMap::new(),
-        }
+        Database { pathname }
     }
 
     pub fn short_oid(oid: &str) -> String {
@@ -57,12 +52,9 @@ impl Database {
         object.oid()
     }
 
-    pub fn load(&mut self, oid: &str) -> io::Result<&ParsedObject> {
-        let object = self.read_object(oid)?;
-
-        self.objects.insert(oid.to_string(), object);
-
-        Ok(&self.objects[oid])
+    pub fn load(&self, oid: &str) -> io::Result<ParsedObject> {
+        // TODO: Cache this in self.objects
+        self.read_object(oid)
     }
 
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {
@@ -88,13 +80,13 @@ impl Database {
         Ok(oids)
     }
 
-    pub fn tree_diff(&mut self, a: &str, b: &str) -> Result<TreeDiffChanges> {
-        let mut diff = TreeDiff::new(self);
+    pub fn tree_diff(&self, a: &str, b: &str) -> Result<TreeDiffChanges> {
+        let mut diff = TreeDiff::new(&self);
         diff.compare_oids(Some(a), Some(b), Path::new(""))?;
         Ok(diff.changes)
     }
 
-    pub fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
+    fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
         let compressed_data = fs::read(self.object_path(&oid))?;
         let mut data = vec![];
         let mut z = ZlibDecoder::new(&compressed_data[..]);
@@ -188,6 +180,7 @@ mod tests {
         use super::*;
         use crate::database::entry::Entry;
         use rstest::{fixture, rstest};
+        use std::collections::HashMap;
         use std::path::Path;
         use tempfile::TempDir;
 
@@ -214,7 +207,7 @@ mod tests {
         }
 
         #[rstest]
-        fn report_a_changed_file(mut database: Database) -> Result<()> {
+        fn report_a_changed_file(database: Database) -> Result<()> {
             let mut tree_a_contents = HashMap::new();
             tree_a_contents.insert("alice.txt", "alice");
             tree_a_contents.insert("bob.txt", "bob");
@@ -248,7 +241,7 @@ mod tests {
         }
 
         #[rstest]
-        fn report_an_added_file(mut database: Database) -> Result<()> {
+        fn report_an_added_file(database: Database) -> Result<()> {
             let mut tree_a_contents = HashMap::new();
             tree_a_contents.insert("alice.txt", "alice");
             let tree_a = store_tree(&database, tree_a_contents);
@@ -277,7 +270,7 @@ mod tests {
         }
 
         #[rstest]
-        fn report_a_deleted_file(mut database: Database) -> Result<()> {
+        fn report_a_deleted_file(database: Database) -> Result<()> {
             let mut tree_a_contents = HashMap::new();
             tree_a_contents.insert("alice.txt", "alice");
             tree_a_contents.insert("bob.txt", "bob");
@@ -306,7 +299,7 @@ mod tests {
         }
 
         #[rstest]
-        fn report_an_added_file_inside_a_directory(mut database: Database) -> Result<()> {
+        fn report_an_added_file_inside_a_directory(database: Database) -> Result<()> {
             let mut tree_a_contents = HashMap::new();
             tree_a_contents.insert("1.txt", "1");
             tree_a_contents.insert("outer/2.txt", "2");
@@ -337,7 +330,7 @@ mod tests {
         }
 
         #[rstest]
-        fn report_a_deleted_file_inside_a_directory(mut database: Database) -> Result<()> {
+        fn report_a_deleted_file_inside_a_directory(database: Database) -> Result<()> {
             let mut tree_a_contents = HashMap::new();
             tree_a_contents.insert("1.txt", "1");
             tree_a_contents.insert("outer/2.txt", "2");

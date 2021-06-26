@@ -136,7 +136,7 @@ impl Repository {
                 ParsedObject::Commit(commit) => commit,
                 _ => unreachable!(),
             };
-            let tree_oid = commit.tree.clone();
+            let tree_oid = commit.tree;
             self.read_tree(tree_oid, PathBuf::new())?;
         }
 
@@ -149,8 +149,7 @@ impl Repository {
             _ => unreachable!(),
         };
 
-        let entries = tree.entries.clone();
-        for (name, entry) in entries {
+        for (name, entry) in tree.entries {
             let path = pathname.join(name);
 
             if entry.is_tree() {

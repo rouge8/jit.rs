@@ -192,7 +192,7 @@ impl CommandHelper {
     }
 
     pub fn resolve_revision(&self, expression: &str) -> Result<String> {
-        Revision::new(&mut self.repo(), expression).resolve(None)
+        Revision::new(&self.repo(), expression).resolve(None)
     }
 
     pub fn load_commit(&self, expression: &str) -> Result<Commit> {
@@ -201,7 +201,7 @@ impl CommandHelper {
             .database
             .load(&self.resolve_revision(&expression)?)?
         {
-            ParsedObject::Commit(commit) => Ok(commit.to_owned()),
+            ParsedObject::Commit(commit) => Ok(commit),
             _ => unreachable!(),
         }
     }

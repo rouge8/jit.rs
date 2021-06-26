@@ -104,7 +104,7 @@ impl Database {
             .unwrap();
 
         match object_type {
-            "blob" => Ok(Blob::parse(rest)),
+            "blob" => Ok(Blob::parse(rest, &oid)),
             "tree" => Ok(Tree::parse(rest)),
             "commit" => Ok(Commit::parse(rest, &oid)),
             _ => unreachable!(),

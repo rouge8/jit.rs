@@ -5,11 +5,14 @@ use crate::database::ParsedObject;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::ChangeType;
+use crate::revision::Revision;
 use std::path::Path;
 
 pub struct Diff<'a> {
     ctx: CommandContext<'a>,
     print_diff: PrintDiff,
+    /// `jit diff <commit> <commit>`
+    args: Vec<String>,
     /// `jit diff --cached` or `jit diff --staged`
     cached: bool,
     /// `jit diff --patch`
@@ -18,13 +21,14 @@ pub struct Diff<'a> {
 
 impl<'a> Diff<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (cached, patch) = match ctx.opt.cmd {
+        let (args, cached, patch) = match &ctx.opt.cmd {
             Command::Diff {
+                args,
                 cached,
                 staged,
                 patch,
                 no_patch,
-            } => (cached || staged, patch || !no_patch),
+            } => (args.to_owned(), *cached || *staged, *patch || !*no_patch),
             _ => unreachable!(),
         };
 
@@ -33,6 +37,7 @@ impl<'a> Diff<'a> {
         Self {
             ctx,
             print_diff,
+            args,
             cached,
             patch,
         }
@@ -46,9 +51,27 @@ impl<'a> Diff<'a> {
 
         if self.cached {
             self.diff_head_index()?;
+        } else if self.args.len() == 2 {
+            self.diff_commits()?;
         } else {
             self.diff_index_workspace()?;
         }
+
+        Ok(())
+    }
+
+    fn diff_commits(&self) -> Result<()> {
+        if !self.patch {
+            return Ok(());
+        }
+
+        let mut args = vec![];
+        for rev in &self.args {
+            args.push(Revision::new(&self.ctx.repo, &rev).resolve(Some("commit"))?);
+        }
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        self.print_diff
+            .print_commit_diff(&mut stdout, &self.ctx.repo, Some(&args[0]), &args[1])?;
 
         Ok(())
     }

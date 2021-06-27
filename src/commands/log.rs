@@ -1,3 +1,4 @@
+use crate::commands::shared::print_diff::PrintDiff;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
@@ -12,7 +13,7 @@ use std::io::Write;
 use structopt::clap::arg_enum;
 
 arg_enum! {
-    #[derive(Debug, Clone)]
+    #[derive(Debug, Clone, PartialEq, Eq)]
     pub enum LogFormat {
         Medium,
         OneLine,
@@ -31,12 +32,15 @@ arg_enum! {
 
 pub struct Log<'a> {
     ctx: CommandContext<'a>,
+    print_diff: PrintDiff,
     /// When false, calls to `Log.blank_line()` will not actually print a blank line.
     blank_line: RefCell<bool>,
     /// `jit log --abbrev-commit`
     abbrev: bool,
     /// `jit log --pretty=<format>` or `jit log --format=<format>`
     format: LogFormat,
+    /// `jit log --patch`
+    patch: bool,
     /// `jit log --decorate=<format>` or `jit log --no-decorate`
     decorate: LogDecoration,
     reverse_refs: Option<HashMap<String, Vec<Ref>>>,
@@ -45,7 +49,7 @@ pub struct Log<'a> {
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (abbrev, format, decorate) = match &ctx.opt.cmd {
+        let (abbrev, format, patch, decorate) = match &ctx.opt.cmd {
             Command::Log {
                 abbrev,
                 no_abbrev,
@@ -53,12 +57,15 @@ impl<'a> Log<'a> {
                 one_line,
                 decorate,
                 no_decorate,
+                patch,
+                _no_patch,
             } => {
                 let format = if *one_line {
                     LogFormat::OneLine
                 } else {
                     format.to_owned()
                 };
+
                 // `--oneline --no-abbrev-commit` sets `abbrev = false`
                 let abbrev = (*abbrev || *one_line) && !*no_abbrev;
 
@@ -72,16 +79,18 @@ impl<'a> Log<'a> {
                     }
                 };
 
-                (abbrev, format, decorate)
+                (abbrev, format, *patch, decorate)
             }
             _ => unreachable!(),
         };
 
         Self {
             ctx,
+            print_diff: PrintDiff::new(),
             blank_line: RefCell::new(false),
             abbrev,
             format,
+            patch,
             decorate,
             reverse_refs: None,
             current_ref: None,
@@ -104,9 +113,13 @@ impl<'a> Log<'a> {
 
     fn show_commit(&self, commit: &Commit) -> Result<()> {
         match self.format {
-            LogFormat::Medium => self.show_commit_medium(&commit),
-            LogFormat::OneLine => self.show_commit_oneline(&commit),
+            LogFormat::Medium => self.show_commit_medium(&commit)?,
+            LogFormat::OneLine => self.show_commit_oneline(&commit)?,
         }
+
+        self.show_patch(&commit)?;
+
+        Ok(())
     }
 
     fn show_commit_medium(&self, commit: &Commit) -> Result<()> {
@@ -195,8 +208,11 @@ impl<'a> Log<'a> {
     }
 
     fn blank_line(&self) -> Result<()> {
-        let mut blank_line = self.blank_line.borrow_mut();
+        if self.format == LogFormat::OneLine {
+            return Ok(());
+        }
 
+        let mut blank_line = self.blank_line.borrow_mut();
         if *blank_line {
             let mut stdout = self.ctx.stdout.borrow_mut();
             writeln!(stdout)?;
@@ -220,6 +236,24 @@ impl<'a> Log<'a> {
         } else {
             "green"
         }
+    }
+
+    fn show_patch(&self, commit: &Commit) -> Result<()> {
+        if !self.patch {
+            return Ok(());
+        }
+
+        self.blank_line()?;
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        self.print_diff.print_commit_diff(
+            &mut stdout,
+            &self.ctx.repo,
+            commit.parent.as_deref(),
+            &commit.oid(),
+        )?;
+
+        Ok(())
     }
 }
 

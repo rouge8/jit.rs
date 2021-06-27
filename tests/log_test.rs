@@ -198,4 +198,42 @@ Date:   {}
                 &commits[2].oid(),
             ));
     }
+
+    #[rstest]
+    fn print_a_log_with_patches(mut helper: CommandHelper, commits: Vec<Commit>) {
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--patch"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} C
+diff --git a/file.txt b/file.txt
+index 7371f47..96d80cd 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,1 +1,1 @@
+-B
++C
+{} B
+diff --git a/file.txt b/file.txt
+index 8c7e5a6..7371f47 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,1 +1,1 @@
+-A
++B
+{} A
+diff --git a/file.txt b/file.txt
+new file mode 100644
+index 0000000..8c7e5a6
+--- /dev/null
++++ b/file.txt
+@@ -0,0 +1,1 @@
++A\n",
+                &commits[0].oid(),
+                &commits[1].oid(),
+                &commits[2].oid(),
+            ));
+    }
 }

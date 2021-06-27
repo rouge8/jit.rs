@@ -1,7 +1,10 @@
-use crate::database::Database;
+use crate::database::entry::Entry;
+use crate::database::{Database, ParsedObject};
 use crate::diff::hunk::Hunk;
 use crate::diff::{diff_hunks, Edit, EditType};
 use crate::errors::Result;
+use crate::repository::Repository;
+use crate::util::path_to_string;
 use colored::Colorize;
 use lazy_static::lazy_static;
 use std::cell::RefMut;
@@ -44,6 +47,25 @@ impl PrintDiff {
         Self {}
     }
 
+    fn from_entry(&self, repo: &Repository, path: &str, entry: Option<&Entry>) -> Result<Target> {
+        match entry {
+            Some(entry) => {
+                let blob = match repo.database.load(&entry.oid)? {
+                    ParsedObject::Blob(blob) => blob,
+                    _ => unreachable!(),
+                };
+
+                Ok(Target::new(
+                    path.to_string(),
+                    entry.oid.clone(),
+                    Some(entry.mode()),
+                    blob.data,
+                ))
+            }
+            None => Ok(self.from_nothing(&path)),
+        }
+    }
+
     pub fn from_nothing(&self, path: &str) -> Target {
         Target::new(path.to_string(), NULL_OID.to_string(), None, vec![])
     }
@@ -56,6 +78,31 @@ impl PrintDiff {
 
     fn short(&self, oid: &str) -> String {
         Database::short_oid(oid)
+    }
+
+    pub fn print_commit_diff(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        repo: &Repository,
+        a: Option<&str>,
+        b: &str,
+    ) -> Result<()> {
+        let diff = repo.database.tree_diff(a, Some(b))?;
+        let mut paths: Vec<_> = diff.keys().collect();
+        paths.sort();
+
+        for path in paths {
+            let (old_entry, new_entry) = &diff[path];
+            let path = path_to_string(&path);
+
+            self.print_diff(
+                stdout,
+                &mut self.from_entry(&repo, &path, old_entry.as_ref())?,
+                &mut self.from_entry(&repo, &path, new_entry.as_ref())?,
+            )?;
+        }
+
+        Ok(())
     }
 
     pub fn print_diff(

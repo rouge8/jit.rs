@@ -1,5 +1,6 @@
 mod common;
 
+use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
@@ -215,5 +216,46 @@ index 0000000..b6fc4c6
         );
 
         Ok(())
+    }
+}
+
+///   o---o---o
+///   A   B   C
+mod with_a_chain_of_commits {
+
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        for message in ["A", "B", "C"] {
+            helper.write_file("file.txt", message).unwrap();
+            helper.jit_cmd(&["add", "."]);
+            helper.commit(message);
+        }
+
+        helper.jit_cmd(&["branch", "topic", "@^^"]);
+
+        helper
+    }
+
+    #[rstest]
+    fn diff_arbitrary_commits(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff", "@", "@^^"])
+            .assert()
+            .code(0)
+            .stdout(
+                "\
+diff --git a/file.txt b/file.txt
+index 96d80cd..8c7e5a6 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,1 +1,1 @@
+-C
++A\n",
+            );
     }
 }

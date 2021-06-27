@@ -59,7 +59,7 @@ impl<'a> Checkout<'a> {
             .ctx
             .repo
             .database
-            .tree_diff(&current_oid, &target_oid)?;
+            .tree_diff(Some(&current_oid), Some(&target_oid))?;
         let mut migration = self.ctx.repo.migration(tree_diff);
 
         match migration.apply_changes() {

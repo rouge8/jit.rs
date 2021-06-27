@@ -54,6 +54,7 @@ pub enum Command {
     },
     Commit,
     Diff {
+        args: Vec<String>,
         #[structopt(long)]
         cached: bool,
         #[structopt(long)]
@@ -83,6 +84,10 @@ pub enum Command {
         decorate: Option<Option<LogDecoration>>,
         #[structopt(long)]
         no_decorate: bool,
+        #[structopt(short, long)]
+        patch: bool,
+        #[structopt(short = "s", long, overrides_with = "patch")]
+        _no_patch: bool,
     },
     Status {
         #[structopt(long)]

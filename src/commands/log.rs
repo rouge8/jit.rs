@@ -2,11 +2,11 @@ use crate::commands::shared::print_diff::PrintDiff;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
-use crate::database::{Database, ParsedObject};
-use crate::errors::{Error, Result};
+use crate::database::Database;
+use crate::errors::Result;
 use crate::refs::Ref;
-use crate::repository::Repository;
-use crate::revision::{Revision, COMMIT, HEAD};
+use crate::rev_list::RevList;
+use crate::revision::HEAD;
 use colored::Colorize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -108,7 +108,7 @@ impl<'a> Log<'a> {
         self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
         self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
-        for commit in Commits::new(
+        for commit in RevList::new(
             &self.ctx.repo,
             self.args.get(0).unwrap_or(&String::from(HEAD)).to_string(),
         )? {
@@ -262,39 +262,5 @@ impl<'a> Log<'a> {
         )?;
 
         Ok(())
-    }
-}
-
-struct Commits<'a> {
-    repo: &'a Repository,
-    current_oid: Option<String>,
-}
-
-impl<'a> Commits<'a> {
-    pub fn new(repo: &'a Repository, start: String) -> Result<Self> {
-        let current_oid = Revision::new(&repo, &start).resolve(Some(COMMIT))?;
-
-        Ok(Self {
-            repo,
-            current_oid: Some(current_oid),
-        })
-    }
-}
-
-impl<'a> Iterator for Commits<'a> {
-    type Item = Result<Commit>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.current_oid.as_ref()?;
-
-        match self.repo.database.load(&self.current_oid.as_ref().unwrap()) {
-            Ok(ParsedObject::Commit(commit)) => {
-                self.current_oid = commit.parent.clone();
-
-                Some(Ok(commit))
-            }
-            Err(err) => Some(Err(Error::Io(err))),
-            _ => unreachable!(),
-        }
     }
 }

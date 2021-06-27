@@ -14,6 +14,7 @@ mod commit;
 mod diff;
 mod init;
 mod log;
+mod shared;
 mod status;
 
 use add::Add;

@@ -1,6 +1,7 @@
 use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::ParsedObject;
+use crate::util::path_to_string;
 use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -36,7 +37,7 @@ impl TreeEntry {
     pub fn is_tree(&self) -> bool {
         match self {
             TreeEntry::Entry(e) => e.mode() == TREE_MODE,
-            _ => false,
+            TreeEntry::Tree(_) => true,
         }
     }
 }
@@ -127,15 +128,49 @@ impl Object for Tree {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        // Relies on `self.entries` already being sorted
         let mut content = Vec::new();
 
-        for (name, entry) in self.entries.iter() {
-            // TODO: Figure out how to get bytes from `name` instead of calling
-            // `name.display()` which is lossy.
-            content.append(&mut format!("{:o} {}\0", entry.mode(), name.display()).into_bytes());
+        // Sort `self.entries` by name with tree names being treated like `$name/` (with a trailing
+        // slash). This makes `foo.txt` sort before `foo/` before `foo:txt` which matches Git's
+        // behavior.
+        let mut entries: Vec<_> = self.entries.iter().collect();
+        entries.sort_by_key(|(name, entry)| {
+            let mut name = path_to_string(&name);
+
+            if entry.is_tree() {
+                name.push('/');
+            }
+
+            name
+        });
+
+        for (name, entry) in entries {
+            content.append(
+                &mut format!("{:o} {}\0", entry.mode(), path_to_string(&name)).into_bytes(),
+            );
             content.append(&mut hex::decode(entry.oid()).unwrap());
         }
         content
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tree_bytes_sort_order() {
+        let entries = vec![
+            // Use "" for oids so they don't clutter the serialized tree
+            Entry::new(&Path::new("test:txt"), String::from(""), 0o100644),
+            Entry::new(&Path::new("test.txt"), String::from(""), 0o100644),
+            Entry::new(&Path::new("test"), String::from(""), TREE_MODE),
+        ];
+        let tree = Tree::build(entries);
+
+        let bytes = tree.bytes();
+        let serialized = std::str::from_utf8(&bytes).unwrap();
+
+        assert_eq!(serialized, "100644 test.txt\040000 test\0100644 test:txt\0");
     }
 }

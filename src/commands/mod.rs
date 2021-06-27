@@ -58,6 +58,10 @@ pub enum Command {
         cached: bool,
         #[structopt(long)]
         staged: bool,
+        #[structopt(short, long)]
+        patch: bool,
+        #[structopt(short = "s", long)]
+        no_patch: bool,
     },
     Init {
         #[structopt(parse(from_os_str))]

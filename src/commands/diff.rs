@@ -12,12 +12,19 @@ pub struct Diff<'a> {
     print_diff: PrintDiff,
     /// `jit diff --cached` or `jit diff --staged`
     cached: bool,
+    /// `jit diff --patch`
+    patch: bool,
 }
 
 impl<'a> Diff<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let cached = match ctx.opt.cmd {
-            Command::Diff { cached, staged } => cached || staged,
+        let (cached, patch) = match ctx.opt.cmd {
+            Command::Diff {
+                cached,
+                staged,
+                patch,
+                no_patch,
+            } => (cached || staged, patch || !no_patch),
             _ => unreachable!(),
         };
 
@@ -27,6 +34,7 @@ impl<'a> Diff<'a> {
             ctx,
             print_diff,
             cached,
+            patch,
         }
     }
 
@@ -46,6 +54,10 @@ impl<'a> Diff<'a> {
     }
 
     fn diff_head_index(&self) -> Result<()> {
+        if !self.patch {
+            return Ok(());
+        }
+
         for path in self.ctx.repo.index_changes.keys() {
             let mut stdout = self.ctx.stdout.borrow_mut();
             let state = &self.ctx.repo.index_changes[path];
@@ -76,6 +88,10 @@ impl<'a> Diff<'a> {
     }
 
     fn diff_index_workspace(&self) -> Result<()> {
+        if !self.patch {
+            return Ok(());
+        }
+
         for path in self.ctx.repo.workspace_changes.keys() {
             let mut stdout = self.ctx.stdout.borrow_mut();
             let state = &self.ctx.repo.workspace_changes[path];

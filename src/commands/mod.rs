@@ -69,6 +69,7 @@ pub enum Command {
         directory: Option<PathBuf>,
     },
     Log {
+        args: Vec<String>,
         #[structopt(long = "abbrev-commit")]
         abbrev: bool,
         #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hidden = true)]

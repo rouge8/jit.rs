@@ -22,12 +22,13 @@ lazy_static! {
     static ref ANCESTOR: Regex = Regex::new(r"^(.+)~(\d+)$").unwrap();
     static ref REF_ALIASES: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
-        m.insert("@", "HEAD");
+        m.insert("@", HEAD);
         m
     };
 }
 
 pub const COMMIT: &str = "commit";
+pub const HEAD: &str = "HEAD";
 
 #[derive(Debug)]
 pub struct Revision<'a> {

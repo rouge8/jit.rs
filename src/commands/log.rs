@@ -6,6 +6,7 @@ use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
 use crate::refs::Ref;
 use crate::repository::Repository;
+use crate::revision::{Revision, COMMIT, HEAD};
 use colored::Colorize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -35,6 +36,8 @@ pub struct Log<'a> {
     print_diff: PrintDiff,
     /// When false, calls to `Log.blank_line()` will not actually print a blank line.
     blank_line: RefCell<bool>,
+    /// `jit log <commit>`
+    args: Vec<String>,
     /// `jit log --abbrev-commit`
     abbrev: bool,
     /// `jit log --pretty=<format>` or `jit log --format=<format>`
@@ -49,8 +52,9 @@ pub struct Log<'a> {
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (abbrev, format, patch, decorate) = match &ctx.opt.cmd {
+        let (args, abbrev, format, patch, decorate) = match &ctx.opt.cmd {
             Command::Log {
+                args,
                 abbrev,
                 no_abbrev,
                 format,
@@ -79,7 +83,7 @@ impl<'a> Log<'a> {
                     }
                 };
 
-                (abbrev, format, *patch, decorate)
+                (args.to_owned(), abbrev, format, *patch, decorate)
             }
             _ => unreachable!(),
         };
@@ -88,6 +92,7 @@ impl<'a> Log<'a> {
             ctx,
             print_diff: PrintDiff::new(),
             blank_line: RefCell::new(false),
+            args,
             abbrev,
             format,
             patch,
@@ -103,7 +108,10 @@ impl<'a> Log<'a> {
         self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
         self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
-        for commit in Commits::new(&self.ctx.repo)? {
+        for commit in Commits::new(
+            &self.ctx.repo,
+            self.args.get(0).unwrap_or(&String::from(HEAD)).to_string(),
+        )? {
             let commit = commit?;
             self.show_commit(&commit)?;
         }
@@ -263,10 +271,13 @@ struct Commits<'a> {
 }
 
 impl<'a> Commits<'a> {
-    pub fn new(repo: &'a Repository) -> Result<Self> {
-        let current_oid = repo.refs.read_head()?;
+    pub fn new(repo: &'a Repository, start: String) -> Result<Self> {
+        let current_oid = Revision::new(&repo, &start).resolve(Some(COMMIT))?;
 
-        Ok(Self { repo, current_oid })
+        Ok(Self {
+            repo,
+            current_oid: Some(current_oid),
+        })
     }
 }
 

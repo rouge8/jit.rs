@@ -148,6 +148,24 @@ Date:   {}
     }
 
     #[rstest]
+    fn print_a_log_starting_from_a_specified_commit(
+        mut helper: CommandHelper,
+        commits: Vec<Commit>,
+    ) {
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "@^"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} B
+{} A\n",
+                &commits[1].oid(),
+                &commits[2].oid(),
+            ));
+    }
+
+    #[rstest]
     fn print_a_log_with_short_decorations(mut helper: CommandHelper, commits: Vec<Commit>) {
         helper
             .jit_cmd(&["log", "--pretty=oneline", "--decorate=short"])

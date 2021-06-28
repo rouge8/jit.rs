@@ -20,7 +20,7 @@ use tempfile::TempDir;
 pub struct CommandHelper {
     pub repo_path: PathBuf,
     env: HashMap<&'static str, &'static str>,
-    stdin: &'static str,
+    stdin: String,
 }
 
 #[fixture]
@@ -40,7 +40,7 @@ impl CommandHelper {
         CommandHelper {
             repo_path,
             env: HashMap::new(),
-            stdin: "",
+            stdin: String::from(""),
         }
     }
 
@@ -122,10 +122,10 @@ impl CommandHelper {
             .code(0);
     }
 
-    pub fn commit(&mut self, message: &'static str) {
+    pub fn commit(&mut self, message: &str) {
         self.env.insert("GIT_AUTHOR_NAME", "A. U. Thor");
         self.env.insert("GIT_AUTHOR_EMAIL", "author@example.com");
-        self.stdin = message;
+        self.stdin = message.to_string();
 
         self.jit_cmd(&["commit"]);
     }

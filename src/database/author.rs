@@ -8,7 +8,7 @@ const TIME_FORMAT: &str = "%s %z";
 pub struct Author {
     pub name: String,
     pub email: String,
-    time: DateTime<FixedOffset>,
+    pub time: DateTime<FixedOffset>,
 }
 
 impl Author {

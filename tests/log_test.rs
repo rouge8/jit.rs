@@ -7,20 +7,21 @@ use jit::database::object::Object;
 use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
+use std::thread;
+use std::time::Duration;
+
+fn commit_file(helper: &mut CommandHelper, message: &str) -> Result<()> {
+    helper.write_file("file.txt", message)?;
+    helper.jit_cmd(&["add", "."]);
+    helper.commit(message);
+
+    Ok(())
+}
 
 ///   o---o---o
 ///   A   B   C
 mod with_a_chain_of_commits {
-
     use super::*;
-
-    fn commit_file(helper: &mut CommandHelper, message: &'static str) -> Result<()> {
-        helper.write_file("file.txt", message)?;
-        helper.jit_cmd(&["add", "."]);
-        helper.commit(message);
-
-        Ok(())
-    }
 
     #[fixture]
     fn helper() -> CommandHelper {
@@ -252,6 +253,81 @@ index 0000000..8c7e5a6
                 &commits[0].oid(),
                 &commits[1].oid(),
                 &commits[2].oid(),
+            ));
+    }
+}
+
+// m1  m2  m3
+//  o---o---o [main]
+//       \
+//        o---o---o---o [topic]
+//       t1  t2  t3  t4
+mod with_a_tree_of_commits {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        for n in 1..=3 {
+            commit_file(&mut helper, &format!("main-{}", n)).unwrap();
+        }
+
+        helper
+            .jit_cmd(&["branch", "topic", "main^"])
+            .assert()
+            .code(0);
+        helper.jit_cmd(&["checkout", "topic"]).assert().code(0);
+
+        // Git commit timestamps are recorded with only second resolution, so we need to wait one
+        // second to ensure the commits on the `topic` branch have a later timestamp.
+        let one_second = Duration::from_secs(1);
+        thread::sleep(one_second);
+
+        for n in 1..=4 {
+            commit_file(&mut helper, &format!("topic-{}", n)).unwrap();
+        }
+
+        helper
+    }
+
+    fn main_commits(helper: &CommandHelper) -> Vec<String> {
+        (0..=2)
+            .map(|n| helper.resolve_revision(&format!("main~{}", n)).unwrap())
+            .collect()
+    }
+
+    fn topic_commits(helper: &CommandHelper) -> Vec<String> {
+        (0..=3)
+            .map(|n| helper.resolve_revision(&format!("topic~{}", n)).unwrap())
+            .collect()
+    }
+
+    #[rstest]
+    fn log_the_combined_history_of_multiple_branches(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+        let topic = topic_commits(&helper);
+        helper
+            .jit_cmd(&[
+                "log",
+                "--pretty=oneline",
+                "--decorate=short",
+                "main",
+                "topic",
+            ])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} (HEAD -> topic) topic-4
+{} topic-3
+{} topic-2
+{} topic-1
+{} (main) main-3
+{} main-2
+{} main-1\n",
+                topic[0], topic[1], topic[2], topic[3], main[0], main[1], main[2],
             ));
     }
 }

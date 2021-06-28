@@ -1,6 +1,7 @@
 use crate::database::author::Author;
 use crate::database::object::Object;
 use crate::database::ParsedObject;
+use chrono::{DateTime, FixedOffset};
 use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 
@@ -52,6 +53,10 @@ impl Commit {
 
     pub fn title_line(&self) -> String {
         self.message.lines().next().unwrap().to_string()
+    }
+
+    pub fn date(&self) -> DateTime<FixedOffset> {
+        self.author.time
     }
 }
 

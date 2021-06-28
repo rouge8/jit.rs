@@ -6,7 +6,6 @@ use crate::database::Database;
 use crate::errors::Result;
 use crate::refs::Ref;
 use crate::rev_list::RevList;
-use crate::revision::HEAD;
 use colored::Colorize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -108,11 +107,7 @@ impl<'a> Log<'a> {
         self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
         self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
-        for commit in RevList::new(
-            &self.ctx.repo,
-            self.args.get(0).unwrap_or(&String::from(HEAD)).to_string(),
-        )? {
-            let commit = commit?;
+        for commit in RevList::new(&self.ctx.repo, &self.args)? {
             self.show_commit(&commit)?;
         }
 

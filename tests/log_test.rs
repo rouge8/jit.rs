@@ -321,6 +321,7 @@ mod with_a_tree_of_commits {
     fn log_the_combined_history_of_multiple_branches(mut helper: CommandHelper) {
         let main = main_commits(&helper);
         let topic = topic_commits(&helper);
+
         helper
             .jit_cmd(&[
                 "log",
@@ -341,6 +342,73 @@ mod with_a_tree_of_commits {
 {} main-2
 {} main-1\n",
                 topic[0], topic[1], topic[2], topic[3], main[0], main[1], main[2],
+            ));
+    }
+
+    #[rstest]
+    fn log_the_difference_from_one_branch_to_another(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "main..topic"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} topic-4
+{} topic-3
+{} topic-2
+{} topic-1\n",
+                topic[0], topic[1], topic[2], topic[3],
+            ));
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "main", "^topic"])
+            .assert()
+            .code(0)
+            .stdout(format!("{} main-3\n", main[0]));
+    }
+
+    #[rstest]
+    fn exclude_a_long_branch_when_commit_times_are_equal(mut helper: CommandHelper) -> Result<()> {
+        let topic = topic_commits(&helper);
+
+        helper.jit_cmd(&["branch", "side", "topic^^"]);
+        helper.jit_cmd(&["checkout", "side"]);
+
+        for n in 1..=10 {
+            commit_file(&mut helper, &format!("side-{}", n))?;
+        }
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "side..topic", "^main"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} topic-4
+{} topic-3\n",
+                topic[0], topic[1],
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn log_the_last_few_comnmits_on_a_branch(mut helper: CommandHelper) {
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "@~3.."])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} topic-4
+{} topic-3
+{} topic-2\n",
+                topic[0], topic[1], topic[2],
             ));
     }
 }

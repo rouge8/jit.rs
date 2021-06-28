@@ -35,8 +35,7 @@ mod with_a_chain_of_commits {
         helper
     }
 
-    #[fixture]
-    fn commits(helper: CommandHelper) -> Vec<Commit> {
+    fn commits(helper: &CommandHelper) -> Vec<Commit> {
         ["@", "@^", "@^^"]
             .iter()
             .map(|rev| helper.load_commit(&rev).unwrap())
@@ -44,7 +43,9 @@ mod with_a_chain_of_commits {
     }
 
     #[rstest]
-    fn print_a_log_in_medium_format(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_in_medium_format(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper.jit_cmd(&["log"]).assert().code(0).stdout(format!(
             "\
 commit {}
@@ -74,10 +75,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_in_medium_format_with_abbreviated_commit_ids(
-        mut helper: CommandHelper,
-        commits: Vec<Commit>,
-    ) {
+    fn print_a_log_in_medium_format_with_abbreviated_commit_ids(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--abbrev-commit"])
             .assert()
@@ -111,7 +111,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_in_oneline_format(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_in_oneline_format(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--oneline"])
             .assert()
@@ -133,8 +135,9 @@ Date:   {}
     fn print_a_log_in_oneline_format_without_abbreviated_commit_ids(
         #[case] cmd: Vec<&str>,
         mut helper: CommandHelper,
-        commits: Vec<Commit>,
     ) {
+        let commits = commits(&helper);
+
         helper.jit_cmd(&cmd).assert().code(0).stdout(format!(
             "\
 {} C
@@ -147,10 +150,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_starting_from_a_specified_commit(
-        mut helper: CommandHelper,
-        commits: Vec<Commit>,
-    ) {
+    fn print_a_log_starting_from_a_specified_commit(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--pretty=oneline", "@^"])
             .assert()
@@ -165,7 +167,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_with_short_decorations(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_with_short_decorations(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--pretty=oneline", "--decorate=short"])
             .assert()
@@ -182,7 +186,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_with_detached_head(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_with_detached_head(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper.jit_cmd(&["checkout", "@"]);
         helper
             .jit_cmd(&["log", "--pretty=oneline", "--decorate=short"])
@@ -200,7 +206,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_with_full_decorations(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_with_full_decorations(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--pretty=oneline", "--decorate=full"])
             .assert()
@@ -217,7 +225,9 @@ Date:   {}
     }
 
     #[rstest]
-    fn print_a_log_with_patches(mut helper: CommandHelper, commits: Vec<Commit>) {
+    fn print_a_log_with_patches(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
         helper
             .jit_cmd(&["log", "--pretty=oneline", "--patch"])
             .assert()

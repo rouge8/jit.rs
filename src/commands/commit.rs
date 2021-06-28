@@ -6,7 +6,7 @@ use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::errors::Error;
 use crate::errors::Result;
-use chrono::Local;
+use chrono::{DateTime, Local};
 use std::io;
 use std::io::{Read, Write};
 
@@ -38,8 +38,13 @@ impl<'a> Commit<'a> {
         let parent = self.ctx.repo.refs.read_head()?;
         let name = &self.ctx.env["GIT_AUTHOR_NAME"];
         let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
-        let now = Local::now();
-        let author = Author::new(name.clone(), email.clone(), now.with_timezone(now.offset()));
+        let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
+            DateTime::parse_from_rfc2822(author_date_str).expect("could not parse GIT_AUTHOR_DATE")
+        } else {
+            let now = Local::now();
+            now.with_timezone(now.offset())
+        };
+        let author = Author::new(name.clone(), email.clone(), author_date);
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
 

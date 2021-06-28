@@ -19,7 +19,7 @@ use tempfile::TempDir;
 
 pub struct CommandHelper {
     pub repo_path: PathBuf,
-    env: HashMap<&'static str, &'static str>,
+    pub env: HashMap<&'static str, &'static str>,
     stdin: String,
 }
 

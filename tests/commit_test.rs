@@ -61,6 +61,23 @@ mod committing_to_branches {
 
             Ok(())
         }
+
+        #[rstest]
+        #[case("Wed, 27 May 2020 09:40:54 -0700", "Wed May 27 09:40:54 2020 -0700")]
+        #[case("Mon, 28 Jun 2021 17:41:12 +1000", "Mon Jun 28 17:41:12 2021 +1000")]
+        fn parse_git_author_date(
+            #[case] input: &'static str,
+            #[case] expected: &'static str,
+            mut helper: CommandHelper,
+        ) -> Result<()> {
+            helper.env.insert("GIT_AUTHOR_DATE", input);
+            commit_change(&mut helper, "change")?;
+
+            let commit = helper.load_commit("@")?;
+            assert_eq!(commit.author.readable_time(), expected);
+
+            Ok(())
+        }
     }
 
     mod with_a_detached_head {

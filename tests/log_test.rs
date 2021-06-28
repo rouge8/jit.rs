@@ -7,8 +7,6 @@ use jit::database::object::Object;
 use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
-use std::thread;
-use std::time::Duration;
 
 fn commit_file(helper: &mut CommandHelper, message: &str) -> Result<()> {
     helper.write_file("file.txt", message)?;
@@ -270,6 +268,11 @@ mod with_a_tree_of_commits {
         let mut helper = CommandHelper::new();
         helper.init();
 
+        // All commits to `main` will have the same timestamp
+        helper
+            .env
+            .insert("GIT_AUTHOR_DATE", "Mon, 28 Jun 2021 18:04:07 +0000");
+
         for n in 1..=3 {
             commit_file(&mut helper, &format!("main-{}", n)).unwrap();
         }
@@ -280,10 +283,10 @@ mod with_a_tree_of_commits {
             .code(0);
         helper.jit_cmd(&["checkout", "topic"]).assert().code(0);
 
-        // Git commit timestamps are recorded with only second resolution, so we need to wait one
-        // second to ensure the commits on the `topic` branch have a later timestamp.
-        let one_second = Duration::from_secs(1);
-        thread::sleep(one_second);
+        // Commits to `topic` will be one second later than those to main
+        helper
+            .env
+            .insert("GIT_AUTHOR_DATE", "Mon, 28 Jun 2021 18:04:08 +0000");
 
         for n in 1..=4 {
             commit_file(&mut helper, &format!("topic-{}", n)).unwrap();

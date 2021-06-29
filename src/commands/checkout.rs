@@ -1,4 +1,5 @@
 use crate::commands::{Command, CommandContext};
+use crate::database::tree_diff::Differ;
 use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};

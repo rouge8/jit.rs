@@ -1,34 +1,41 @@
 use crate::database::commit::Commit;
 use crate::database::object::Object;
+use crate::database::tree_diff::{Differ, TreeDiffChanges};
 use crate::database::ParsedObject;
 use crate::errors::Result;
+use crate::path_filter::PathFilter;
 use crate::repository::Repository;
 use crate::revision::{Revision, COMMIT, HEAD};
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
+use std::path::PathBuf;
 
 lazy_static! {
     static ref RANGE: Regex = Regex::new(r"^(.*)\.\.(.*)$").unwrap();
     static ref EXCLUDE: Regex = Regex::new(r"^\^(.+)$").unwrap();
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Flag {
     Added,
     Seen,
     Uninteresting,
+    Treesame,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RevList<'a> {
     repo: &'a Repository,
     commits: HashMap<String, Commit>,
     flags: RefCell<HashMap<String, HashSet<Flag>>>,
     queue: VecDeque<Commit>,
     limited: bool,
+    prune: Vec<PathBuf>,
+    diffs: RefCell<HashMap<(Option<String>, String), TreeDiffChanges>>,
     output: VecDeque<Commit>,
+    filter: PathFilter,
 }
 
 impl<'a> RevList<'a> {
@@ -39,7 +46,11 @@ impl<'a> RevList<'a> {
             flags: RefCell::new(HashMap::new()),
             queue: VecDeque::new(),
             limited: false,
+            prune: Vec::new(),
+            diffs: RefCell::new(HashMap::new()),
             output: VecDeque::new(),
+            // A temporary `PathFilter` that will be replaced later in this function
+            filter: PathFilter::new(None, None),
         };
 
         for rev in revs {
@@ -49,11 +60,15 @@ impl<'a> RevList<'a> {
             rev_list.handle_revision(HEAD)?;
         }
 
+        rev_list.filter = PathFilter::build(&rev_list.prune);
+
         Ok(rev_list)
     }
 
     fn handle_revision(&mut self, rev: &str) -> Result<()> {
-        if let Some(r#match) = RANGE.captures(&rev) {
+        if self.repo.workspace.stat_file(&PathBuf::from(rev)).is_ok() {
+            self.prune.push(PathBuf::from(rev));
+        } else if let Some(r#match) = RANGE.captures(&rev) {
             self.set_start_point(&r#match[1], false)?;
             self.set_start_point(&r#match[2], true)?;
         } else if let Some(r#match) = EXCLUDE.captures(&rev) {
@@ -142,14 +157,22 @@ impl<'a> RevList<'a> {
     }
 
     fn add_parents(&mut self, commit: &Commit) -> Result<()> {
-        if !self.mark(&commit.oid(), Flag::Added) {
-            if let Some(parent) = self.load_commit(commit.parent.as_deref())? {
-                if self.is_marked(&commit.oid(), Flag::Uninteresting) {
-                    self.mark_parents_uninteresting(Some(commit));
-                }
+        if self.mark(&commit.oid(), Flag::Added) {
+            return Ok(());
+        }
 
-                self.enqueue_commit(Some(&parent));
+        let parent = self.load_commit(commit.parent.as_deref())?;
+
+        if self.is_marked(&commit.oid(), Flag::Uninteresting) {
+            if let Some(ref parent) = parent {
+                self.mark_parents_uninteresting(Some(&parent));
             }
+        } else {
+            self.simplify_commit(&commit)?;
+        }
+
+        if let Some(parent) = parent {
+            self.enqueue_commit(Some(&parent));
         }
 
         Ok(())
@@ -205,6 +228,44 @@ impl<'a> RevList<'a> {
             false
         }
     }
+
+    fn simplify_commit(&self, commit: &Commit) -> Result<()> {
+        if self.prune.is_empty() {
+            return Ok(());
+        }
+
+        if self
+            .tree_diff(commit.parent.as_deref(), Some(&commit.oid()), None)?
+            .is_empty()
+        {
+            self.mark(&commit.oid(), Flag::Treesame);
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Differ for RevList<'a> {
+    fn tree_diff(
+        &self,
+        old_oid: Option<&str>,
+        new_oid: Option<&str>,
+        _filter: Option<&PathFilter>,
+    ) -> Result<TreeDiffChanges> {
+        let key = (old_oid.map(|s| s.to_owned()), new_oid.unwrap().to_string());
+
+        let mut diffs = self.diffs.borrow_mut();
+
+        Ok(diffs
+            .entry(key)
+            .or_insert_with(|| {
+                self.repo
+                    .database
+                    .tree_diff(old_oid.as_deref(), new_oid, Some(&self.filter))
+                    .unwrap()
+            })
+            .to_owned())
+    }
 }
 
 impl<'a> Iterator for RevList<'a> {
@@ -220,7 +281,9 @@ impl<'a> Iterator for RevList<'a> {
                 self.add_parents(&commit).unwrap();
             }
 
-            if self.is_marked(&commit.oid(), Flag::Uninteresting) {
+            if self.is_marked(&commit.oid(), Flag::Uninteresting)
+                || self.is_marked(&commit.oid(), Flag::Treesame)
+            {
                 self.next()
             } else {
                 Some(commit)

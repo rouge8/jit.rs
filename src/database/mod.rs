@@ -2,7 +2,7 @@ use crate::database::blob::Blob;
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
-use crate::database::tree_diff::{TreeDiff, TreeDiffChanges};
+use crate::database::tree_diff::{Differ, TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
 use flate2::read::ZlibDecoder;
@@ -81,22 +81,6 @@ impl Database {
         Ok(oids)
     }
 
-    pub fn tree_diff(
-        &self,
-        a: Option<&str>,
-        b: Option<&str>,
-        filter: Option<PathFilter>,
-    ) -> Result<TreeDiffChanges> {
-        let filter = if let Some(filter) = filter {
-            filter
-        } else {
-            PathFilter::new(None, None)
-        };
-        let mut diff = TreeDiff::new(&self);
-        diff.compare_oids(a, b, &filter)?;
-        Ok(diff.changes)
-    }
-
     fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
         let compressed_data = fs::read(self.object_path(&oid))?;
         let mut data = vec![];
@@ -155,6 +139,26 @@ impl Database {
         fs::rename(&temp_path, &object_path)?;
 
         Ok(())
+    }
+}
+
+impl Differ for Database {
+    fn tree_diff(
+        &self,
+        a: Option<&str>,
+        b: Option<&str>,
+        filter: Option<&PathFilter>,
+    ) -> Result<TreeDiffChanges> {
+        let empty_filter = PathFilter::new(None, None);
+
+        let filter = if let Some(filter) = filter {
+            filter
+        } else {
+            &empty_filter
+        };
+        let mut diff = TreeDiff::new(&self);
+        diff.compare_oids(a, b, &filter)?;
+        Ok(diff.changes)
     }
 }
 

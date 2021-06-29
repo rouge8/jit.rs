@@ -8,6 +8,15 @@ use std::path::PathBuf;
 
 pub type TreeDiffChanges = HashMap<PathBuf, (Option<Entry>, Option<Entry>)>;
 
+pub trait Differ {
+    fn tree_diff(
+        &self,
+        a: Option<&str>,
+        b: Option<&str>,
+        filter: Option<&PathFilter>,
+    ) -> Result<TreeDiffChanges>;
+}
+
 pub struct TreeDiff<'a> {
     database: &'a Database,
     pub changes: TreeDiffChanges,

@@ -107,20 +107,22 @@ impl<'a> Log<'a> {
         self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
         self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
+        // TODO: Explain
+        let rev_list = RevList::new(&self.ctx.repo, &self.args)?;
         for commit in RevList::new(&self.ctx.repo, &self.args)? {
-            self.show_commit(&commit)?;
+            self.show_commit(&commit, &rev_list)?;
         }
 
         Ok(())
     }
 
-    fn show_commit(&self, commit: &Commit) -> Result<()> {
+    fn show_commit(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
         match self.format {
             LogFormat::Medium => self.show_commit_medium(&commit)?,
             LogFormat::OneLine => self.show_commit_oneline(&commit)?,
         }
 
-        self.show_patch(&commit)?;
+        self.show_patch(&commit, &rev_list)?;
 
         Ok(())
     }
@@ -241,7 +243,7 @@ impl<'a> Log<'a> {
         }
     }
 
-    fn show_patch(&self, commit: &Commit) -> Result<()> {
+    fn show_patch(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
         if !self.patch {
             return Ok(());
         }
@@ -254,6 +256,7 @@ impl<'a> Log<'a> {
             &self.ctx.repo,
             commit.parent.as_deref(),
             &commit.oid(),
+            Some(rev_list),
         )?;
 
         Ok(())

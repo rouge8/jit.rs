@@ -1,4 +1,5 @@
 use crate::database::entry::Entry;
+use crate::database::tree_diff::Differ;
 use crate::database::{Database, ParsedObject};
 use crate::diff::hunk::Hunk;
 use crate::diff::{diff_hunks, Edit, EditType};
@@ -86,8 +87,13 @@ impl PrintDiff {
         repo: &Repository,
         a: Option<&str>,
         b: &str,
+        differ: Option<&dyn Differ>,
     ) -> Result<()> {
-        let diff = repo.database.tree_diff(a, Some(b), None)?;
+        let diff = if let Some(differ) = differ {
+            differ.tree_diff(a, Some(b), None)?
+        } else {
+            repo.database.tree_diff(a, Some(b), None)?
+        };
         let mut paths: Vec<_> = diff.keys().collect();
         paths.sort();
 

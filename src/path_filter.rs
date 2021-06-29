@@ -16,7 +16,7 @@ impl Trie {
         }
     }
 
-    pub fn from_paths(paths: Vec<PathBuf>) -> Self {
+    pub fn from_paths(paths: &[PathBuf]) -> Self {
         let mut root = Trie::node();
 
         if paths.is_empty() {
@@ -52,14 +52,14 @@ impl Trie {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PathFilter {
     routes: Trie,
     pub path: PathBuf,
 }
 
 impl PathFilter {
-    pub fn build(paths: Vec<PathBuf>) -> Self {
+    pub fn build(paths: &[PathBuf]) -> Self {
         Self::new(Some(Trie::from_paths(paths)), None)
     }
 

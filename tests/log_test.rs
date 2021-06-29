@@ -7,9 +7,24 @@ use jit::database::object::Object;
 use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
+use std::collections::HashMap;
 
 fn commit_file(helper: &mut CommandHelper, message: &str) -> Result<()> {
     helper.write_file("file.txt", message)?;
+    helper.jit_cmd(&["add", "."]);
+    helper.commit(message);
+
+    Ok(())
+}
+
+fn commit_tree(
+    helper: &mut CommandHelper,
+    message: &str,
+    files: HashMap<&'static str, &'static str>,
+) -> Result<()> {
+    for (path, contents) in files {
+        helper.write_file(path, contents)?;
+    }
     helper.jit_cmd(&["add", "."]);
     helper.commit(message);
 
@@ -261,6 +276,142 @@ index 0000000..8c7e5a6
                 &commits[0].oid(),
                 &commits[1].oid(),
                 &commits[2].oid(),
+            ));
+    }
+}
+
+mod with_commits_changing_different_files {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut tree_first = HashMap::new();
+        tree_first.insert("a/1.txt", "1");
+        tree_first.insert("b/c/2.txt", "2");
+        commit_tree(&mut helper, "first", tree_first).unwrap();
+
+        let mut tree_second = HashMap::new();
+        tree_second.insert("a/1.txt", "10");
+        tree_second.insert("b/3.txt", "3");
+        commit_tree(&mut helper, "second", tree_second).unwrap();
+
+        let mut tree_third = HashMap::new();
+        tree_third.insert("b/c/2.txt", "4");
+        commit_tree(&mut helper, "third", tree_third).unwrap();
+
+        helper
+    }
+
+    fn commits(helper: &CommandHelper) -> Vec<Commit> {
+        ["@^^", "@^", "@"]
+            .iter()
+            .map(|rev| helper.load_commit(&rev).unwrap())
+            .collect()
+    }
+
+    #[rstest]
+    fn log_commits_that_change_a_file(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "a/1.txt"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} second
+{} first\n",
+                commits[1].oid(),
+                commits[0].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn log_commits_that_change_a_directory(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "b"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} third
+{} second
+{} first\n",
+                commits[2].oid(),
+                commits[1].oid(),
+                commits[0].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn log_commits_that_change_a_directory_and_one_of_its_files(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "b", "b/3.txt"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} third
+{} second
+{} first\n",
+                commits[2].oid(),
+                commits[1].oid(),
+                commits[0].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn log_commits_that_change_a_nested_directory(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "b/c"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} third
+{} first\n",
+                commits[2].oid(),
+                commits[0].oid(),
+            ));
+    }
+
+    #[rstest]
+    fn log_commits_with_patches_for_selected_files(mut helper: CommandHelper) {
+        let commits = commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--patch", "a/1.txt"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} second
+diff --git a/a/1.txt b/a/1.txt
+index 56a6051..9a03714 100644
+--- a/a/1.txt
++++ b/a/1.txt
+@@ -1,1 +1,1 @@
+-1
++10
+{} first
+diff --git a/a/1.txt b/a/1.txt
+new file mode 100644
+index 0000000..56a6051
+--- /dev/null
++++ b/a/1.txt
+@@ -0,0 +1,1 @@
++1\n",
+                commits[1].oid(),
+                commits[0].oid(),
             ));
     }
 }

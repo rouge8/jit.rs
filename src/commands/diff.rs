@@ -70,8 +70,13 @@ impl<'a> Diff<'a> {
             args.push(Revision::new(&self.ctx.repo, &rev).resolve(Some("commit"))?);
         }
         let mut stdout = self.ctx.stdout.borrow_mut();
-        self.print_diff
-            .print_commit_diff(&mut stdout, &self.ctx.repo, Some(&args[0]), &args[1])?;
+        self.print_diff.print_commit_diff(
+            &mut stdout,
+            &self.ctx.repo,
+            Some(&args[0]),
+            &args[1],
+            None,
+        )?;
 
         Ok(())
     }

@@ -296,12 +296,13 @@ fatal: Not a valid object name: '{}^^'.
                 Database::short_oid(&head)
             ));
 
-        let branches: Vec<_> = repo
+        let mut branches: Vec<_> = repo
             .refs
             .list_branches()?
             .iter()
             .map(|r#ref| repo.refs.short_name(&r#ref))
             .collect();
+        branches.sort();
         assert_eq!(branches, vec![String::from("fix/2"), String::from("main")]);
 
         // The empty parent directory was deleted

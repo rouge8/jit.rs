@@ -2,8 +2,9 @@ use crate::database::entry::Entry;
 use crate::database::tree::{Tree, TreeEntry};
 use crate::database::{Database, ParsedObject};
 use crate::errors::Result;
+use crate::path_filter::PathFilter;
 use std::collections::{BTreeMap, HashMap};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub type TreeDiffChanges = HashMap<PathBuf, (Option<Entry>, Option<Entry>)>;
 
@@ -20,7 +21,12 @@ impl<'a> TreeDiff<'a> {
         }
     }
 
-    pub fn compare_oids(&mut self, a: Option<&str>, b: Option<&str>, prefix: &Path) -> Result<()> {
+    pub fn compare_oids(
+        &mut self,
+        a: Option<&str>,
+        b: Option<&str>,
+        filter: &PathFilter,
+    ) -> Result<()> {
         if a == b {
             return Ok(());
         }
@@ -36,8 +42,8 @@ impl<'a> TreeDiff<'a> {
             BTreeMap::new()
         };
 
-        self.detect_deletions(&a_entries, &b_entries, &prefix)?;
-        self.detect_additions(&a_entries, &b_entries, &prefix)?;
+        self.detect_deletions(&a_entries, &b_entries, &filter)?;
+        self.detect_additions(&a_entries, &b_entries, &filter)?;
 
         Ok(())
     }
@@ -59,15 +65,16 @@ impl<'a> TreeDiff<'a> {
         &mut self,
         a: &BTreeMap<PathBuf, TreeEntry>,
         b: &BTreeMap<PathBuf, TreeEntry>,
-        prefix: &Path,
+        filter: &PathFilter,
     ) -> Result<()> {
-        for (name, entry) in a {
-            let path = prefix.join(name);
-            let other = b.get(name);
+        for (name, entry) in filter.each_entry(a) {
+            let other = b.get(&name);
 
-            if Some(entry) == other {
+            if Some(&entry) == other {
                 continue;
             }
+
+            let sub_filter = filter.join(name);
 
             let tree_a = if entry.is_tree() {
                 Some(entry.oid())
@@ -83,7 +90,7 @@ impl<'a> TreeDiff<'a> {
             } else {
                 None
             };
-            self.compare_oids(tree_a.as_deref(), tree_b.as_deref(), &path)?;
+            self.compare_oids(tree_a.as_deref(), tree_b.as_deref(), &sub_filter)?;
 
             let blob_a = if entry.is_tree() {
                 None
@@ -107,7 +114,8 @@ impl<'a> TreeDiff<'a> {
             };
 
             if blob_a.is_some() || blob_b.is_some() {
-                self.changes.insert(path, (blob_a, blob_b));
+                self.changes
+                    .insert(sub_filter.path.clone(), (blob_a, blob_b));
             }
         }
 
@@ -118,25 +126,27 @@ impl<'a> TreeDiff<'a> {
         &mut self,
         a: &BTreeMap<PathBuf, TreeEntry>,
         b: &BTreeMap<PathBuf, TreeEntry>,
-        prefix: &Path,
+        filter: &PathFilter,
     ) -> Result<()> {
-        for (name, entry) in b {
-            let path = prefix.join(name);
-            let other = a.get(name);
+        for (name, entry) in filter.each_entry(b) {
+            let other = a.get(&name);
 
             if other.is_some() {
                 continue;
             }
 
+            let sub_filter = filter.join(name);
+
             if !entry.is_tree() {
                 match entry {
                     TreeEntry::Entry(entry) => {
-                        self.changes.insert(path, (None, Some(entry.to_owned())));
+                        self.changes
+                            .insert(sub_filter.path.clone(), (None, Some(entry.to_owned())));
                     }
                     TreeEntry::Tree(_) => unreachable!(),
                 }
             } else {
-                self.compare_oids(None, Some(&entry.oid()), &path)?;
+                self.compare_oids(None, Some(&entry.oid()), &sub_filter)?;
             }
         }
 

@@ -87,7 +87,7 @@ impl PrintDiff {
         a: Option<&str>,
         b: &str,
     ) -> Result<()> {
-        let diff = repo.database.tree_diff(a, Some(b))?;
+        let diff = repo.database.tree_diff(a, Some(b), None)?;
         let mut paths: Vec<_> = diff.keys().collect();
         paths.sort();
 

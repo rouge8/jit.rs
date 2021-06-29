@@ -4,6 +4,7 @@ use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::database::tree_diff::{TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
+use crate::path_filter::PathFilter;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
@@ -12,7 +13,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use uuid::Uuid;
 
 pub mod author;
@@ -80,9 +81,19 @@ impl Database {
         Ok(oids)
     }
 
-    pub fn tree_diff(&self, a: Option<&str>, b: Option<&str>) -> Result<TreeDiffChanges> {
+    pub fn tree_diff(
+        &self,
+        a: Option<&str>,
+        b: Option<&str>,
+        filter: Option<PathFilter>,
+    ) -> Result<TreeDiffChanges> {
+        let filter = if let Some(filter) = filter {
+            filter
+        } else {
+            PathFilter::new(None, None)
+        };
         let mut diff = TreeDiff::new(&self);
-        diff.compare_oids(a, b, Path::new(""))?;
+        diff.compare_oids(a, b, &filter)?;
         Ok(diff.changes)
     }
 
@@ -235,7 +246,10 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(Some(&tree_a), Some(&tree_b))?, expected);
+            assert_eq!(
+                database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
+                expected
+            );
 
             Ok(())
         }
@@ -264,7 +278,10 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(Some(&tree_a), Some(&tree_b))?, expected);
+            assert_eq!(
+                database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
+                expected
+            );
 
             Ok(())
         }
@@ -293,7 +310,10 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(Some(&tree_a), Some(&tree_b))?, expected);
+            assert_eq!(
+                database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
+                expected
+            );
 
             Ok(())
         }
@@ -324,7 +344,10 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(Some(&tree_a), Some(&tree_b))?, expected);
+            assert_eq!(
+                database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
+                expected
+            );
 
             Ok(())
         }
@@ -355,7 +378,10 @@ mod tests {
                 ),
             );
 
-            assert_eq!(database.tree_diff(Some(&tree_a), Some(&tree_b))?, expected);
+            assert_eq!(
+                database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
+                expected
+            );
 
             Ok(())
         }

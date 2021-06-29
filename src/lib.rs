@@ -5,6 +5,7 @@ pub mod errors;
 pub mod index;
 pub mod lockfile;
 pub mod pager;
+pub mod path_filter;
 pub mod refs;
 pub mod repository;
 pub mod rev_list;

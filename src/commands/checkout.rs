@@ -55,11 +55,11 @@ impl<'a> Checkout<'a> {
 
         self.ctx.repo.index.load_for_update()?;
 
-        let tree_diff = self
-            .ctx
-            .repo
-            .database
-            .tree_diff(Some(&current_oid), Some(&target_oid))?;
+        let tree_diff =
+            self.ctx
+                .repo
+                .database
+                .tree_diff(Some(&current_oid), Some(&target_oid), None)?;
         let mut migration = self.ctx.repo.migration(tree_diff);
 
         match migration.apply_changes() {

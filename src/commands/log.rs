@@ -107,7 +107,10 @@ impl<'a> Log<'a> {
         self.reverse_refs = Some(self.ctx.repo.refs.reverse_refs()?);
         self.current_ref = Some(self.ctx.repo.refs.current_ref("HEAD")?);
 
-        // TODO: Explain
+        // We need to pass rev_list down to `show_patch()`, but we can't pass the `RevList` we're
+        // iterating over because iteration requires a mutable borrow. We work around this by
+        // creating two identical `RevList`s and iterating over one and passing the other.
+        // Inefficient? Yes, but I don't have any better ideas.
         let rev_list = RevList::new(&self.ctx.repo, &self.args)?;
         for commit in RevList::new(&self.ctx.repo, &self.args)? {
             self.show_commit(&commit, &rev_list)?;

@@ -1,6 +1,6 @@
 use crate::commands::{Command, CommandContext};
 use crate::database::object::Object;
-use crate::database::{Database, ParsedObject};
+use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};
 use crate::revision::{Revision, COMMIT};
@@ -149,15 +149,11 @@ impl<'a> Branch<'a> {
             return Ok(String::from(""));
         }
 
-        let commit = match self
+        let commit = self
             .ctx
             .repo
             .database
-            .load(&self.ctx.repo.refs.read_oid(&r#ref)?.unwrap())?
-        {
-            ParsedObject::Commit(commit) => commit,
-            _ => unreachable!(),
-        };
+            .load_commit(&self.ctx.repo.refs.read_oid(&r#ref)?.unwrap())?;
         let short = Database::short_oid(&commit.oid());
         let space = " ".repeat(max_width - self.ctx.repo.refs.short_name(&r#ref).len());
 

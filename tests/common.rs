@@ -2,7 +2,6 @@ use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
 use filetime::FileTime;
 use jit::database::commit::Commit;
-use jit::database::ParsedObject;
 use jit::errors::Result;
 use jit::repository::Repository;
 use jit::revision::Revision;
@@ -196,14 +195,10 @@ impl CommandHelper {
     }
 
     pub fn load_commit(&self, expression: &str) -> Result<Commit> {
-        match self
+        Ok(self
             .repo()
             .database
-            .load(&self.resolve_revision(&expression)?)?
-        {
-            ParsedObject::Commit(commit) => Ok(commit),
-            _ => unreachable!(),
-        }
+            .load_commit(&self.resolve_revision(&expression)?)?)
     }
 }
 

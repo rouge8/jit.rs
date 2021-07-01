@@ -3,7 +3,7 @@ mod common;
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::object::Object;
-use jit::database::{Database, ParsedObject};
+use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
 
@@ -61,11 +61,9 @@ mod with_a_chain_of_commits {
 
         let repo = helper.repo();
 
-        let head = repo.database.load(&repo.refs.read_head()?.unwrap())?;
-        let head = match head {
-            ParsedObject::Commit(commit) => commit,
-            _ => unreachable!(),
-        };
+        let head = repo
+            .database
+            .load_commit(&repo.refs.read_head()?.unwrap())?;
 
         assert_eq!(
             &repo.refs.read_ref("topic")?.unwrap(),
@@ -80,18 +78,12 @@ mod with_a_chain_of_commits {
         helper.jit_cmd(&["branch", "topic", "@~2"]);
 
         let repo = helper.repo();
-        let head = repo.database.load(&repo.refs.read_head()?.unwrap())?;
-        let head = match head {
-            ParsedObject::Commit(commit) => commit,
-            _ => unreachable!(),
-        };
+        let head = repo
+            .database
+            .load_commit(&repo.refs.read_head()?.unwrap())?;
 
         let repo = helper.repo();
-        let parent = repo.database.load(head.parent.as_ref().unwrap())?;
-        let parent = match parent {
-            ParsedObject::Commit(commit) => commit,
-            _ => unreachable!(),
-        };
+        let parent = repo.database.load_commit(head.parent.as_ref().unwrap())?;
 
         assert_eq!(
             &repo.refs.read_ref("topic")?.unwrap(),
@@ -166,13 +158,10 @@ mod with_a_chain_of_commits {
     #[rstest]
     fn fail_for_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
         let repo = helper.repo();
-        let tree_id = {
-            let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
-            match obj {
-                ParsedObject::Commit(commit) => commit.tree,
-                _ => unreachable!(),
-            }
-        };
+        let tree_id = repo
+            .database
+            .load_commit(&repo.refs.read_head()?.unwrap())?
+            .tree;
 
         helper
             .jit_cmd(&["branch", "topic", &tree_id])
@@ -192,13 +181,10 @@ fatal: Not a valid object name: '{}'.
     #[rstest]
     fn fail_for_parents_of_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
         let repo = helper.repo();
-        let tree_id = {
-            let obj = repo.database.load(&repo.refs.read_head()?.unwrap())?;
-            match obj {
-                ParsedObject::Commit(commit) => commit.tree,
-                _ => unreachable!(),
-            }
-        };
+        let tree_id = repo
+            .database
+            .load_commit(&repo.refs.read_head()?.unwrap())?
+            .tree;
 
         helper
             .jit_cmd(&["branch", "topic", &format!("{}^^", tree_id)])

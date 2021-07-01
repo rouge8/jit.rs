@@ -53,9 +53,18 @@ impl Database {
         object.oid()
     }
 
+    /// Load an object ID, returning a `ParsedObject`.
     pub fn load(&self, oid: &str) -> io::Result<ParsedObject> {
         // TODO: Cache this in self.objects
         self.read_object(oid)
+    }
+
+    /// Load a commit by its object ID, returning a `Commit`.
+    pub fn load_commit(&self, oid: &str) -> io::Result<Commit> {
+        match self.load(&oid)? {
+            ParsedObject::Commit(commit) => Ok(commit),
+            _ => unreachable!(),
+        }
     }
 
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {

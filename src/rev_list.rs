@@ -1,7 +1,6 @@
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::tree_diff::{Differ, TreeDiffChanges};
-use crate::database::ParsedObject;
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
 use crate::repository::Repository;
@@ -196,10 +195,7 @@ impl<'a> RevList<'a> {
         }
         let oid = oid.unwrap();
         if !self.commits.contains_key(oid) {
-            let commit = match self.repo.database.load(&oid)? {
-                ParsedObject::Commit(commit) => commit,
-                _ => unreachable!(),
-            };
+            let commit = self.repo.database.load_commit(&oid)?;
             self.commits.insert(oid.to_string(), commit);
         }
 

@@ -1,6 +1,6 @@
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
-use crate::database::{Database, ParsedObject};
+use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};
 use crate::revision::{Revision, COMMIT};
@@ -143,15 +143,11 @@ impl<'a> Checkout<'a> {
     }
 
     fn print_head_position(&self, message: &str, oid: &str) -> Result<()> {
-        match self.ctx.repo.database.load(&oid)? {
-            ParsedObject::Commit(commit) => {
-                let short = Database::short_oid(&oid);
+        let commit = self.ctx.repo.database.load_commit(&oid)?;
+        let short = Database::short_oid(&oid);
 
-                let mut stderr = self.ctx.stderr.borrow_mut();
-                writeln!(stderr, "{} {} {}", message, short, commit.title_line())?;
-            }
-            _ => unreachable!(),
-        }
+        let mut stderr = self.ctx.stderr.borrow_mut();
+        writeln!(stderr, "{} {} {}", message, short, commit.title_line())?;
 
         Ok(())
     }

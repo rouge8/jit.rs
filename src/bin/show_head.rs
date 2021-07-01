@@ -37,10 +37,7 @@ fn main() -> Result<()> {
     let repo = repo()?;
 
     let head_oid = repo.refs.read_head()?.unwrap();
-    let commit = match repo.database.load(&head_oid)? {
-        ParsedObject::Commit(commit) => commit,
-        _ => unreachable!(),
-    };
+    let commit = repo.database.load_commit(&head_oid)?;
 
     show_tree(commit.tree, PathBuf::from(""))?;
 

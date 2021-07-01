@@ -132,10 +132,7 @@ impl Repository {
         let head_oid = self.refs.read_head()?;
 
         if let Some(head_oid) = head_oid {
-            let commit = match self.database.load(&head_oid)? {
-                ParsedObject::Commit(commit) => commit,
-                _ => unreachable!(),
-            };
+            let commit = self.database.load_commit(&head_oid)?;
             let tree_oid = commit.tree;
             self.read_tree(tree_oid, PathBuf::new())?;
         }

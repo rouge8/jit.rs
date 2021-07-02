@@ -29,18 +29,18 @@ pub struct CommonAncestors<'a> {
 }
 
 impl<'a> CommonAncestors<'a> {
-    pub fn new(database: &'a Database, one: String, two: String) -> Result<Self> {
+    pub fn new(database: &'a Database, one: &str, two: &str) -> Result<Self> {
         let mut queue = VecDeque::new();
         let mut flags = HashMap::new();
 
         Self::insert_by_date(&mut queue, database.load_commit(&one)?);
         let mut one_flags = HashSet::new();
         one_flags.insert(Flag::Parent1);
-        flags.insert(one, one_flags);
+        flags.insert(one.to_string(), one_flags);
 
         Self::insert_by_date(&mut queue, database.load_commit(&two)?);
         // Use `flags.entry(two)` to grab the existing set of flags if `one == two`.
-        let two_flags = flags.entry(two).or_insert_with(HashSet::new);
+        let two_flags = flags.entry(two.to_string()).or_insert_with(HashSet::new);
         two_flags.insert(Flag::Parent2);
 
         Ok(Self {
@@ -165,11 +165,8 @@ mod tests {
         }
 
         pub fn ancestor(&self, left: &str, right: &str) -> Result<String> {
-            let mut common = CommonAncestors::new(
-                &self.database,
-                self.commits[left].clone(),
-                self.commits[right].clone(),
-            )?;
+            let mut common =
+                CommonAncestors::new(&self.database, &self.commits[left], &self.commits[right])?;
             let message = self.database.load_commit(&common.find()?.unwrap())?.message;
 
             Ok(message)

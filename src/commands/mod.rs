@@ -14,6 +14,7 @@ mod commit;
 mod diff;
 mod init;
 mod log;
+mod merge;
 mod shared;
 mod status;
 
@@ -24,6 +25,7 @@ use commit::Commit;
 use diff::Diff;
 use init::Init;
 use log::{Log, LogDecoration, LogFormat};
+use merge::Merge;
 use status::Status;
 
 #[derive(StructOpt, Debug)]
@@ -90,6 +92,9 @@ pub enum Command {
         #[structopt(short = "s", long, overrides_with = "patch")]
         _no_patch: bool,
     },
+    Merge {
+        args: Vec<String>,
+    },
     Status {
         #[structopt(long)]
         porcelain: bool,
@@ -133,6 +138,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Log { .. } => {
             let mut cmd = Log::new(ctx);
+            cmd.run()
+        }
+        Command::Merge { .. } => {
+            let mut cmd = Merge::new(ctx);
             cmd.run()
         }
         Command::Status { .. } => {

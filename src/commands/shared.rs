@@ -1,2 +1,2 @@
-pub mod print_diff;
-pub mod write_commit;
+pub mod commit_writer;
+pub mod diff_printer;

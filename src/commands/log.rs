@@ -1,4 +1,4 @@
-use crate::commands::shared::print_diff::PrintDiff;
+use crate::commands::shared::diff_printer::DiffPrinter;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
@@ -32,7 +32,7 @@ arg_enum! {
 
 pub struct Log<'a> {
     ctx: CommandContext<'a>,
-    print_diff: PrintDiff,
+    diff_printer: DiffPrinter,
     /// When false, calls to `Log.blank_line()` will not actually print a blank line.
     blank_line: RefCell<bool>,
     /// `jit log <commit>`
@@ -89,7 +89,7 @@ impl<'a> Log<'a> {
 
         Self {
             ctx,
-            print_diff: PrintDiff::new(),
+            diff_printer: DiffPrinter::new(),
             blank_line: RefCell::new(false),
             args,
             abbrev,
@@ -254,7 +254,7 @@ impl<'a> Log<'a> {
         self.blank_line()?;
 
         let mut stdout = self.ctx.stdout.borrow_mut();
-        self.print_diff.print_commit_diff(
+        self.diff_printer.print_commit_diff(
             &mut stdout,
             &self.ctx.repo,
             commit.parent().as_deref(),

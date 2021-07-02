@@ -1,4 +1,4 @@
-use crate::commands::shared::print_diff::{PrintDiff, Target};
+use crate::commands::shared::diff_printer::{DiffPrinter, Target};
 use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
 use crate::database::ParsedObject;
@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub struct Diff<'a> {
     ctx: CommandContext<'a>,
-    print_diff: PrintDiff,
+    diff_printer: DiffPrinter,
     /// `jit diff <commit> <commit>`
     args: Vec<String>,
     /// `jit diff --cached` or `jit diff --staged`
@@ -32,11 +32,11 @@ impl<'a> Diff<'a> {
             _ => unreachable!(),
         };
 
-        let print_diff = PrintDiff::new();
+        let diff_printer = DiffPrinter::new();
 
         Self {
             ctx,
-            print_diff,
+            diff_printer,
             args,
             cached,
             patch,
@@ -70,7 +70,7 @@ impl<'a> Diff<'a> {
             args.push(Revision::new(&self.ctx.repo, &rev).resolve(Some("commit"))?);
         }
         let mut stdout = self.ctx.stdout.borrow_mut();
-        self.print_diff.print_commit_diff(
+        self.diff_printer.print_commit_diff(
             &mut stdout,
             &self.ctx.repo,
             Some(&args[0]),
@@ -91,22 +91,22 @@ impl<'a> Diff<'a> {
             let state = &self.ctx.repo.index_changes[path];
             match state {
                 ChangeType::Added => {
-                    let mut a = self.print_diff.from_nothing(&path);
+                    let mut a = self.diff_printer.from_nothing(&path);
                     let mut b = self.from_index(&path)?;
 
-                    self.print_diff.print_diff(&mut stdout, &mut a, &mut b)?;
+                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Modified => {
                     let mut a = self.from_head(&path)?;
                     let mut b = self.from_index(&path)?;
 
-                    self.print_diff.print_diff(&mut stdout, &mut a, &mut b)?;
+                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Deleted => {
                     let mut a = self.from_head(&path)?;
-                    let mut b = self.print_diff.from_nothing(&path);
+                    let mut b = self.diff_printer.from_nothing(&path);
 
-                    self.print_diff.print_diff(&mut stdout, &mut a, &mut b)?;
+                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Untracked => unreachable!(),
             }
@@ -128,13 +128,13 @@ impl<'a> Diff<'a> {
                     let mut a = self.from_index(&path)?;
                     let mut b = self.from_file(&path)?;
 
-                    self.print_diff.print_diff(&mut stdout, &mut a, &mut b)?;
+                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Deleted => {
                     let mut a = self.from_index(&path)?;
-                    let mut b = self.print_diff.from_nothing(&path);
+                    let mut b = self.diff_printer.from_nothing(&path);
 
-                    self.print_diff.print_diff(&mut stdout, &mut a, &mut b)?;
+                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 _ => unreachable!(),
             }

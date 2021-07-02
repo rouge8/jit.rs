@@ -41,9 +41,9 @@ impl Target {
     }
 }
 
-pub struct PrintDiff {}
+pub struct DiffPrinter {}
 
-impl PrintDiff {
+impl DiffPrinter {
     pub fn new() -> Self {
         Self {}
     }

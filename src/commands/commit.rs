@@ -1,4 +1,4 @@
-use crate::commands::shared::write_commit::WriteCommit;
+use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::CommandContext;
 use crate::database::object::Object;
 use crate::errors::Error;
@@ -33,7 +33,7 @@ impl<'a> Commit<'a> {
             return Err(Error::Exit(0));
         }
 
-        let commit = self.write_commit().write_commit(parents, message)?;
+        let commit = self.commit_writer().write_commit(parents, message)?;
 
         let mut is_root = String::new();
         match commit.parent() {
@@ -53,7 +53,7 @@ impl<'a> Commit<'a> {
         Ok(())
     }
 
-    fn write_commit(&self) -> WriteCommit {
-        WriteCommit::new(&self.ctx)
+    fn commit_writer(&self) -> CommitWriter {
+        CommitWriter::new(&self.ctx)
     }
 }

@@ -7,11 +7,11 @@ use crate::database::tree::Tree;
 use crate::errors::Result;
 use chrono::{DateTime, Local};
 
-pub struct WriteCommit<'a> {
+pub struct CommitWriter<'a> {
     ctx: &'a CommandContext<'a>,
 }
 
-impl<'a> WriteCommit<'a> {
+impl<'a> CommitWriter<'a> {
     pub fn new(ctx: &'a CommandContext) -> Self {
         Self { ctx }
     }

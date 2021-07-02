@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Commit {
-    pub parent: Option<String>,
+    pub parents: Vec<String>,
     pub tree: String,
     pub author: Author,
     pub message: String,
@@ -15,9 +15,9 @@ pub struct Commit {
 }
 
 impl Commit {
-    pub fn new(parent: Option<String>, tree: String, author: Author, message: String) -> Self {
+    pub fn new(parents: Vec<String>, tree: String, author: Author, message: String) -> Self {
         Commit {
-            parent,
+            parents,
             tree,
             author,
             message,
@@ -28,7 +28,7 @@ impl Commit {
     pub fn parse(data: &[u8], oid: &str) -> ParsedObject {
         let mut data = std::str::from_utf8(data).expect("Invalid UTF-8");
 
-        let mut headers: HashMap<&str, &str> = HashMap::new();
+        let mut headers: HashMap<&str, Vec<&str>> = HashMap::new();
 
         loop {
             let (line, rest) = data.split_once("\n").unwrap();
@@ -36,18 +36,23 @@ impl Commit {
             let line = line.trim();
 
             if line.is_empty() {
-                let parent = headers.get("parent").map(|parent| parent.to_string());
+                let parents = headers
+                    .entry("parent")
+                    .or_insert_with(Vec::new)
+                    .iter()
+                    .map(|parent| parent.to_string())
+                    .collect();
                 break ParsedObject::Commit(Commit {
-                    parent,
-                    tree: headers["tree"].to_string(),
-                    author: Author::parse(headers["author"]),
+                    parents,
+                    tree: headers["tree"][0].to_string(),
+                    author: Author::parse(headers["author"][0]),
                     message: data.to_string(),
                     oid: Some(oid.to_string()),
                 });
             }
 
             let (key, value) = line.split_once(" ").unwrap();
-            headers.insert(key, value);
+            headers.entry(key).or_insert_with(Vec::new).push(value);
         }
     }
 
@@ -57,6 +62,10 @@ impl Commit {
 
     pub fn date(&self) -> DateTime<FixedOffset> {
         self.author.time
+    }
+
+    pub fn parent(&self) -> Option<String> {
+        self.parents.first().map(|parent| parent.to_owned())
     }
 }
 
@@ -76,10 +85,9 @@ impl Object for Commit {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let parent = &self.parent;
-
         let mut lines = vec![format!("tree {}", &self.tree)];
-        if let Some(parent) = parent {
+
+        for parent in &self.parents {
             lines.push(format!("parent {}", parent));
         }
         lines.append(&mut vec![

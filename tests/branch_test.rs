@@ -67,7 +67,7 @@ mod with_a_chain_of_commits {
 
         assert_eq!(
             &repo.refs.read_ref("topic")?.unwrap(),
-            head.parent.as_ref().unwrap(),
+            head.parent().as_ref().unwrap(),
         );
 
         Ok(())
@@ -83,11 +83,11 @@ mod with_a_chain_of_commits {
             .load_commit(&repo.refs.read_head()?.unwrap())?;
 
         let repo = helper.repo();
-        let parent = repo.database.load_commit(head.parent.as_ref().unwrap())?;
+        let parent = repo.database.load_commit(head.parent().as_ref().unwrap())?;
 
         assert_eq!(
             &repo.refs.read_ref("topic")?.unwrap(),
-            parent.parent.as_ref().unwrap(),
+            parent.parent().as_ref().unwrap(),
         );
 
         Ok(())

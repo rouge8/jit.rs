@@ -99,7 +99,7 @@ impl<'a> Revision<'a> {
             Some(oid) => {
                 let commit = self.load_typed_object(Some(&oid), COMMIT)?;
                 match commit {
-                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent),
+                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent()),
                     _ => Ok(None),
                 }
             }

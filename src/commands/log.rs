@@ -257,7 +257,7 @@ impl<'a> Log<'a> {
         self.print_diff.print_commit_diff(
             &mut stdout,
             &self.ctx.repo,
-            commit.parent.as_deref(),
+            commit.parent().as_deref(),
             &commit.oid(),
             Some(rev_list),
         )?;

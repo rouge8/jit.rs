@@ -66,13 +66,13 @@ impl<'a> CommonAncestors<'a> {
     }
 
     fn add_parents(&mut self, commit: &Commit, flags: HashSet<Flag>) -> Result<()> {
-        if commit.parent.is_none() {
+        if commit.parent().is_none() {
             return Ok(());
         }
 
         let parent = self
             .database
-            .load_commit(&commit.parent.as_ref().unwrap())?;
+            .load_commit(&commit.parent().as_ref().unwrap())?;
 
         let current_flags = self.flags.entry(parent.oid()).or_insert_with(HashSet::new);
         if current_flags.is_superset(&flags) {
@@ -136,12 +136,16 @@ mod tests {
                 String::from("author@example.com"),
                 self.time,
             );
-            let parent = if let Some(parent) = parent {
-                self.commits.get(parent).map(|parent| parent.to_owned())
+            let parents = if let Some(parent) = parent {
+                if let Some(parent) = self.commits.get(parent) {
+                    vec![parent.to_owned()]
+                } else {
+                    vec![]
+                }
             } else {
-                None
+                vec![]
             };
-            let commit = Commit::new(parent, "0".repeat(40), author, message.to_string());
+            let commit = Commit::new(parents, "0".repeat(40), author, message.to_string());
 
             self.database.store(&commit)?;
             self.commits.insert(message.to_string(), commit.oid());

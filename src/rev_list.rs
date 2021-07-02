@@ -160,7 +160,7 @@ impl<'a> RevList<'a> {
             return Ok(());
         }
 
-        let parent = self.load_commit(commit.parent.as_deref())?;
+        let parent = self.load_commit(commit.parent().as_deref())?;
 
         if self.is_marked(&commit.oid(), Flag::Uninteresting) {
             if let Some(ref parent) = parent {
@@ -180,8 +180,9 @@ impl<'a> RevList<'a> {
     fn mark_parents_uninteresting(&mut self, commit: Option<&Commit>) {
         let mut commit = commit;
 
-        while commit.is_some() && commit.unwrap().parent.is_some() {
-            let parent = commit.unwrap().parent.as_ref().unwrap();
+        while commit.is_some() && commit.unwrap().parent().is_some() {
+            let parent = commit.unwrap().parent();
+            let parent = parent.as_ref().unwrap();
             if !self.mark(parent, Flag::Uninteresting) {
                 break;
             }
@@ -231,7 +232,7 @@ impl<'a> RevList<'a> {
         }
 
         if self
-            .tree_diff(commit.parent.as_deref(), Some(&commit.oid()), None)?
+            .tree_diff(commit.parent().as_deref(), Some(&commit.oid()), None)?
             .is_empty()
         {
             self.mark(&commit.oid(), Flag::Treesame);

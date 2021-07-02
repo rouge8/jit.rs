@@ -35,7 +35,11 @@ impl<'a> Commit<'a> {
             self.ctx.repo.database.store(tree).unwrap();
         });
 
-        let parent = self.ctx.repo.refs.read_head()?;
+        let parents = if let Some(parent) = self.ctx.repo.refs.read_head()? {
+            vec![parent]
+        } else {
+            vec![]
+        };
         let name = &self.ctx.env["GIT_AUTHOR_NAME"];
         let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
         let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
@@ -55,12 +59,12 @@ impl<'a> Commit<'a> {
             return Err(Error::Exit(0));
         }
 
-        let commit = DatabaseCommit::new(parent, root.oid(), author, message);
+        let commit = DatabaseCommit::new(parents, root.oid(), author, message);
         self.ctx.repo.database.store(&commit)?;
         self.ctx.repo.refs.update_head(commit.oid())?;
 
         let mut is_root = String::new();
-        match commit.parent {
+        match commit.parent() {
             Some(_) => (),
             None => is_root.push_str("(root-commit) "),
         }

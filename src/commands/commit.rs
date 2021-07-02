@@ -1,12 +1,8 @@
+use crate::commands::shared::write_commit::WriteCommit;
 use crate::commands::CommandContext;
-use crate::database::author::Author;
-use crate::database::commit::Commit as DatabaseCommit;
-use crate::database::entry::Entry;
 use crate::database::object::Object;
-use crate::database::tree::Tree;
 use crate::errors::Error;
 use crate::errors::Result;
-use chrono::{DateTime, Local};
 use std::io;
 use std::io::{Read, Write};
 
@@ -22,33 +18,11 @@ impl<'a> Commit<'a> {
     pub fn run(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
 
-        let entries = self
-            .ctx
-            .repo
-            .index
-            .entries
-            .values()
-            .map(Entry::from)
-            .collect();
-        let root = Tree::build(entries);
-        root.traverse(&|tree| {
-            self.ctx.repo.database.store(tree).unwrap();
-        });
-
         let parents = if let Some(parent) = self.ctx.repo.refs.read_head()? {
             vec![parent]
         } else {
             vec![]
         };
-        let name = &self.ctx.env["GIT_AUTHOR_NAME"];
-        let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
-        let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
-            DateTime::parse_from_rfc2822(author_date_str).expect("could not parse GIT_AUTHOR_DATE")
-        } else {
-            let now = Local::now();
-            now.with_timezone(now.offset())
-        };
-        let author = Author::new(name.clone(), email.clone(), author_date);
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
 
@@ -59,9 +33,7 @@ impl<'a> Commit<'a> {
             return Err(Error::Exit(0));
         }
 
-        let commit = DatabaseCommit::new(parents, root.oid(), author, message);
-        self.ctx.repo.database.store(&commit)?;
-        self.ctx.repo.refs.update_head(commit.oid())?;
+        let commit = self.write_commit().write_commit(parents, message)?;
 
         let mut is_root = String::new();
         match commit.parent() {
@@ -79,5 +51,9 @@ impl<'a> Commit<'a> {
         )?;
 
         Ok(())
+    }
+
+    fn write_commit(&self) -> WriteCommit {
+        WriteCommit::new(&self.ctx)
     }
 }

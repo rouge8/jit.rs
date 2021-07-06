@@ -19,6 +19,8 @@ lazy_static! {
 pub enum Flag {
     Parent1,
     Parent2,
+    Result,
+    Stale,
 }
 
 #[derive(Debug)]
@@ -26,6 +28,7 @@ pub struct CommonAncestors<'a> {
     database: &'a Database,
     flags: HashMap<String, HashSet<Flag>>,
     queue: VecDeque<Commit>,
+    results: VecDeque<Commit>,
 }
 
 impl<'a> CommonAncestors<'a> {
@@ -47,42 +50,73 @@ impl<'a> CommonAncestors<'a> {
             database,
             flags,
             queue,
+            results: VecDeque::new(),
         })
     }
 
-    pub fn find(&mut self) -> Result<Option<String>> {
-        while !self.queue.is_empty() {
-            let commit = self.queue.pop_front().unwrap();
-            let flags = self.flags[&commit.oid()].clone();
-
-            if flags == *BOTH_PARENTS {
-                return Ok(Some(commit.oid()));
-            }
-
-            self.add_parents(&commit, flags)?;
+    pub fn find(&mut self) -> Result<Vec<String>> {
+        while !self.all_stale() {
+            dbg!(("before", &self.queue, &self.results, &self.flags));
+            self.process_queue()?;
+            dbg!(("after", &self.queue, &self.results, &self.flags));
         }
 
-        Ok(None)
+        Ok(self
+            .results
+            .iter()
+            .filter_map(|commit| {
+                if !self.is_marked(commit.oid(), Flag::Stale) {
+                    Some(commit.oid())
+                } else {
+                    None
+                }
+            })
+            .collect())
     }
 
-    fn add_parents(&mut self, commit: &Commit, flags: HashSet<Flag>) -> Result<()> {
-        if commit.parent().is_none() {
-            return Ok(());
+    fn all_stale(&self) -> bool {
+        self.queue
+            .iter()
+            .all(|commit| self.is_marked(commit.oid(), Flag::Stale))
+    }
+
+    fn is_marked(&self, oid: String, flag: Flag) -> bool {
+        self.flags[&oid].contains(&flag)
+    }
+
+    fn process_queue(&mut self) -> Result<()> {
+        let commit = self.queue.pop_front().unwrap();
+        let flags = self.flags.get_mut(&commit.oid()).unwrap();
+
+        if flags == &*BOTH_PARENTS {
+            flags.insert(Flag::Result);
+            Self::insert_by_date(&mut self.results, commit.clone());
+            // Add `flags` and `Flag::Stale` to the parents
+            let mut flags = flags.clone();
+            flags.insert(Flag::Stale);
+            self.add_parents(&commit, &flags)?;
+        } else {
+            let flags = flags.clone();
+            self.add_parents(&commit, &flags)?;
         }
 
-        let parent = self
-            .database
-            .load_commit(&commit.parent().as_ref().unwrap())?;
+        Ok(())
+    }
 
-        let current_flags = self.flags.entry(parent.oid()).or_insert_with(HashSet::new);
-        if current_flags.is_superset(&flags) {
-            return Ok(());
-        }
+    fn add_parents(&mut self, commit: &Commit, flags: &HashSet<Flag>) -> Result<()> {
+        for parent in &commit.parents {
+            let parent = self.database.load_commit(&parent)?;
 
-        for flag in flags {
-            current_flags.insert(flag);
+            let current_flags = self.flags.entry(parent.oid()).or_insert_with(HashSet::new);
+            if current_flags.is_superset(&flags) {
+                continue;
+            }
+
+            for flag in flags {
+                current_flags.insert(flag.to_owned());
+            }
+            Self::insert_by_date(&mut self.queue, parent);
         }
-        Self::insert_by_date(&mut self.queue, parent);
 
         Ok(())
     }
@@ -130,21 +164,16 @@ mod tests {
             }
         }
 
-        pub fn commit(&mut self, parent: Option<&str>, message: &str) -> Result<()> {
+        pub fn commit(&mut self, parents: &[&str], message: &str) -> Result<()> {
             let author = Author::new(
                 String::from("A. U. Thor"),
                 String::from("author@example.com"),
                 self.time,
             );
-            let parents = if let Some(parent) = parent {
-                if let Some(parent) = self.commits.get(parent) {
-                    vec![parent.to_owned()]
-                } else {
-                    vec![]
-                }
-            } else {
-                vec![]
-            };
+            let parents = parents
+                .iter()
+                .map(|parent| self.commits.get(parent.to_owned()).unwrap().to_owned())
+                .collect();
             let commit = Commit::new(parents, "0".repeat(40), author, message.to_string());
 
             self.database.store(&commit)?;
@@ -155,21 +184,28 @@ mod tests {
 
         pub fn chain(&mut self, names: &[Option<&str>]) -> Result<()> {
             for window in names.windows(2) {
-                let parent = window[0];
+                let parents = if let Some(parent) = window[0] {
+                    vec![parent]
+                } else {
+                    vec![]
+                };
                 let message = window[1].unwrap();
 
-                self.commit(parent, message)?;
+                self.commit(&parents, message)?;
             }
 
             Ok(())
         }
 
-        pub fn ancestor(&self, left: &str, right: &str) -> Result<String> {
+        pub fn ancestor(&self, left: &str, right: &str) -> Result<Vec<String>> {
             let mut common =
                 CommonAncestors::new(&self.database, &self.commits[left], &self.commits[right])?;
-            let message = self.database.load_commit(&common.find()?.unwrap())?.message;
 
-            Ok(message)
+            Ok(common
+                .find()?
+                .iter()
+                .map(|oid| self.database.load_commit(&oid).unwrap().message)
+                .collect())
         }
     }
 
@@ -197,35 +233,35 @@ mod tests {
 
         #[rstest]
         fn find_the_common_ancestor_of_a_commit_with_itself(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("D", "D")?, "D");
+            assert_eq!(helper.ancestor("D", "D")?, ["D"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_the_commit_that_is_an_ancestor_of_the_other(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("B", "D")?, "B");
+            assert_eq!(helper.ancestor("B", "D")?, ["B"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_the_same_commit_if_the_arguments_are_reversed(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("D", "B")?, "B");
+            assert_eq!(helper.ancestor("D", "B")?, ["B"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_a_root_commit(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("A", "C")?, "A");
+            assert_eq!(helper.ancestor("A", "C")?, ["A"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_the_intersection_of_a_root_commit_with_itself(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("A", "A")?, "A");
+            assert_eq!(helper.ancestor("A", "A")?, ["A"]);
 
             Ok(())
         }
@@ -263,37 +299,150 @@ mod tests {
 
         #[rstest]
         fn find_the_nearest_fork_point(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("H", "K")?, "G");
+            assert_eq!(helper.ancestor("H", "K")?, ["G"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_an_ancestor_multiple_forks_away(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("D", "K")?, "B");
+            assert_eq!(helper.ancestor("D", "K")?, ["B"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_the_same_fork_point_for_any_point_on_a_branch(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("D", "L")?, "C");
-            assert_eq!(helper.ancestor("M", "D")?, "C");
-            assert_eq!(helper.ancestor("D", "N")?, "C");
+            assert_eq!(helper.ancestor("D", "L")?, ["C"]);
+            assert_eq!(helper.ancestor("M", "D")?, ["C"]);
+            assert_eq!(helper.ancestor("D", "N")?, ["C"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_the_commit_that_is_an_ancestor_of_the_other(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("K", "E")?, "E");
+            assert_eq!(helper.ancestor("K", "E")?, ["E"]);
 
             Ok(())
         }
 
         #[rstest]
         fn find_a_root_commit(helper: GraphHelper) -> Result<()> {
-            assert_eq!(helper.ancestor("J", "A")?, "A");
+            assert_eq!(helper.ancestor("J", "A")?, ["A"]);
+
+            Ok(())
+        }
+    }
+
+    ///   A   B   C   G   H
+    ///   o---o---o---o---o
+    ///        \     /
+    ///         o---o---o
+    ///         D   E   F
+    mod with_a_merge {
+        use super::*;
+
+        #[fixture]
+        fn helper() -> GraphHelper {
+            let mut helper = GraphHelper::new();
+
+            helper
+                .chain(&[None, Some("A"), Some("B"), Some("C")])
+                .unwrap();
+            helper
+                .chain(&[Some("B"), Some("D"), Some("E"), Some("F")])
+                .unwrap();
+            helper.commit(&["C", "E"], "G").unwrap();
+            helper.chain(&[Some("G"), Some("H")]).unwrap();
+
+            helper
+        }
+
+        #[rstest]
+        fn find_the_most_recent_common_ancestor(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("H", "F")?, ["E"]);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn find_the_common_ancestor_of_a_merge_and_its_parents(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("C", "G")?, ["C"]);
+            assert_eq!(helper.ancestor("G", "E")?, ["E"]);
+
+            Ok(())
+        }
+    }
+
+    ///   A   B   C       H   J
+    ///   o---o---o-------o---o
+    ///        \         /
+    ///         o---o---o G
+    ///         D  E \
+    ///               o F
+    mod with_commits_between_the_common_ancestor_and_the_merge {
+        use super::*;
+
+        #[fixture]
+        fn helper() -> GraphHelper {
+            let mut helper = GraphHelper::new();
+
+            helper
+                .chain(&[None, Some("A"), Some("B"), Some("C")])
+                .unwrap();
+            helper
+                .chain(&[Some("B"), Some("D"), Some("E"), Some("F")])
+                .unwrap();
+            helper.chain(&[Some("E"), Some("G")]).unwrap();
+            helper.commit(&["C", "G"], "H").unwrap();
+            helper.chain(&[Some("H"), Some("J")]).unwrap();
+
+            helper
+        }
+
+        #[rstest]
+        fn find_all_the_common_ancestors(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("J", "F")?, ["B", "E"]);
+
+            Ok(())
+        }
+    }
+
+    ///   A   B   C             H   J
+    ///   o---o---o-------------o---o
+    ///        \      E        /
+    ///         o-----o-------o
+    ///        D \     \     / G
+    ///           \     o   /
+    ///            \    F  /
+    ///             o-----o
+    ///             P     Q
+    mod with_enough_history_to_find_all_stale_results {
+        use super::*;
+
+        #[fixture]
+        fn helper() -> GraphHelper {
+            let mut helper = GraphHelper::new();
+
+            helper
+                .chain(&[None, Some("A"), Some("B"), Some("C")])
+                .unwrap();
+            helper
+                .chain(&[Some("B"), Some("D"), Some("E"), Some("F")])
+                .unwrap();
+            helper.chain(&[Some("D"), Some("P"), Some("Q")]).unwrap();
+            helper.commit(&["E", "Q"], "G").unwrap();
+            helper.commit(&["C", "G"], "H").unwrap();
+            helper.chain(&[Some("H"), Some("J")]).unwrap();
+
+            helper
+        }
+
+        #[rstest]
+        fn find_the_best_common_ancestor(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("J", "F")?, ["E"]);
+            assert_eq!(helper.ancestor("F", "J")?, ["E"]);
 
             Ok(())
         }

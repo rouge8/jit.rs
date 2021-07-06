@@ -31,15 +31,16 @@ impl<'a> Merge<'a> {
         let merge_oid = revision.resolve(Some(COMMIT))?;
 
         let mut common = CommonAncestors::new(&self.ctx.repo.database, &head_oid, &merge_oid)?;
-        let base_oid = common.find()?;
+        let parents = common.find()?;
+        let base_oid = parents.first();
 
         self.ctx.repo.index.load_for_update()?;
 
-        let tree_diff =
-            self.ctx
-                .repo
-                .database
-                .tree_diff(base_oid.as_deref(), Some(&merge_oid), None)?;
+        let tree_diff = self.ctx.repo.database.tree_diff(
+            base_oid.map(String::as_str),
+            Some(&merge_oid),
+            None,
+        )?;
         let mut migration = self.ctx.repo.migration(tree_diff);
         migration.apply_changes()?;
 

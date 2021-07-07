@@ -88,3 +88,99 @@ mod unconflicted_merge_with_two_files {
         Ok(())
     }
 }
+
+///   A   B   C       M1  H   M2
+///   o---o---o-------o---o---o
+///        \         /       /
+///         o---o---o G     /
+///         D  E \         /
+///               `-------o
+///                       F
+mod multiple_common_ancestors {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "1");
+        commit_tree(&mut helper, "A", tree).unwrap();
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "2");
+        commit_tree(&mut helper, "B", tree).unwrap();
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "3");
+        commit_tree(&mut helper, "C", tree).unwrap();
+
+        helper.jit_cmd(&["branch", "topic", "main^"]);
+        helper.jit_cmd(&["checkout", "topic"]);
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "1");
+        commit_tree(&mut helper, "D", tree).unwrap();
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "2");
+        commit_tree(&mut helper, "E", tree).unwrap();
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "3");
+        commit_tree(&mut helper, "F", tree).unwrap();
+
+        helper.jit_cmd(&["branch", "joiner", "topic^"]);
+        helper.jit_cmd(&["checkout", "joiner"]);
+        let mut tree = HashMap::new();
+        tree.insert("h.txt", "1");
+        commit_tree(&mut helper, "G", tree).unwrap();
+
+        helper.jit_cmd(&["checkout", "main"]);
+
+        helper
+    }
+
+    #[rstest]
+    fn perform_the_first_merge(mut helper: CommandHelper) -> Result<()> {
+        helper.stdin = String::from("merge joiner");
+        helper.jit_cmd(&["merge", "joiner"]).assert().code(0);
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "3");
+        workspace.insert("g.txt", "2");
+        workspace.insert("h.txt", "1");
+        helper.assert_workspace(&workspace)?;
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn perform_the_second_merge(mut helper: CommandHelper) -> Result<()> {
+        helper.stdin = String::from("merge joiner");
+        helper.jit_cmd(&["merge", "joiner"]).assert().code(0);
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "4");
+        commit_tree(&mut helper, "H", tree)?;
+
+        helper.stdin = String::from("merge topic");
+        helper.jit_cmd(&["merge", "topic"]).assert().code(0);
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "4");
+        workspace.insert("g.txt", "3");
+        workspace.insert("h.txt", "1");
+        helper.assert_workspace(&workspace)?;
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("");
+
+        Ok(())
+    }
+}

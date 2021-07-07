@@ -2,7 +2,7 @@ use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
 use crate::errors::Result;
-use crate::merge::common_ancestors::CommonAncestors;
+use crate::merge::bases::Bases;
 use crate::revision::{Revision, COMMIT};
 use std::io;
 use std::io::Read;
@@ -30,7 +30,7 @@ impl<'a> Merge<'a> {
         let mut revision = Revision::new(&self.ctx.repo, &self.args[0]);
         let merge_oid = revision.resolve(Some(COMMIT))?;
 
-        let mut common = CommonAncestors::new(&self.ctx.repo.database, &head_oid, &[&merge_oid])?;
+        let mut common = Bases::new(&self.ctx.repo.database, &head_oid, &merge_oid)?;
         let parents = common.find()?;
         let base_oid = parents.first();
 

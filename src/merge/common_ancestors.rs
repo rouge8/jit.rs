@@ -56,9 +56,7 @@ impl<'a> CommonAncestors<'a> {
 
     pub fn find(&mut self) -> Result<Vec<String>> {
         while !self.all_stale() {
-            dbg!(("before", &self.queue, &self.results, &self.flags));
             self.process_queue()?;
-            dbg!(("after", &self.queue, &self.results, &self.flags));
         }
 
         Ok(self

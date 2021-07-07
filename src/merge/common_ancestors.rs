@@ -32,7 +32,7 @@ pub struct CommonAncestors<'a> {
 }
 
 impl<'a> CommonAncestors<'a> {
-    pub fn new(database: &'a Database, one: &str, two: &str) -> Result<Self> {
+    pub fn new(database: &'a Database, one: &str, twos: &[&str]) -> Result<Self> {
         let mut queue = VecDeque::new();
         let mut flags = HashMap::new();
 
@@ -41,10 +41,12 @@ impl<'a> CommonAncestors<'a> {
         one_flags.insert(Flag::Parent1);
         flags.insert(one.to_string(), one_flags);
 
-        Self::insert_by_date(&mut queue, database.load_commit(&two)?);
-        // Use `flags.entry(two)` to grab the existing set of flags if `one == two`.
-        let two_flags = flags.entry(two.to_string()).or_insert_with(HashSet::new);
-        two_flags.insert(Flag::Parent2);
+        for two in twos {
+            Self::insert_by_date(&mut queue, database.load_commit(&two)?);
+            // Use `flags.entry(two)` to grab the existing set of flags if `one == two`.
+            let two_flags = flags.entry(two.to_string()).or_insert_with(HashSet::new);
+            two_flags.insert(Flag::Parent2);
+        }
 
         Ok(Self {
             database,
@@ -72,14 +74,14 @@ impl<'a> CommonAncestors<'a> {
             .collect())
     }
 
+    pub fn is_marked(&self, oid: String, flag: Flag) -> bool {
+        self.flags[&oid].contains(&flag)
+    }
+
     fn all_stale(&self) -> bool {
         self.queue
             .iter()
             .all(|commit| self.is_marked(commit.oid(), Flag::Stale))
-    }
-
-    fn is_marked(&self, oid: String, flag: Flag) -> bool {
-        self.flags[&oid].contains(&flag)
     }
 
     fn process_queue(&mut self) -> Result<()> {
@@ -135,6 +137,7 @@ mod tests {
     use crate::database::author::Author;
     use crate::database::commit::Commit;
     use crate::database::object::Object;
+    use crate::merge::bases::Bases;
     use chrono::{DateTime, FixedOffset, Local};
     use rstest::{fixture, rstest};
     use std::fs;
@@ -197,13 +200,26 @@ mod tests {
 
         pub fn ancestor(&self, left: &str, right: &str) -> Result<Vec<String>> {
             let mut common =
-                CommonAncestors::new(&self.database, &self.commits[left], &self.commits[right])?;
+                CommonAncestors::new(&self.database, &self.commits[left], &[&self.commits[right]])?;
 
             Ok(common
                 .find()?
                 .iter()
                 .map(|oid| self.database.load_commit(&oid).unwrap().message)
                 .collect())
+        }
+
+        pub fn merge_base(&self, left: &str, right: &str) -> Result<String> {
+            let mut bases = Bases::new(&self.database, &self.commits[left], &self.commits[right])?;
+
+            let result: Vec<_> = bases
+                .find()?
+                .iter()
+                .map(|oid| self.database.load_commit(&oid).unwrap().message)
+                .collect();
+            assert_eq!(result.len(), 1);
+
+            Ok(result[0].clone())
         }
     }
 
@@ -373,6 +389,45 @@ mod tests {
         }
     }
 
+    ///   A   B   C   G   H   J
+    ///   o---o---o---o---o---o
+    ///        \     /
+    ///         o---o---o
+    ///         D   E   F
+    mod with_a_merge_further_from_one_parent {
+        use super::*;
+
+        #[fixture]
+        fn helper() -> GraphHelper {
+            let mut helper = GraphHelper::new();
+
+            helper
+                .chain(&[None, Some("A"), Some("B"), Some("C")])
+                .unwrap();
+            helper
+                .chain(&[Some("B"), Some("D"), Some("E"), Some("F")])
+                .unwrap();
+            helper.commit(&["C", "E"], "G").unwrap();
+            helper.chain(&[Some("G"), Some("H"), Some("J")]).unwrap();
+
+            helper
+        }
+
+        #[rstest]
+        fn find_all_the_common_ancestors(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("J", "F")?, &["E", "B"]);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn find_the_best_common_ancestor(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.merge_base("J", "F")?, "E");
+
+            Ok(())
+        }
+    }
+
     ///   A   B   C       H   J
     ///   o---o---o-------o---o
     ///        \         /
@@ -402,6 +457,13 @@ mod tests {
         #[rstest]
         fn find_all_the_common_ancestors(helper: GraphHelper) -> Result<()> {
             assert_eq!(helper.ancestor("J", "F")?, ["B", "E"]);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn find_the_best_common_ancestor(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.merge_base("J", "F")?, "E");
 
             Ok(())
         }
@@ -441,6 +503,77 @@ mod tests {
         fn find_the_best_common_ancestor(helper: GraphHelper) -> Result<()> {
             assert_eq!(helper.ancestor("J", "F")?, ["E"]);
             assert_eq!(helper.ancestor("F", "J")?, ["E"]);
+
+            Ok(())
+        }
+    }
+
+    ///         L   M   N   P   Q   R   S   T
+    ///         o---o---o---o---o---o---o---o
+    ///        /       /       /       /
+    ///   o---o---o...o---o...o---o---o---o---o
+    ///   A   B  C \  D  E \  F  G \  H   J   K
+    ///             \       \       \
+    ///              o---o---o---o---o---o
+    ///              U   V   W   X   Y   Z
+    mod with_many_common_ancestors {
+        use super::*;
+
+        #[fixture]
+        fn helper() -> GraphHelper {
+            let mut helper = GraphHelper::new();
+
+            helper
+                .chain(&[
+                    None,
+                    Some("A"),
+                    Some("B"),
+                    Some("C"),
+                    Some("pad-1-1"),
+                    Some("pad-1-2"),
+                    Some("pad-1-3"),
+                    Some("pad-1-4"),
+                    Some("D"),
+                    Some("E"),
+                    Some("pad-2-1"),
+                    Some("pad-2-2"),
+                    Some("pad-2-3"),
+                    Some("pad-2-4"),
+                    Some("F"),
+                    Some("G"),
+                    Some("H"),
+                    Some("J"),
+                    Some("K"),
+                ])
+                .unwrap();
+
+            helper.chain(&[Some("B"), Some("L"), Some("M")]).unwrap();
+            helper.commit(&["M", "D"], "N").unwrap();
+            helper.chain(&[Some("N"), Some("P")]).unwrap();
+            helper.commit(&["P", "F"], "Q").unwrap();
+            helper.chain(&[Some("Q"), Some("R")]).unwrap();
+            helper.commit(&["R", "H"], "S").unwrap();
+            helper.chain(&[Some("S"), Some("T")]).unwrap();
+
+            helper.chain(&[Some("C"), Some("U"), Some("V")]).unwrap();
+            helper.commit(&["V", "E"], "W").unwrap();
+            helper.chain(&[Some("W"), Some("X")]).unwrap();
+            helper.commit(&["X", "G"], "Y").unwrap();
+            helper.chain(&[Some("Y"), Some("Z")]).unwrap();
+
+            helper
+        }
+
+        #[rstest]
+        fn find_multiple_candidate_common_ancestors(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.ancestor("T", "Z")?, &["G", "D", "B"]);
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn find_the_best_common_ancestor(helper: GraphHelper) -> Result<()> {
+            assert_eq!(helper.merge_base("T", "Z")?, "G");
 
             Ok(())
         }

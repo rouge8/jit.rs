@@ -30,7 +30,7 @@ impl<'a> Merge<'a> {
         let mut revision = Revision::new(&self.ctx.repo, &self.args[0]);
         let merge_oid = revision.resolve(Some(COMMIT))?;
 
-        let mut common = CommonAncestors::new(&self.ctx.repo.database, &head_oid, &merge_oid)?;
+        let mut common = CommonAncestors::new(&self.ctx.repo.database, &head_oid, &[&merge_oid])?;
         let parents = common.find()?;
         let base_oid = parents.first();
 

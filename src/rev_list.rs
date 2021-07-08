@@ -160,18 +160,22 @@ impl<'a> RevList<'a> {
             return Ok(());
         }
 
-        let parent = self.load_commit(commit.parent().as_deref())?;
+        let parents: Vec<_> = commit
+            .parents
+            .iter()
+            .map(|oid| self.load_commit(Some(&oid)).unwrap())
+            .collect();
 
         if self.is_marked(&commit.oid(), Flag::Uninteresting) {
-            if let Some(ref parent) = parent {
-                self.mark_parents_uninteresting(Some(&parent));
+            for parent in &parents {
+                self.mark_parents_uninteresting(parent.as_ref());
             }
         } else {
             self.simplify_commit(&commit)?;
         }
 
-        if let Some(parent) = parent {
-            self.enqueue_commit(Some(&parent));
+        for parent in &parents {
+            self.enqueue_commit(parent.as_ref());
         }
 
         Ok(())

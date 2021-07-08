@@ -1,6 +1,7 @@
 mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
+use chrono::{Duration, Local};
 pub use common::CommandHelper;
 use jit::database::commit::Commit;
 use jit::database::object::Object;
@@ -430,9 +431,10 @@ mod with_a_tree_of_commits {
         helper.init();
 
         // All commits to `main` will have the same timestamp
-        helper
-            .env
-            .insert("GIT_AUTHOR_DATE", "Mon, 28 Jun 2021 18:04:07 +0000");
+        helper.env.insert(
+            String::from("GIT_AUTHOR_DATE"),
+            String::from("Mon, 28 Jun 2021 18:04:07 +0000"),
+        );
 
         for n in 1..=3 {
             commit_file(&mut helper, &format!("main-{}", n)).unwrap();
@@ -445,9 +447,10 @@ mod with_a_tree_of_commits {
         helper.jit_cmd(&["checkout", "topic"]).assert().code(0);
 
         // Commits to `topic` will be one second later than those to main
-        helper
-            .env
-            .insert("GIT_AUTHOR_DATE", "Mon, 28 Jun 2021 18:04:08 +0000");
+        helper.env.insert(
+            String::from("GIT_AUTHOR_DATE"),
+            String::from("Mon, 28 Jun 2021 18:04:08 +0000"),
+        );
 
         for n in 1..=4 {
             commit_file(&mut helper, &format!("topic-{}", n)).unwrap();
@@ -560,6 +563,106 @@ mod with_a_tree_of_commits {
 {} topic-3
 {} topic-2\n",
                 topic[0], topic[1], topic[2],
+            ));
+    }
+}
+
+///   A   B   C   D   J   K
+///   o---o---o---o---o---o [master]
+///        \         /
+///         o---o---o---o [topic]
+///         E   F   G   H
+mod with_a_graph_of_commits {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let time = Local::now();
+
+        helper
+            .env
+            .insert(String::from("GIT_AUTHOR_DATE"), time.to_rfc2822());
+        for n in ["A", "B"] {
+            let mut tree = HashMap::new();
+            tree.insert("f.txt", n);
+            commit_tree(&mut helper, n, tree).unwrap();
+        }
+
+        helper.env.insert(
+            String::from("GIT_AUTHOR_DATE"),
+            (time + Duration::seconds(1)).to_rfc2822(),
+        );
+        for n in ["C", "D"] {
+            let mut tree = HashMap::new();
+            tree.insert("f.txt", n);
+            commit_tree(&mut helper, n, tree).unwrap();
+        }
+
+        helper.jit_cmd(&["branch", "topic", "main~2"]);
+        helper.jit_cmd(&["checkout", "topic"]);
+
+        helper.env.insert(
+            String::from("GIT_AUTHOR_DATE"),
+            (time + Duration::seconds(2)).to_rfc2822(),
+        );
+        for n in ["E", "F", "G", "H"] {
+            let mut tree = HashMap::new();
+            tree.insert("g.txt", n);
+            commit_tree(&mut helper, n, tree).unwrap();
+        }
+
+        helper.jit_cmd(&["checkout", "main"]);
+        helper.stdin = String::from("J");
+        helper.jit_cmd(&["merge", "topic^"]).assert().code(0);
+
+        helper.env.insert(
+            String::from("GIT_AUTHOR_DATE"),
+            (time + Duration::seconds(3)).to_rfc2822(),
+        );
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "K");
+        commit_tree(&mut helper, "K", tree).unwrap();
+
+        helper
+    }
+
+    fn main_commits(helper: &CommandHelper) -> Vec<String> {
+        (0..=5)
+            .map(|n| helper.resolve_revision(&format!("main~{}", n)).unwrap())
+            .collect()
+    }
+
+    fn topic_commits(helper: &CommandHelper) -> Vec<String> {
+        (0..=3)
+            .map(|n| helper.resolve_revision(&format!("topic~{}", n)).unwrap())
+            .collect()
+    }
+
+    #[rstest]
+    fn log_concurrent_branches_leading_to_a_merge(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} K
+{} J
+{} G
+{} F
+{} E
+{} D
+{} C
+{} B
+{} A
+",
+                main[0], main[1], topic[1], topic[2], topic[3], main[2], main[3], main[4], main[5],
             ));
     }
 }

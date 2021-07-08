@@ -70,7 +70,9 @@ mod committing_to_branches {
             #[case] expected: &'static str,
             mut helper: CommandHelper,
         ) -> Result<()> {
-            helper.env.insert("GIT_AUTHOR_DATE", input);
+            helper
+                .env
+                .insert(String::from("GIT_AUTHOR_DATE"), String::from(input));
             commit_change(&mut helper, "change")?;
 
             let commit = helper.load_commit("@")?;

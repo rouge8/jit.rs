@@ -714,4 +714,22 @@ index 96d80cd..02358d2 100644
                 main[0], main[1], main[2]
             ));
     }
+
+    #[rstest]
+    fn do_not_list_merges_with_treesame_parents_for_prune_paths(mut helper: CommandHelper) {
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "g.txt"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} G
+{} F
+{} E
+",
+                topic[1], topic[2], topic[3]
+            ));
+    }
 }

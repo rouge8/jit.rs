@@ -244,11 +244,24 @@ impl<'a> RevList<'a> {
             return Ok(());
         }
 
-        if self
-            .tree_diff(commit.parent().as_deref(), Some(&commit.oid()), None)?
-            .is_empty()
-        {
-            self.mark(&commit.oid(), Flag::Treesame);
+        let parents = if !commit.parents.is_empty() {
+            commit
+                .parents
+                .iter()
+                .map(String::as_str)
+                .map(Some)
+                .collect()
+        } else {
+            vec![None]
+        };
+
+        for parent in parents {
+            if self
+                .tree_diff(parent, Some(&commit.oid()), None)?
+                .is_empty()
+            {
+                self.mark(&commit.oid(), Flag::Treesame);
+            }
         }
 
         Ok(())

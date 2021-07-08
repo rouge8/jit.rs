@@ -665,4 +665,15 @@ mod with_a_graph_of_commits {
                 main[0], main[1], topic[1], topic[2], topic[3], main[2], main[3], main[4], main[5],
             ));
     }
+
+    #[rstest]
+    fn log_unmerged_commits_on_a_branch(mut helper: CommandHelper) {
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "main..topic"])
+            .assert()
+            .code(0)
+            .stdout(format!("{} H\n", topic[0]));
+    }
 }

@@ -182,15 +182,24 @@ impl<'a> RevList<'a> {
     }
 
     fn mark_parents_uninteresting(&mut self, commit: Option<&Commit>) {
-        let mut commit = commit;
+        if commit.is_none() {
+            return;
+        }
 
-        while commit.is_some() && commit.unwrap().parent().is_some() {
-            let parent = commit.unwrap().parent();
-            let parent = parent.as_ref().unwrap();
-            if !self.mark(parent, Flag::Uninteresting) {
-                break;
+        let mut queue: VecDeque<_> = commit.unwrap().parents.iter().cloned().collect();
+
+        while !queue.is_empty() {
+            let oid = queue.pop_front().unwrap();
+            if !self.mark(&oid, Flag::Uninteresting) {
+                continue;
             }
-            commit = self.commits.get(parent);
+            let commit = self.commits.get(&oid);
+
+            if let Some(commit) = commit {
+                for parent in &commit.parents {
+                    queue.push_back(parent.to_owned());
+                }
+            }
         }
     }
 

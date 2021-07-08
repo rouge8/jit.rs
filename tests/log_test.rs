@@ -576,7 +576,7 @@ mod with_a_graph_of_commits {
     use super::*;
 
     #[fixture]
-    fn helper() -> CommandHelper {
+    fn base_helper() -> CommandHelper {
         let mut helper = CommandHelper::new();
         helper.init();
 
@@ -585,11 +585,13 @@ mod with_a_graph_of_commits {
         helper
             .env
             .insert(String::from("GIT_AUTHOR_DATE"), time.to_rfc2822());
-        for n in ["A", "B"] {
-            let mut tree = HashMap::new();
-            tree.insert("f.txt", n);
-            commit_tree(&mut helper, n, tree).unwrap();
-        }
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "0");
+        tree.insert("g.txt", "0");
+        commit_tree(&mut helper, "A", tree).unwrap();
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "B");
+        commit_tree(&mut helper, "B", tree).unwrap();
 
         helper.env.insert(
             String::from("GIT_AUTHOR_DATE"),
@@ -627,6 +629,11 @@ mod with_a_graph_of_commits {
         commit_tree(&mut helper, "K", tree).unwrap();
 
         helper
+    }
+
+    #[fixture]
+    fn helper(base_helper: CommandHelper) -> CommandHelper {
+        base_helper
     }
 
     fn main_commits(helper: &CommandHelper) -> Vec<String> {
@@ -717,6 +724,7 @@ index 96d80cd..02358d2 100644
 
     #[rstest]
     fn do_not_list_merges_with_treesame_parents_for_prune_paths(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
         let topic = topic_commits(&helper);
 
         helper
@@ -728,8 +736,68 @@ index 96d80cd..02358d2 100644
 {} G
 {} F
 {} E
+{} A
 ",
-                topic[1], topic[2], topic[3]
+                topic[1], topic[2], topic[3], main[5]
             ));
+    }
+
+    mod with_changes_that_are_undone_on_a_branch_leading_to_a_merge {
+        use super::*;
+
+        #[fixture]
+        fn helper(mut base_helper: CommandHelper) -> CommandHelper {
+            let time = Local::now();
+
+            base_helper
+                .env
+                .insert(String::from("GIT_AUTHOR_DATE"), time.to_rfc2822());
+
+            base_helper.jit_cmd(&["branch", "aba", "main~4"]);
+            base_helper.jit_cmd(&["checkout", "aba"]);
+
+            base_helper.env.insert(
+                String::from("GIT_AUTHOR_DATE"),
+                (time + Duration::seconds(1)).to_rfc2822(),
+            );
+            for n in ["C", "0"] {
+                let mut tree = HashMap::new();
+                tree.insert("g.txt", n);
+                commit_tree(&mut base_helper, n, tree).unwrap();
+            }
+
+            base_helper.stdin = String::from("J");
+            base_helper.jit_cmd(&["merge", "topic^"]).assert().code(0);
+
+            base_helper.env.insert(
+                String::from("GIT_AUTHOR_DATE"),
+                (time + Duration::seconds(3)).to_rfc2822(),
+            );
+            let mut tree = HashMap::new();
+            tree.insert("f.txt", "K");
+            commit_tree(&mut base_helper, "K", tree).unwrap();
+
+            base_helper
+        }
+
+        #[rstest]
+        fn do_not_list_commits_on_the_filtered_branch(mut helper: CommandHelper) {
+            let main = main_commits(&helper);
+            let topic = topic_commits(&helper);
+
+            helper
+                .jit_cmd(&["log", "--pretty=oneline", "g.txt"])
+                .assert()
+                .code(0)
+                .stdout(format!(
+                    "\
+{} G
+{} F
+{} E
+{} A
+",
+                    topic[1], topic[2], topic[3], main[5],
+                ));
+        }
     }
 }

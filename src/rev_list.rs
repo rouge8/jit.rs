@@ -160,19 +160,23 @@ impl<'a> RevList<'a> {
             return Ok(());
         }
 
-        let parents: Vec<_> = commit
-            .parents
-            .iter()
-            .map(|oid| self.load_commit(Some(&oid)).unwrap())
-            .collect();
-
-        if self.is_marked(&commit.oid(), Flag::Uninteresting) {
+        let parents = if self.is_marked(&commit.oid(), Flag::Uninteresting) {
+            let parents: Vec<_> = commit
+                .parents
+                .iter()
+                .map(|oid| self.load_commit(Some(&oid)).unwrap())
+                .collect();
             for parent in &parents {
                 self.mark_parents_uninteresting(parent.as_ref());
             }
+
+            parents
         } else {
-            self.simplify_commit(&commit)?;
-        }
+            self.simplify_commit(&commit)?
+                .iter()
+                .map(|oid| self.load_commit(Some(&oid)).unwrap())
+                .collect()
+        };
 
         for parent in &parents {
             self.enqueue_commit(parent.as_ref());
@@ -239,9 +243,9 @@ impl<'a> RevList<'a> {
         }
     }
 
-    fn simplify_commit(&self, commit: &Commit) -> Result<()> {
+    fn simplify_commit(&self, commit: &Commit) -> Result<Vec<String>> {
         if self.prune.is_empty() {
-            return Ok(());
+            return Ok(commit.parents.clone());
         }
 
         let parents = if !commit.parents.is_empty() {
@@ -255,16 +259,14 @@ impl<'a> RevList<'a> {
             vec![None]
         };
 
-        for parent in parents {
-            if self
-                .tree_diff(parent, Some(&commit.oid()), None)?
-                .is_empty()
-            {
+        for oid in parents {
+            if self.tree_diff(oid, Some(&commit.oid()), None)?.is_empty() {
                 self.mark(&commit.oid(), Flag::Treesame);
+                return Ok(vec![oid.unwrap().to_string()]);
             }
         }
 
-        Ok(())
+        Ok(commit.parents.clone())
     }
 }
 

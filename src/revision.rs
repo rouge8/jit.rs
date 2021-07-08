@@ -18,7 +18,7 @@ lazy_static! {
         r"[\x00-\x20*:?\[\\^~\x7f]",
     ])
     .unwrap();
-    static ref PARENT: Regex = Regex::new(r"^(.+)\^$").unwrap();
+    static ref PARENT: Regex = Regex::new(r"^(.+)\^(\d*)$").unwrap();
     static ref ANCESTOR: Regex = Regex::new(r"^(.+)~(\d+)$").unwrap();
     static ref REF_ALIASES: HashMap<&'static str, &'static str> = {
         let mut m = HashMap::new();
@@ -94,12 +94,18 @@ impl<'a> Revision<'a> {
         Ok(None)
     }
 
-    pub fn commit_parent(&mut self, oid: Option<String>) -> Result<Option<String>> {
+    pub fn commit_parent(&mut self, oid: Option<String>, n: usize) -> Result<Option<String>> {
         match oid {
             Some(oid) => {
                 let commit = self.load_typed_object(Some(&oid), COMMIT)?;
                 match commit {
-                    Some(ParsedObject::Commit(commit)) => Ok(commit.parent()),
+                    Some(ParsedObject::Commit(commit)) => {
+                        if commit.parents.is_empty() {
+                            Ok(None)
+                        } else {
+                            Ok(Some(commit.parents[n - 1].clone()))
+                        }
+                    }
                     _ => Ok(None),
                 }
             }
@@ -109,7 +115,10 @@ impl<'a> Revision<'a> {
 
     fn parse(revision: &str) -> Option<Rev> {
         if let Some(r#match) = PARENT.captures(revision) {
-            Revision::parse(&r#match[1]).map(|rev| Rev::Parent { rev: Box::new(rev) })
+            Revision::parse(&r#match[1]).map(|rev| Rev::Parent {
+                rev: Box::new(rev),
+                n: r#match[2].parse().unwrap_or(1),
+            })
         } else if let Some(r#match) = ANCESTOR.captures(revision) {
             Revision::parse(&r#match[1]).map(|rev| Rev::Ancestor {
                 rev: Box::new(rev),
@@ -179,7 +188,7 @@ impl<'a> Revision<'a> {
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum Rev {
     Ref { name: String },
-    Parent { rev: Box<Rev> },
+    Parent { rev: Box<Rev>, n: usize },
     Ancestor { rev: Box<Rev>, n: i32 },
 }
 
@@ -187,14 +196,14 @@ impl Rev {
     pub fn resolve(&self, context: &mut Revision) -> Result<Option<String>> {
         match self {
             Rev::Ref { name } => context.read_ref(name),
-            Rev::Parent { rev } => {
+            Rev::Parent { rev, n } => {
                 let oid = rev.resolve(context)?;
-                context.commit_parent(oid)
+                context.commit_parent(oid, *n)
             }
             Rev::Ancestor { rev, n } => {
                 let mut oid = rev.resolve(context)?;
                 for _ in 0..*n {
-                    oid = context.commit_parent(oid)?;
+                    oid = context.commit_parent(oid, 1)?;
                 }
                 Ok(oid)
             }
@@ -270,6 +279,7 @@ mod tests {
                 rev: Box::new(Rev::Ref {
                     name: String::from("HEAD"),
                 }),
+                n: 1,
             },
         );
     }
@@ -284,8 +294,24 @@ mod tests {
                         rev: Box::new(Rev::Ref {
                             name: String::from("main"),
                         }),
+                        n: 1,
                     }),
+                    n: 1,
                 }),
+                n: 1,
+            },
+        );
+    }
+
+    #[test]
+    fn parse_a_parent_ref_with_a_number() {
+        assert_parse(
+            "@^2",
+            Rev::Parent {
+                rev: Box::new(Rev::Ref {
+                    name: String::from("HEAD"),
+                }),
+                n: 2,
             },
         );
     }
@@ -316,7 +342,9 @@ mod tests {
                             }),
                             n: 2,
                         }),
+                        n: 1,
                     }),
+                    n: 1,
                 }),
                 n: 3,
             },

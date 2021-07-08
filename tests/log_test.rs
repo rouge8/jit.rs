@@ -674,6 +674,46 @@ mod with_a_graph_of_commits {
     }
 
     #[rstest]
+    fn log_the_first_parent_of_a_merge(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "main^^"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} D
+{} C
+{} B
+{} A
+",
+                main[2], main[3], main[4], main[5],
+            ));
+    }
+
+    #[rstest]
+    fn log_the_second_parent_of_a_merge(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+        let topic = topic_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "main^^2"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} G
+{} F
+{} E
+{} B
+{} A
+",
+                topic[1], topic[2], topic[3], main[4], main[5],
+            ));
+    }
+
+    #[rstest]
     fn log_unmerged_commits_on_a_branch(mut helper: CommandHelper) {
         let topic = topic_commits(&helper);
 

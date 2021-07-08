@@ -247,7 +247,7 @@ impl<'a> Log<'a> {
     }
 
     fn show_patch(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
-        if !self.patch {
+        if !self.patch || commit.parents.len() > 1 {
             return Ok(());
         }
 

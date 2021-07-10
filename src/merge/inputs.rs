@@ -28,6 +28,10 @@ impl Inputs {
         })
     }
 
+    pub fn already_merged(&self) -> bool {
+        self.base_oids == vec![self.right_oid.clone()]
+    }
+
     fn resolve_rev(repo: &Repository, rev: &str) -> Result<String> {
         Revision::new(&repo, &rev).resolve(Some(COMMIT))
     }

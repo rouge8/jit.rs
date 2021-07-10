@@ -21,6 +21,52 @@ fn commit_tree(
     Ok(())
 }
 
+mod merging_an_ancestor {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "1");
+        commit_tree(&mut helper, "A", tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "2");
+        commit_tree(&mut helper, "B", tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "3");
+        commit_tree(&mut helper, "C", tree).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn print_the_up_to_date_message_and_do_not_change_the_repository_state(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper
+            .jit_cmd(&["merge", "@^"])
+            .assert()
+            .code(0)
+            .stdout("Already up to date.\n");
+
+        let commit = helper.load_commit("@")?;
+        assert_eq!(commit.message, "C");
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("");
+
+        Ok(())
+    }
+}
+
 ///   A   B   M
 ///   o---o---o
 ///    \     /

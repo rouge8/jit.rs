@@ -1,6 +1,6 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
 use crate::revision::HEAD;
@@ -25,6 +25,10 @@ impl<'a> Merge<'a> {
     }
 
     pub fn run(&mut self) -> Result<()> {
+        if self.inputs.already_merged() {
+            self.handle_merged_ancestor()?;
+        }
+
         self.resolve_merge()?;
         self.commit_merge()?;
 
@@ -52,6 +56,14 @@ impl<'a> Merge<'a> {
         self.commit_writer().write_commit(parents, message)?;
 
         Ok(())
+    }
+
+    fn handle_merged_ancestor(&self) -> Result<()> {
+        let mut stdout = self.ctx.stdout.borrow_mut();
+
+        writeln!(stdout, "Already up to date.")?;
+
+        Err(Error::Exit(0))
     }
 
     fn commit_writer(&self) -> CommitWriter {

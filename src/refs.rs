@@ -52,7 +52,7 @@ impl Refs {
         }
     }
 
-    pub fn update_head(&self, oid: String) -> Result<()> {
+    pub fn update_head(&self, oid: &str) -> Result<()> {
         self.update_symref(self.pathname.join(HEAD), &oid)
     }
 

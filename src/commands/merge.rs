@@ -1,5 +1,7 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
+use crate::database::tree_diff::Differ;
+use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
@@ -27,6 +29,9 @@ impl<'a> Merge<'a> {
     pub fn run(&mut self) -> Result<()> {
         if self.inputs.already_merged() {
             self.handle_merged_ancestor()?;
+        }
+        if self.inputs.is_fast_forward() {
+            self.handle_fast_forward()?;
         }
 
         self.resolve_merge()?;
@@ -62,6 +67,29 @@ impl<'a> Merge<'a> {
         let mut stdout = self.ctx.stdout.borrow_mut();
 
         writeln!(stdout, "Already up to date.")?;
+
+        Err(Error::Exit(0))
+    }
+
+    fn handle_fast_forward(&mut self) -> Result<()> {
+        let a = Database::short_oid(&self.inputs.left_oid);
+        let b = Database::short_oid(&self.inputs.right_oid);
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(stdout, "Updating {}..{}", a, b)?;
+        writeln!(stdout, "Fast-forward")?;
+
+        self.ctx.repo.index.load_for_update()?;
+
+        let tree_diff = self.ctx.repo.database.tree_diff(
+            Some(&self.inputs.left_oid),
+            Some(&self.inputs.right_oid),
+            None,
+        )?;
+        self.ctx.repo.migration(tree_diff).apply_changes()?;
+
+        self.ctx.repo.index.write_updates()?;
+        self.ctx.repo.refs.update_head(&self.inputs.right_oid)?;
 
         Err(Error::Exit(0))
     }

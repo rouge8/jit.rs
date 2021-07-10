@@ -3,6 +3,7 @@ mod common;
 use assert_cmd::assert::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::object::Object;
+use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
@@ -53,6 +54,66 @@ mod merging_an_ancestor {
             .assert()
             .code(0)
             .stdout("Already up to date.\n");
+
+        let commit = helper.load_commit("@")?;
+        assert_eq!(commit.message, "C");
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("");
+
+        Ok(())
+    }
+}
+
+mod fast_forward_merge {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "1");
+        commit_tree(&mut helper, "A", tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "2");
+        commit_tree(&mut helper, "B", tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "3");
+        commit_tree(&mut helper, "C", tree).unwrap();
+
+        helper.jit_cmd(&["branch", "topic", "@^^"]);
+        helper.jit_cmd(&["checkout", "topic"]);
+
+        helper
+    }
+
+    #[rstest]
+    fn print_the_fast_forward_message_and_update_the_current_branch_head(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        let a = helper.resolve_revision("main^^")?;
+        let b = helper.resolve_revision("main")?;
+
+        helper.stdin = String::from("M");
+        helper
+            .jit_cmd(&["merge", "main"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+Updating {}..{}
+Fast-forward
+",
+                Database::short_oid(&a),
+                Database::short_oid(&b),
+            ));
 
         let commit = helper.load_commit("@")?;
         assert_eq!(commit.message, "C");

@@ -31,7 +31,7 @@ impl<'a> CommitWriter<'a> {
 
         let commit = Commit::new(parents, tree.oid(), author, message);
         self.ctx.repo.database.store(&commit)?;
-        self.ctx.repo.refs.update_head(commit.oid())?;
+        self.ctx.repo.refs.update_head(&commit.oid())?;
 
         Ok(commit)
     }

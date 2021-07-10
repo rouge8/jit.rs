@@ -32,6 +32,10 @@ impl Inputs {
         self.base_oids == vec![self.right_oid.clone()]
     }
 
+    pub fn is_fast_forward(&self) -> bool {
+        self.base_oids == vec![self.left_oid.clone()]
+    }
+
     fn resolve_rev(repo: &Repository, rev: &str) -> Result<String> {
         Revision::new(&repo, &rev).resolve(Some(COMMIT))
     }

@@ -38,7 +38,7 @@ impl<'a> Init<'a> {
 
         let refs = Refs::new(git_path.clone());
         let path = format!("refs/heads/{}", DEFAULT_BRANCH);
-        refs.update_head(format!("ref: {}", path))?;
+        refs.update_head(&format!("ref: {}", path))?;
 
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(stdout, "Initialized empty Jit repository in {:?}", git_path)?;

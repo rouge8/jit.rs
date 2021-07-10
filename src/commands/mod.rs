@@ -141,7 +141,7 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
             cmd.run()
         }
         Command::Merge { .. } => {
-            let mut cmd = Merge::new(ctx);
+            let mut cmd = Merge::new(ctx)?;
             cmd.run()
         }
         Command::Status { .. } => {

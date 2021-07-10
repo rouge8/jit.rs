@@ -1,57 +1,55 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
-use crate::database::tree_diff::Differ;
 use crate::errors::Result;
-use crate::merge::bases::Bases;
-use crate::revision::{Revision, COMMIT};
+use crate::merge::inputs::Inputs;
+use crate::merge::resolve::Resolve;
+use crate::revision::HEAD;
 use std::io;
 use std::io::Read;
 
 pub struct Merge<'a> {
     ctx: CommandContext<'a>,
-    args: Vec<String>,
+    inputs: Inputs,
 }
 
 impl<'a> Merge<'a> {
-    pub fn new(ctx: CommandContext<'a>) -> Self {
+    pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
         let args = match &ctx.opt.cmd {
             Command::Merge { args } => args,
             _ => unreachable!(),
         };
 
-        Self {
-            ctx,
-            args: args.to_owned(),
-        }
+        let inputs = Inputs::new(&ctx.repo, HEAD.to_string(), args[0].clone())?;
+
+        Ok(Self { ctx, inputs })
     }
 
     pub fn run(&mut self) -> Result<()> {
-        let head_oid = self.ctx.repo.refs.read_head()?.unwrap();
-        let mut revision = Revision::new(&self.ctx.repo, &self.args[0]);
-        let merge_oid = revision.resolve(Some(COMMIT))?;
+        self.resolve_merge()?;
+        self.commit_merge()?;
 
-        let mut common = Bases::new(&self.ctx.repo.database, &head_oid, &merge_oid)?;
-        let parents = common.find()?;
-        let base_oid = parents.first();
+        Ok(())
+    }
 
+    fn resolve_merge(&mut self) -> Result<()> {
         self.ctx.repo.index.load_for_update()?;
 
-        let tree_diff = self.ctx.repo.database.tree_diff(
-            base_oid.map(String::as_str),
-            Some(&merge_oid),
-            None,
-        )?;
-        let mut migration = self.ctx.repo.migration(tree_diff);
-        migration.apply_changes()?;
+        let mut merge = Resolve::new(&mut self.ctx.repo, &self.inputs);
+        merge.execute()?;
 
         self.ctx.repo.index.write_updates()?;
+
+        Ok(())
+    }
+
+    fn commit_merge(&self) -> Result<()> {
+        let parents = vec![self.inputs.left_oid.clone(), self.inputs.right_oid.clone()];
 
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
         message = message.trim().to_string();
 
-        self.commit_writer()
-            .write_commit(vec![head_oid, merge_oid], message)?;
+        self.commit_writer().write_commit(parents, message)?;
 
         Ok(())
     }

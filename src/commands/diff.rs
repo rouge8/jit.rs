@@ -160,7 +160,7 @@ impl<'a> Diff<'a> {
     }
 
     fn from_index(&self, path: &str) -> Result<Target> {
-        let entry = self.ctx.repo.index.entry_for_path(path).unwrap();
+        let entry = self.ctx.repo.index.entry_for_path(path, 0).unwrap();
         let blob = match self.ctx.repo.database.load(&entry.oid)? {
             ParsedObject::Blob(blob) => blob,
             _ => unreachable!(),

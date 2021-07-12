@@ -23,7 +23,7 @@ const HEADER_SIZE: usize = 12;
 #[derive(Debug)]
 pub struct Index {
     pathname: PathBuf,
-    pub entries: BTreeMap<String, Entry>,
+    pub entries: BTreeMap<(String, u16), Entry>,
     parents: HashMap<String, HashSet<String>>,
     lockfile: Lockfile,
     changed: bool,
@@ -103,8 +103,10 @@ impl Index {
     }
 
     pub fn tracked_file(&self, path: &Path) -> bool {
-        let key = path_to_string(&path);
-        self.entries.contains_key(&key)
+        (0..=3).any(|stage| {
+            let key = (path_to_string(&path), stage);
+            self.entries.contains_key(&key)
+        })
     }
 
     pub fn tracked(&self, path: &Path) -> bool {
@@ -117,8 +119,12 @@ impl Index {
         self.changed = true;
     }
 
-    pub fn entry_for_path(&self, path: &str) -> Option<&Entry> {
-        self.entries.get(path)
+    /// Arguments:
+    ///
+    /// * `path`: The path.
+    /// * `stage`: The index stage, from `0..=3`.
+    pub fn entry_for_path(&self, path: &str, stage: u16) -> Option<&Entry> {
+        self.entries.get(&(path.to_string(), stage))
     }
 
     pub fn remove(&mut self, pathname: &Path) {
@@ -195,7 +201,7 @@ impl Index {
             }
         }
 
-        self.entries.insert(entry.path.clone(), entry);
+        self.entries.insert(entry.key(), entry);
     }
 
     fn discard_conflicts(&mut self, entry: &Entry) {
@@ -221,7 +227,13 @@ impl Index {
     }
 
     fn remove_entry(&mut self, pathname: &str) {
-        if let Some(entry) = self.entries.remove(pathname) {
+        for stage in 0..=3 {
+            self.remove_entry_with_stage(pathname, stage);
+        }
+    }
+
+    fn remove_entry_with_stage(&mut self, pathname: &str, stage: u16) {
+        if let Some(entry) = self.entries.remove(&(pathname.to_string(), stage)) {
             for dirname in entry.parent_directories() {
                 let dirname = path_to_string(&dirname);
 
@@ -309,6 +321,14 @@ impl Entry {
             flags,
             path,
         })
+    }
+
+    fn key(&self) -> (String, u16) {
+        (self.path.clone(), self.stage())
+    }
+
+    fn stage(&self) -> u16 {
+        (self.flags >> 12) & 0x3
     }
 
     fn parent_directories(&self) -> Vec<PathBuf> {
@@ -451,8 +471,8 @@ mod tests {
         index.add(PathBuf::from("alice.txt"), oid, stat);
 
         assert_eq!(
-            index.entries.keys().cloned().collect::<Vec<String>>(),
-            vec![String::from("alice.txt")],
+            index.entries.keys().cloned().collect::<Vec<_>>(),
+            vec![(String::from("alice.txt"), 0)],
         );
 
         Ok(())
@@ -472,8 +492,11 @@ mod tests {
         index.add(PathBuf::from("alice.txt/nested"), oid, stat);
 
         assert_eq!(
-            index.entries.keys().cloned().collect::<Vec<String>>(),
-            vec![String::from("alice.txt/nested"), String::from("bob.txt")],
+            index.entries.keys().cloned().collect::<Vec<_>>(),
+            vec![
+                (String::from("alice.txt/nested"), 0),
+                (String::from("bob.txt"), 0)
+            ],
         );
 
         Ok(())
@@ -493,8 +516,8 @@ mod tests {
         index.add(PathBuf::from("nested"), oid, stat);
 
         assert_eq!(
-            index.entries.keys().cloned().collect::<Vec<String>>(),
-            vec![String::from("alice.txt"), String::from("nested")],
+            index.entries.keys().cloned().collect::<Vec<_>>(),
+            vec![(String::from("alice.txt"), 0), (String::from("nested"), 0)],
         );
 
         Ok(())
@@ -519,8 +542,8 @@ mod tests {
         index.add(PathBuf::from("nested"), oid, stat);
 
         assert_eq!(
-            index.entries.keys().cloned().collect::<Vec<String>>(),
-            vec![String::from("alice.txt"), String::from("nested")],
+            index.entries.keys().cloned().collect::<Vec<_>>(),
+            vec![(String::from("alice.txt"), 0), (String::from("nested"), 0)],
         );
 
         Ok(())

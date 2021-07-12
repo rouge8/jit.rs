@@ -195,7 +195,7 @@ impl<'a> Migration<'a> {
         old_item: &Option<Entry>,
         new_item: &Option<Entry>,
     ) -> Result<()> {
-        let entry = self.repo.index.entry_for_path(&path_to_string(path));
+        let entry = self.repo.index.entry_for_path(&path_to_string(path), 0);
 
         if self.index_differs_from_trees(entry, old_item.as_ref(), new_item.as_ref()) {
             self.insert_conflict(ConflictType::StaleFile, path);

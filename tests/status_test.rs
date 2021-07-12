@@ -146,7 +146,7 @@ mod index_workspace_changes {
     fn print_nothing_if_a_file_is_touched(mut helper: CommandHelper) -> Result<()> {
         let mut index = helper.repo().index;
         index.load()?;
-        let entry_before = &index.entries["1.txt"];
+        let entry_before = &index.entries[&(String::from("1.txt"), 0)];
 
         helper.touch("1.txt")?;
 
@@ -154,7 +154,7 @@ mod index_workspace_changes {
 
         let mut index = helper.repo().index;
         index.load()?;
-        let entry_after = &index.entries["1.txt"];
+        let entry_after = &index.entries[&(String::from("1.txt"), 0)];
 
         // The modification time should have been updated in the index
         assert_ne!(

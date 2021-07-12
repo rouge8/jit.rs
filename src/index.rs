@@ -1,3 +1,4 @@
+use crate::database::entry::Entry as DatabaseEntry;
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::util::is_executable;
@@ -114,9 +115,27 @@ impl Index {
         self.tracked_file(path) || self.parents.contains_key(&key)
     }
 
+    pub fn add_conflict_set(&mut self, pathname: &str, items: Vec<Option<DatabaseEntry>>) {
+        assert_eq!(items.len(), 3);
+
+        self.remove_entry_with_stage(&pathname, 0);
+
+        for (n, item) in items.iter().enumerate() {
+            if let Some(item) = item {
+                let entry = Entry::create_from_db(&pathname, item, n + 1);
+                self.store_entry(entry);
+            }
+        }
+        self.changed = true;
+    }
+
     pub fn update_entry_stat(&mut self, entry: &mut Entry, stat: &fs::Metadata) {
         entry.update_stat(stat);
         self.changed = true;
+    }
+
+    pub fn has_conflict(&self) -> bool {
+        self.entries.values().any(|entry| entry.stage() > 0)
     }
 
     /// Arguments:
@@ -281,6 +300,26 @@ impl Entry {
             size: stat.size(),
             oid,
             flags: min(pathname.len() as u16, MAX_PATH_SIZE),
+            path: pathname.to_string(),
+        }
+    }
+
+    pub fn create_from_db(pathname: &str, item: &DatabaseEntry, n: usize) -> Self {
+        let flags = ((n as u16) << 12) | min(pathname.len() as u16, MAX_PATH_SIZE);
+
+        Self {
+            ctime: 0,
+            ctime_nsec: 0,
+            mtime: 0,
+            mtime_nsec: 0,
+            dev: 0,
+            ino: 0,
+            mode: item.mode,
+            uid: 0,
+            gid: 0,
+            size: 0,
+            oid: item.oid.clone(),
+            flags,
             path: pathname.to_string(),
         }
     }

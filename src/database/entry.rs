@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 pub struct Entry {
     pub name: String,
     pub oid: String,
-    mode: u32,
+    pub mode: u32,
 }
 
 impl Entry {

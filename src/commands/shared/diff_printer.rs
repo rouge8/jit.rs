@@ -1,6 +1,6 @@
 use crate::database::entry::Entry;
 use crate::database::tree_diff::Differ;
-use crate::database::{Database, ParsedObject};
+use crate::database::Database;
 use crate::diff::hunk::Hunk;
 use crate::diff::{diff_hunks, Edit, EditType};
 use crate::errors::Result;
@@ -51,10 +51,7 @@ impl DiffPrinter {
     fn from_entry(&self, repo: &Repository, path: &str, entry: Option<&Entry>) -> Result<Target> {
         match entry {
             Some(entry) => {
-                let blob = match repo.database.load(&entry.oid)? {
-                    ParsedObject::Blob(blob) => blob,
-                    _ => unreachable!(),
-                };
+                let blob = repo.database.load_blob(&entry.oid)?;
 
                 Ok(Target::new(
                     path.to_string(),

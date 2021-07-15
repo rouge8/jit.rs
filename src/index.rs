@@ -366,7 +366,7 @@ impl Entry {
         (self.path.clone(), self.stage())
     }
 
-    fn stage(&self) -> u16 {
+    pub fn stage(&self) -> u16 {
         (self.flags >> 12) & 0x3
     }
 

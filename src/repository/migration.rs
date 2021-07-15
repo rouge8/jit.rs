@@ -1,7 +1,6 @@
 use crate::database::entry::Entry;
 use crate::database::tree::TreeEntry;
 use crate::database::tree_diff::TreeDiffChanges;
-use crate::database::ParsedObject;
 use crate::errors::{Error, Result};
 use crate::index::Entry as IndexEntry;
 use crate::repository::Repository;
@@ -112,10 +111,7 @@ impl<'a> Migration<'a> {
     }
 
     pub fn blob_data(&self, oid: &str) -> Result<Vec<u8>> {
-        match self.repo.database.load(oid)? {
-            ParsedObject::Blob(blob) => Ok(blob.data),
-            _ => unreachable!(),
-        }
+        Ok(self.repo.database.load_blob(oid)?.data)
     }
 
     fn plan_changes(&mut self) -> Result<()> {

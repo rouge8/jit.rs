@@ -1,8 +1,9 @@
 use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
 use filetime::FileTime;
+use is_executable::IsExecutable;
 use jit::database::commit::Commit;
-use jit::errors::Result;
+use jit::errors::{Error, Result};
 use jit::repository::Repository;
 use jit::revision::Revision;
 use jit::util::path_to_string;
@@ -10,6 +11,7 @@ use rstest::fixture;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
+use std::io;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
@@ -69,7 +71,7 @@ impl CommandHelper {
         let mut perms = fs::metadata(&path)?.permissions();
 
         perms.set_mode(0o755);
-        fs::set_permissions(path, perms)?;
+        fs::set_permissions(&path, perms)?;
 
         Ok(())
     }
@@ -92,6 +94,7 @@ impl CommandHelper {
         Ok(())
     }
 
+    /// Delete the file or directory at `name`, erroring if `name` does not exist.
     pub fn delete(&self, name: &str) -> Result<()> {
         let path = self.repo_path.join(name);
 
@@ -99,6 +102,23 @@ impl CommandHelper {
             fs::remove_dir_all(path)?;
         } else {
             fs::remove_file(path)?;
+        }
+
+        Ok(())
+    }
+
+    /// Delete the file or directory at `name`. Succeeds even if `name` does not exist.
+    pub fn force_delete(&self, name: &str) -> Result<()> {
+        match self.delete(name) {
+            Ok(()) => (),
+            Err(err) => match err {
+                Error::Io(err) => {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        return Err(Error::Io(err));
+                    }
+                }
+                _ => return Err(err),
+            },
         }
 
         Ok(())
@@ -188,6 +208,10 @@ impl CommandHelper {
 
     pub fn assert_noent(&self, filename: &str) {
         assert!(!self.repo_path.join(filename).exists());
+    }
+
+    pub fn assert_executable(&self, filename: &str) {
+        assert!(self.repo_path.join(filename).is_executable());
     }
 
     pub fn repo(&self) -> Repository {

@@ -1,7 +1,6 @@
 use crate::commands::shared::diff_printer::{DiffPrinter, Target};
 use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
-use crate::database::ParsedObject;
 use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::ChangeType;
@@ -146,10 +145,7 @@ impl<'a> Diff<'a> {
     fn from_head(&self, path: &str) -> Result<Target> {
         let entry = &self.ctx.repo.head_tree[path];
         let oid = entry.oid();
-        let blob = match self.ctx.repo.database.load(&oid)? {
-            ParsedObject::Blob(blob) => blob,
-            _ => unreachable!(),
-        };
+        let blob = self.ctx.repo.database.load_blob(&oid)?;
 
         Ok(Target::new(
             path.to_string(),
@@ -161,10 +157,7 @@ impl<'a> Diff<'a> {
 
     fn from_index(&self, path: &str) -> Result<Target> {
         let entry = self.ctx.repo.index.entry_for_path(path, 0).unwrap();
-        let blob = match self.ctx.repo.database.load(&entry.oid)? {
-            ParsedObject::Blob(blob) => blob,
-            _ => unreachable!(),
-        };
+        let blob = self.ctx.repo.database.load_blob(&entry.oid)?;
 
         Ok(Target::new(
             path.to_string(),

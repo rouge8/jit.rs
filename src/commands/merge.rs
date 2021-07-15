@@ -47,6 +47,9 @@ impl<'a> Merge<'a> {
         merge.execute()?;
 
         self.ctx.repo.index.write_updates()?;
+        if self.ctx.repo.index.has_conflict() {
+            return Err(Error::Exit(1));
+        }
 
         Ok(())
     }

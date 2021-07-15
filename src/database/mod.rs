@@ -67,6 +67,14 @@ impl Database {
         }
     }
 
+    /// Load a blob by its object ID, returning a `Blob`.
+    pub fn load_blob(&self, oid: &str) -> io::Result<Blob> {
+        match self.load(&oid)? {
+            ParsedObject::Blob(blob) => Ok(blob),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {
         let path = self.object_path(name);
         let dirname = path.parent().unwrap();

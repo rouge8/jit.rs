@@ -83,6 +83,17 @@ impl Workspace {
         })
     }
 
+    pub fn write_file(&self, path: &Path, data: Vec<u8>) -> Result<()> {
+        let mut file = OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&self.pathname.join(path))?;
+        file.write_all(&data)?;
+
+        Ok(())
+    }
+
     pub fn apply_migration(&self, migration: &Migration) -> Result<()> {
         self.apply_change_list(migration, Action::Delete)?;
         for dir in migration.rmdirs.iter().rev() {

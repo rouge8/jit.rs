@@ -212,7 +212,7 @@ mod tests {
         use super::*;
         use crate::database::entry::Entry;
         use rstest::{fixture, rstest};
-        use std::collections::HashMap;
+        use std::collections::{BTreeMap, HashMap};
         use std::path::Path;
         use tempfile::TempDir;
 
@@ -250,7 +250,7 @@ mod tests {
             tree_b_contents.insert("bob.txt", "bob");
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = HashMap::new();
+            let mut expected = BTreeMap::new();
             expected.insert(
                 PathBuf::from("alice.txt"),
                 (
@@ -286,7 +286,7 @@ mod tests {
             tree_b_contents.insert("bob.txt", "bob");
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = HashMap::new();
+            let mut expected = BTreeMap::new();
             expected.insert(
                 PathBuf::from("bob.txt"),
                 (
@@ -318,7 +318,7 @@ mod tests {
             tree_b_contents.insert("alice.txt", "alice");
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = HashMap::new();
+            let mut expected = BTreeMap::new();
             expected.insert(
                 PathBuf::from("bob.txt"),
                 (
@@ -352,7 +352,7 @@ mod tests {
             tree_b_contents.insert("outer/new/4.txt", "4");
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = HashMap::new();
+            let mut expected = BTreeMap::new();
             expected.insert(
                 PathBuf::from("outer/new/4.txt"),
                 (
@@ -386,7 +386,7 @@ mod tests {
             tree_b_contents.insert("outer/2.txt", "2");
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = HashMap::new();
+            let mut expected = BTreeMap::new();
             expected.insert(
                 PathBuf::from("outer/inner/3.txt"),
                 (

@@ -697,6 +697,112 @@ mod conflicted_merge_add_add_mode_conflict {
     }
 }
 
+mod conflicted_merge_file_directory_addition {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("f.txt", Change::content("1"));
+
+        let mut left = BTreeMap::new();
+        left.insert("g.txt", Change::content("2"));
+
+        let mut right = BTreeMap::new();
+        right.insert("g.txt/nested.txt", Change::content("3"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
+        helper: CommandHelper,
+    ) -> Result<()> {
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        workspace.insert("g.txt~HEAD", "2");
+        workspace.insert("g.txt/nested.txt", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn record_the_conflict_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        assert_index(
+            &mut helper,
+            vec![("f.txt", 0), ("g.txt", 2), ("g.txt/nested.txt", 0)],
+        )?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_write_a_merge_commit(mut helper: CommandHelper) -> Result<()> {
+        assert_no_merge(&mut helper)?;
+
+        Ok(())
+    }
+}
+
+mod conflicted_merge_directory_file_addition {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("f.txt", Change::content("1"));
+
+        let mut left = BTreeMap::new();
+        left.insert("g.txt/nested.txt", Change::content("2"));
+
+        let mut right = BTreeMap::new();
+        right.insert("g.txt", Change::content("3"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
+        helper: CommandHelper,
+    ) -> Result<()> {
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        workspace.insert("g.txt~topic", "3");
+        workspace.insert("g.txt/nested.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn record_the_conflict_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        assert_index(
+            &mut helper,
+            vec![("f.txt", 0), ("g.txt", 3), ("g.txt/nested.txt", 0)],
+        )?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_write_a_merge_commit(mut helper: CommandHelper) -> Result<()> {
+        assert_no_merge(&mut helper)?;
+
+        Ok(())
+    }
+}
+
 mod conflicted_merge_edit_edit {
     use super::*;
 
@@ -832,6 +938,115 @@ mod conflicted_merge_delete_edit {
     #[rstest]
     fn record_the_conflict_in_the_index(mut helper: CommandHelper) -> Result<()> {
         assert_index(&mut helper, vec![("f.txt", 1), ("f.txt", 3)])?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_write_a_merge_commit(mut helper: CommandHelper) -> Result<()> {
+        assert_no_merge(&mut helper)?;
+
+        Ok(())
+    }
+}
+
+mod conflicted_merge_edit_add_parent {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("nest/f.txt", Change::content("1"));
+
+        let mut left = BTreeMap::new();
+        left.insert("nest/f.txt", Change::content("2"));
+
+        let mut right = BTreeMap::new();
+        right.insert("nest", Change::content("3"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
+        helper: CommandHelper,
+    ) -> Result<()> {
+        let mut workspace = HashMap::new();
+        workspace.insert("nest/f.txt", "2");
+        workspace.insert("nest~topic", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn record_the_conflict_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        assert_index(
+            &mut helper,
+            vec![("nest", 3), ("nest/f.txt", 1), ("nest/f.txt", 2)],
+        )?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_write_a_merge_commit(mut helper: CommandHelper) -> Result<()> {
+        assert_no_merge(&mut helper)?;
+
+        Ok(())
+    }
+}
+
+mod conflicted_merge_edit_add_child {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("nest/f.txt", Change::content("1"));
+
+        let mut left = BTreeMap::new();
+        left.insert("nest/f.txt", Change::content("2"));
+
+        let mut right = BTreeMap::new();
+        right.insert("nest/f.txt", Change::delete());
+        right.insert("nest/f.txt/g.txt", Change::content("3"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
+        helper: CommandHelper,
+    ) -> Result<()> {
+        let mut workspace = HashMap::new();
+        workspace.insert("nest/f.txt~HEAD", "2");
+        workspace.insert("nest/f.txt/g.txt", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn record_the_conflict_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        assert_index(
+            &mut helper,
+            vec![
+                ("nest/f.txt", 1), // missing
+                ("nest/f.txt", 2),
+                ("nest/f.txt/g.txt", 0),
+            ],
+        )?;
 
         Ok(())
     }

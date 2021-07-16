@@ -7,7 +7,7 @@ use crate::merge::inputs::Inputs;
 use crate::repository::Repository;
 use crate::util::path_to_string;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::Path;
 
 pub struct Resolve<'a> {
     repo: &'a mut Repository,
@@ -16,6 +16,7 @@ pub struct Resolve<'a> {
     right_diff: TreeDiffChanges,
     clean_diff: TreeDiffChanges,
     conflicts: HashMap<String, Vec<Option<Entry>>>,
+    untracked: HashMap<String, Entry>,
 }
 
 impl<'a> Resolve<'a> {
@@ -27,6 +28,7 @@ impl<'a> Resolve<'a> {
             right_diff: TreeDiffChanges::new(),
             clean_diff: TreeDiffChanges::new(),
             conflicts: HashMap::new(),
+            untracked: HashMap::new(),
         }
     }
 
@@ -37,6 +39,7 @@ impl<'a> Resolve<'a> {
         migration.apply_changes()?;
 
         self.add_conflicts_to_index();
+        self.write_untracked_files()?;
 
         Ok(())
     }
@@ -53,10 +56,22 @@ impl<'a> Resolve<'a> {
                 .tree_diff(base_oid, Some(&self.inputs.right_oid), None)?;
         self.clean_diff = TreeDiffChanges::new();
         self.conflicts = HashMap::new();
+        self.untracked = HashMap::new();
 
         let right_diff = self.right_diff.clone();
+        let left_diff = self.left_diff.clone();
         for (path, (old_item, new_item)) in right_diff {
-            self.same_path_conflict(path, old_item, new_item)?;
+            if new_item.is_some() {
+                self.file_dir_conflict(&path, &left_diff, &self.inputs.left_name);
+            }
+            self.same_path_conflict(&path, old_item, new_item)?;
+        }
+
+        let right_diff = self.right_diff.clone();
+        for (path, (_, new_item)) in left_diff {
+            if new_item.is_some() {
+                self.file_dir_conflict(&path, &right_diff, &self.inputs.right_name);
+            }
         }
 
         Ok(())
@@ -64,16 +79,16 @@ impl<'a> Resolve<'a> {
 
     fn same_path_conflict(
         &mut self,
-        path: PathBuf,
+        path: &Path,
         base: Option<Entry>,
         right: Option<Entry>,
     ) -> Result<()> {
-        if !self.left_diff.contains_key(&path) {
-            self.clean_diff.insert(path, (base, right));
+        if !self.left_diff.contains_key(path) {
+            self.clean_diff.insert(path.to_path_buf(), (base, right));
             return Ok(());
         }
 
-        let left = self.left_diff[&path].1.as_ref();
+        let left = self.left_diff[path].1.as_ref();
         if left == right.as_ref() {
             return Ok(());
         }
@@ -95,7 +110,7 @@ impl<'a> Resolve<'a> {
         let (mode_ok, mode) = self.merge_modes(base_mode, left_mode, right_mode);
 
         self.clean_diff.insert(
-            path.clone(),
+            path.to_path_buf(),
             (left.clone(), Some(Entry::new(&path, oid, mode))),
         );
 
@@ -173,9 +188,51 @@ impl<'a> Resolve<'a> {
         None
     }
 
+    fn file_dir_conflict(&mut self, path: &Path, diff: &TreeDiffChanges, name: &str) {
+        let mut ancestors = path.ancestors();
+        ancestors.next(); // Skip `path`
+        for parent in ancestors {
+            if !diff.contains_key(parent) {
+                continue;
+            }
+
+            let (old_item, new_item) = &diff[parent];
+            if new_item.is_none() {
+                continue;
+            }
+
+            if name == self.inputs.left_name {
+                self.conflicts.insert(
+                    path_to_string(parent),
+                    vec![old_item.to_owned(), new_item.to_owned(), None],
+                );
+            } else if name == self.inputs.right_name {
+                self.conflicts.insert(
+                    path_to_string(parent),
+                    vec![old_item.to_owned(), None, new_item.to_owned()],
+                );
+            }
+
+            self.clean_diff.remove(parent);
+            let rename = format!("{}~{}", path_to_string(parent), name);
+            self.untracked.insert(rename, new_item.to_owned().unwrap());
+        }
+    }
+
     fn add_conflicts_to_index(&mut self) {
         for (path, items) in &self.conflicts {
             self.repo.index.add_conflict_set(path, items.to_owned());
         }
+    }
+
+    fn write_untracked_files(&self) -> Result<()> {
+        for (path, item) in &self.untracked {
+            let blob = self.repo.database.load_blob(&item.oid)?;
+            self.repo
+                .workspace
+                .write_file(Path::new(&path), blob.data)?;
+        }
+
+        Ok(())
     }
 }

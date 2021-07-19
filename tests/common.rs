@@ -22,6 +22,7 @@ pub struct CommandHelper {
     pub repo_path: PathBuf,
     pub env: HashMap<String, String>,
     pub stdin: String,
+    stdout: Option<String>,
 }
 
 #[fixture]
@@ -42,6 +43,7 @@ impl CommandHelper {
             repo_path,
             env: HashMap::new(),
             stdin: String::from(""),
+            stdout: None,
         }
     }
 
@@ -125,14 +127,18 @@ impl CommandHelper {
     }
 
     pub fn jit_cmd(&mut self, argv: &[&str]) -> Output {
-        Command::cargo_bin(env!("CARGO_PKG_NAME"))
+        let result = Command::cargo_bin(env!("CARGO_PKG_NAME"))
             .unwrap()
             .args(argv)
             .current_dir(&self.repo_path)
             .envs(&self.env)
             .write_stdin(self.stdin.as_bytes())
             .output()
-            .unwrap()
+            .unwrap();
+
+        self.stdout = Some(String::from_utf8(result.stdout.clone()).unwrap());
+
+        result
     }
 
     pub fn init(&mut self) {
@@ -212,6 +218,10 @@ impl CommandHelper {
 
     pub fn assert_executable(&self, filename: &str) {
         assert!(self.repo_path.join(filename).is_executable());
+    }
+
+    pub fn assert_stdout(&self, stdout: &str) {
+        assert_eq!(self.stdout.as_ref().expect("no stdout found"), stdout);
     }
 
     pub fn repo(&self) -> Repository {

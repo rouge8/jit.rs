@@ -17,6 +17,7 @@ pub struct Resolve<'a> {
     clean_diff: TreeDiffChanges,
     conflicts: HashMap<String, Vec<Option<Entry>>>,
     untracked: HashMap<String, Entry>,
+    pub on_progress: fn(String),
 }
 
 impl<'a> Resolve<'a> {
@@ -29,6 +30,7 @@ impl<'a> Resolve<'a> {
             clean_diff: TreeDiffChanges::new(),
             conflicts: HashMap::new(),
             untracked: HashMap::new(),
+            on_progress: |_info| (),
         }
     }
 
@@ -83,6 +85,10 @@ impl<'a> Resolve<'a> {
         base: Option<Entry>,
         right: Option<Entry>,
     ) -> Result<()> {
+        if self.conflicts.get(&path_to_string(path)).is_some() {
+            return Ok(());
+        }
+
         if !self.left_diff.contains_key(path) {
             self.clean_diff.insert(path.to_path_buf(), (base, right));
             return Ok(());
@@ -102,6 +108,10 @@ impl<'a> Resolve<'a> {
         let left_mode = left.as_ref().map(|left| left.mode);
         let right_mode = right.as_ref().map(|right| right.mode);
 
+        if left.is_some() && right.is_some() {
+            self.log(format!("Auto-merging {}", path_to_string(&path)));
+        }
+
         let (oid_ok, oid) = self.merge_blobs(
             base_oid.as_deref(),
             left_oid.as_deref(),
@@ -114,10 +124,13 @@ impl<'a> Resolve<'a> {
             (left.clone(), Some(Entry::new(&path, oid, mode))),
         );
 
-        if !(oid_ok && mode_ok) {
-            self.conflicts
-                .insert(path_to_string(&path), vec![base, left, right]);
+        if oid_ok && mode_ok {
+            return Ok(());
         }
+
+        self.conflicts
+            .insert(path_to_string(&path), vec![base, left, right]);
+        self.log_conflict(&path, None);
 
         Ok(())
     }
@@ -215,7 +228,13 @@ impl<'a> Resolve<'a> {
 
             self.clean_diff.remove(parent);
             let rename = format!("{}~{}", path_to_string(parent), name);
-            self.untracked.insert(rename, new_item.to_owned().unwrap());
+            self.untracked
+                .insert(rename.clone(), new_item.to_owned().unwrap());
+
+            if diff.get(path).is_none() {
+                self.log(format!("Adding {}", path_to_string(&path)));
+            }
+            self.log_conflict(&parent, Some(rename));
         }
     }
 
@@ -234,5 +253,74 @@ impl<'a> Resolve<'a> {
         }
 
         Ok(())
+    }
+
+    fn log(&self, message: String) {
+        (self.on_progress)(message);
+    }
+
+    fn log_conflict(&self, path: &Path, rename: Option<String>) {
+        let path = path_to_string(path);
+        let conflict = &self.conflicts[&path];
+        let (base, left, right) = (&conflict[0], &conflict[1], &conflict[2]);
+
+        if left.is_some() && right.is_some() {
+            self.log_left_right_conflict(path);
+        } else if base.is_some() && (left.is_some() || right.is_some()) {
+            self.log_modify_delete_conflict(path, rename);
+        } else {
+            self.log_file_directory_conflict(path, rename.unwrap());
+        }
+    }
+
+    fn log_left_right_conflict(&self, path: String) {
+        let r#type = if self.conflicts[&path][0].is_some() {
+            "content"
+        } else {
+            "add/add"
+        };
+        self.log(format!("CONFLICT ({}): Merge conflict in {}", r#type, path));
+    }
+
+    fn log_modify_delete_conflict(&self, path: String, rename: Option<String>) {
+        let (deleted, modified) = self.log_branch_names(&path);
+
+        let rename = if let Some(rename) = rename {
+            format!(" at {}", rename)
+        } else {
+            String::new()
+        };
+
+        self.log(format!(
+            "CONFLICT (modify/delete): {} deleted in {} and modified in {}. Version {} of {} left in tree{}.",
+            path, deleted, modified, modified, path, rename,
+        ));
+    }
+
+    fn log_file_directory_conflict(&self, path: String, rename: String) {
+        let r#type = if self.conflicts[&path][1].is_some() {
+            "file/directory"
+        } else {
+            "directory/file"
+        };
+        let (branch, _) = self.log_branch_names(&path);
+
+        self.log(format!(
+            "CONFLICT ({}): There is a directory with name {} in {}. Adding {} as {}",
+            r#type, path, branch, path, rename,
+        ));
+    }
+
+    fn log_branch_names(&self, path: &str) -> (String, String) {
+        let (a, b) = (
+            self.inputs.left_name.clone(),
+            self.inputs.right_name.clone(),
+        );
+
+        if self.conflicts[path][1].is_some() {
+            (b, a)
+        } else {
+            (a, b)
+        }
     }
 }

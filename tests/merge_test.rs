@@ -617,6 +617,17 @@ mod conflicted_merge_add_add {
     }
 
     #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+Auto-merging g.txt
+CONFLICT (add/add): Merge conflict in g.txt
+Automatic merge failed; fix conflicts and then commit the result.
+",
+        );
+    }
+
+    #[rstest]
     fn put_the_conflicted_file_in_the_workspace(helper: CommandHelper) -> Result<()> {
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "1");
@@ -673,6 +684,17 @@ mod conflicted_merge_add_add_mode_conflict {
     }
 
     #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+Auto-merging g.txt
+CONFLICT (add/add): Merge conflict in g.txt
+Automatic merge failed; fix conflicts and then commit the result.
+",
+        );
+    }
+
+    #[rstest]
     fn put_the_conflicted_file_in_the_workspace(helper: CommandHelper) -> Result<()> {
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "1");
@@ -717,6 +739,17 @@ mod conflicted_merge_file_directory_addition {
         merge3(&mut helper, base, left, right).unwrap();
 
         helper
+    }
+
+    #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+Adding g.txt/nested.txt
+CONFLICT (file/directory): There is a directory with name g.txt in topic. Adding g.txt as g.txt~HEAD
+Automatic merge failed; fix conflicts and then commit the result.
+",
+        );
     }
 
     #[rstest]
@@ -773,6 +806,17 @@ mod conflicted_merge_directory_file_addition {
     }
 
     #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+Adding g.txt/nested.txt
+CONFLICT (directory/file): There is a directory with name g.txt in HEAD. Adding g.txt as g.txt~topic
+Automatic merge failed; fix conflicts and then commit the result.
+",
+        );
+    }
+
+    #[rstest]
     fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
         helper: CommandHelper,
     ) -> Result<()> {
@@ -823,6 +867,17 @@ mod conflicted_merge_edit_edit {
         merge3(&mut helper, base, left, right).unwrap();
 
         helper
+    }
+
+    #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+Auto-merging f.txt
+CONFLICT (content): Merge conflict in f.txt
+Automatic merge failed; fix conflicts and then commit the result.
+",
+        );
     }
 
     #[rstest]
@@ -881,6 +936,15 @@ mod conflicted_merge_edit_delete {
     }
 
     #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+CONFLICT (modify/delete): f.txt deleted in topic and modified in HEAD. Version HEAD of f.txt left in tree.
+Automatic merge failed; fix conflicts and then commit the result.
+");
+    }
+
+    #[rstest]
     fn put_the_left_version_in_the_workspace(helper: CommandHelper) -> Result<()> {
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "2");
@@ -927,6 +991,15 @@ mod conflicted_merge_delete_edit {
     }
 
     #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout(
+            "\
+CONFLICT (modify/delete): f.txt deleted in HEAD and modified in topic. Version topic of f.txt left in tree.
+Automatic merge failed; fix conflicts and then commit the result.
+");
+    }
+
+    #[rstest]
     fn put_the_right_version_in_the_workspace(helper: CommandHelper) -> Result<()> {
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "3");
@@ -970,6 +1043,15 @@ mod conflicted_merge_edit_add_parent {
         merge3(&mut helper, base, left, right).unwrap();
 
         helper
+    }
+
+    #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout("\
+CONFLICT (modify/delete): nest/f.txt deleted in topic and modified in HEAD. Version HEAD of nest/f.txt left in tree.
+CONFLICT (directory/file): There is a directory with name nest in HEAD. Adding nest as nest~topic
+Automatic merge failed; fix conflicts and then commit the result.
+");
     }
 
     #[rstest]
@@ -1023,6 +1105,15 @@ mod conflicted_merge_edit_add_child {
         merge3(&mut helper, base, left, right).unwrap();
 
         helper
+    }
+
+    #[rstest]
+    fn print_the_merge_conflicts(helper: CommandHelper) {
+        helper.assert_stdout("\
+Adding nest/f.txt/g.txt
+CONFLICT (modify/delete): nest/f.txt deleted in topic and modified in HEAD. Version HEAD of nest/f.txt left in tree at nest/f.txt~HEAD.
+Automatic merge failed; fix conflicts and then commit the result.
+");
     }
 
     #[rstest]

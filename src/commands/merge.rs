@@ -44,10 +44,19 @@ impl<'a> Merge<'a> {
         self.ctx.repo.index.load_for_update()?;
 
         let mut merge = Resolve::new(&mut self.ctx.repo, &self.inputs);
+        // While not ideal, it's safe to use `println!()` here because `jit merge` doesn't use a
+        // pager. Ideally this would be a closure using `self.ctx.stdout` and `writeln!()`, but I
+        // couldn't figure out how to get that to work.
+        merge.on_progress = |info| println!("{}", info);
         merge.execute()?;
 
         self.ctx.repo.index.write_updates()?;
         if self.ctx.repo.index.has_conflict() {
+            let mut stdout = self.ctx.stdout.borrow_mut();
+            writeln!(
+                stdout,
+                "Automatic merge failed; fix conflicts and then commit the result."
+            )?;
             return Err(Error::Exit(1));
         }
 

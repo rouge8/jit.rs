@@ -3,10 +3,11 @@ use crate::database::tree::{Tree, TreeEntry};
 use crate::database::{Database, ParsedObject};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
+use indexmap::IndexMap;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-pub type TreeDiffChanges = BTreeMap<PathBuf, (Option<Entry>, Option<Entry>)>;
+pub type TreeDiffChanges = IndexMap<PathBuf, (Option<Entry>, Option<Entry>)>;
 
 pub trait Differ {
     fn tree_diff(
@@ -26,7 +27,7 @@ impl<'a> TreeDiff<'a> {
     pub fn new(database: &'a Database) -> Self {
         Self {
             database,
-            changes: BTreeMap::new(),
+            changes: IndexMap::new(),
         }
     }
 

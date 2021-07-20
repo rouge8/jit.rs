@@ -40,6 +40,7 @@ pub struct Repository {
     pub stats: HashMap<String, fs::Metadata>,
     pub changed: BTreeSet<String>,
     pub index_changes: BTreeMap<String, ChangeType>,
+    pub conflicts: BTreeMap<String, Vec<u16>>,
     pub workspace_changes: BTreeMap<String, ChangeType>,
     pub untracked_files: BTreeSet<String>,
     pub head_tree: HashMap<String, TreeEntry>,
@@ -58,6 +59,7 @@ impl Repository {
             stats: HashMap::new(),
             changed: BTreeSet::new(),
             index_changes: BTreeMap::new(),
+            conflicts: BTreeMap::new(),
             workspace_changes: BTreeMap::new(),
             untracked_files: BTreeSet::new(),
             head_tree: HashMap::new(),
@@ -165,8 +167,16 @@ impl Repository {
         // `self.index.entries.values_mut()` and second with `self.check_index_entry()`.
         let mut cloned_entries = self.index.entries.clone();
         for mut entry in cloned_entries.values_mut() {
-            self.check_index_against_workspace(&mut entry)?;
-            self.check_index_against_head_tree(&entry);
+            if entry.stage() == 0 {
+                self.check_index_against_workspace(&mut entry)?;
+                self.check_index_against_head_tree(&entry);
+            } else {
+                self.changed.insert(entry.path.clone());
+                self.conflicts
+                    .entry(entry.path.clone())
+                    .or_insert_with(Vec::new)
+                    .push(entry.stage());
+            }
         }
 
         // Update `self.index.entries` with the entries that were modified in

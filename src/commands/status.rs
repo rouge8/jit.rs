@@ -28,9 +28,30 @@ lazy_static! {
         m.insert(ChangeType::Modified, "modified:");
         m
     };
+    static ref CONFLICT_SHORT_STATUS: HashMap<Vec<u16>, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(vec![1, 2, 3], "UU");
+        m.insert(vec![1, 2], "UD");
+        m.insert(vec![1, 3], "DU");
+        m.insert(vec![2, 3], "AA");
+        m.insert(vec![2], "AU");
+        m.insert(vec![3], "UA");
+        m
+    };
+    static ref CONFLICT_LONG_STATUS: HashMap<Vec<u16>, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(vec![1, 2, 3], "both modified:");
+        m.insert(vec![1, 2], "deleted by them:");
+        m.insert(vec![1, 3], "deleted by us:");
+        m.insert(vec![2, 3], "both added:");
+        m.insert(vec![2], "added by us:");
+        m.insert(vec![3], "added by them:");
+        m
+    };
 }
 
 static LABEL_WIDTH: usize = 12;
+static CONFLICT_LABEL_WIDTH: usize = 17;
 
 impl<'a> Status<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
@@ -84,6 +105,7 @@ impl<'a> Status<'a> {
             &self.ctx.repo.index_changes,
             "green",
         )?;
+        self.print_unmerged_paths()?;
         self.print_changeset(
             "Changes not staged for commit",
             &self.ctx.repo.workspace_changes,
@@ -140,6 +162,27 @@ impl<'a> Status<'a> {
         Ok(())
     }
 
+    fn print_unmerged_paths(&self) -> Result<()> {
+        if self.ctx.repo.conflicts.is_empty() {
+            return Ok(());
+        }
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+
+        writeln!(stdout, "Unmerged paths:")?;
+        writeln!(stdout)?;
+        for (path, r#type) in &self.ctx.repo.conflicts {
+            let status = format!(
+                "{:width$}",
+                CONFLICT_LONG_STATUS[r#type],
+                width = CONFLICT_LABEL_WIDTH
+            );
+            writeln!(stdout, "{}", format!("\t{}{}", status, path).red())?;
+        }
+
+        Ok(())
+    }
+
     fn print_untracked_files(&self) -> Result<()> {
         if self.ctx.repo.untracked_files.is_empty() {
             return Ok(());
@@ -179,15 +222,19 @@ impl<'a> Status<'a> {
     }
 
     fn status_for(&self, path: &str) -> String {
-        let left = match self.ctx.repo.index_changes.get(path) {
-            Some(change) => SHORT_STATUS[change],
-            None => " ",
-        };
-        let right = match self.ctx.repo.workspace_changes.get(path) {
-            Some(change) => SHORT_STATUS[change],
-            None => " ",
-        };
+        if self.ctx.repo.conflicts.contains_key(path) {
+            CONFLICT_SHORT_STATUS[&self.ctx.repo.conflicts[path]].to_owned()
+        } else {
+            let left = match self.ctx.repo.index_changes.get(path) {
+                Some(change) => SHORT_STATUS[change],
+                None => " ",
+            };
+            let right = match self.ctx.repo.workspace_changes.get(path) {
+                Some(change) => SHORT_STATUS[change],
+                None => " ",
+            };
 
-        left.to_owned() + right
+            left.to_owned() + right
+        }
     }
 }

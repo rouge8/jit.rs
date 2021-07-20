@@ -659,6 +659,15 @@ Automatic merge failed; fix conflicts and then commit the result.
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("AA g.txt\n");
+    }
 }
 
 mod conflicted_merge_add_add_mode_conflict {
@@ -716,6 +725,15 @@ Automatic merge failed; fix conflicts and then commit the result.
         assert_no_merge(&mut helper)?;
 
         Ok(())
+    }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("AA g.txt\n");
     }
 }
 
@@ -781,6 +799,21 @@ Automatic merge failed; fix conflicts and then commit the result.
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout(
+                "\
+AU g.txt
+A  g.txt/nested.txt
+?? g.txt~HEAD
+",
+            );
+    }
 }
 
 mod conflicted_merge_directory_file_addition {
@@ -844,6 +877,20 @@ Automatic merge failed; fix conflicts and then commit the result.
         assert_no_merge(&mut helper)?;
 
         Ok(())
+    }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout(
+                "\
+UA g.txt
+?? g.txt~topic
+",
+            );
     }
 }
 
@@ -911,6 +958,15 @@ Automatic merge failed; fix conflicts and then commit the result.
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("UU f.txt\n");
+    }
 }
 
 mod conflicted_merge_edit_delete {
@@ -966,6 +1022,15 @@ Automatic merge failed; fix conflicts and then commit the result.
 
         Ok(())
     }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("UD f.txt\n");
+    }
 }
 
 mod conflicted_merge_delete_edit {
@@ -1020,6 +1085,15 @@ Automatic merge failed; fix conflicts and then commit the result.
         assert_no_merge(&mut helper)?;
 
         Ok(())
+    }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout("DU f.txt\n");
     }
 }
 
@@ -1081,6 +1155,21 @@ Automatic merge failed; fix conflicts and then commit the result.
         assert_no_merge(&mut helper)?;
 
         Ok(())
+    }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout(
+                "\
+UA nest
+UD nest/f.txt
+?? nest~topic
+",
+            );
     }
 }
 
@@ -1147,6 +1236,21 @@ Automatic merge failed; fix conflicts and then commit the result.
         assert_no_merge(&mut helper)?;
 
         Ok(())
+    }
+
+    #[rstest]
+    fn report_the_conflict_in_the_status(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .code(0)
+            .stdout(
+                "\
+UD nest/f.txt
+A  nest/f.txt/g.txt
+?? nest/f.txt~HEAD
+",
+            );
     }
 }
 

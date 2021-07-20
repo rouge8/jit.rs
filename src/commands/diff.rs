@@ -5,6 +5,7 @@ use crate::errors::Result;
 use crate::index::Entry;
 use crate::repository::ChangeType;
 use crate::revision::Revision;
+use itertools::Itertools;
 use std::path::Path;
 
 pub struct Diff<'a> {
@@ -119,24 +120,50 @@ impl<'a> Diff<'a> {
             return Ok(());
         }
 
-        for path in self.ctx.repo.workspace_changes.keys() {
-            let mut stdout = self.ctx.stdout.borrow_mut();
-            let state = &self.ctx.repo.workspace_changes[path];
-            match state {
-                ChangeType::Modified => {
-                    let mut a = self.from_index(&path)?;
-                    let mut b = self.from_file(&path)?;
+        let paths = self
+            .ctx
+            .repo
+            .workspace_changes
+            .keys()
+            .into_iter()
+            // Merge the two iterators in sorted order
+            .merge(self.ctx.repo.conflicts.keys().into_iter());
 
-                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
-                }
-                ChangeType::Deleted => {
-                    let mut a = self.from_index(&path)?;
-                    let mut b = self.diff_printer.from_nothing(&path);
-
-                    self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
-                }
-                _ => unreachable!(),
+        for path in paths {
+            if self.ctx.repo.conflicts.contains_key(path) {
+                self.print_conflict_diff(path)?;
+            } else {
+                self.print_workspace_diff(path)?;
             }
+        }
+
+        Ok(())
+    }
+
+    fn print_conflict_diff(&self, path: &str) -> Result<()> {
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(stdout, "* Unmerged path {}", path)?;
+
+        Ok(())
+    }
+
+    fn print_workspace_diff(&self, path: &str) -> Result<()> {
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        let state = &self.ctx.repo.workspace_changes[path];
+        match state {
+            ChangeType::Modified => {
+                let mut a = self.from_index(&path)?;
+                let mut b = self.from_file(&path)?;
+
+                self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
+            }
+            ChangeType::Deleted => {
+                let mut a = self.from_index(&path)?;
+                let mut b = self.diff_printer.from_nothing(&path);
+
+                self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
+            }
+            _ => unreachable!(),
         }
 
         Ok(())

@@ -668,6 +668,14 @@ Automatic merge failed; fix conflicts and then commit the result.
             .code(0)
             .stdout("AA g.txt\n");
     }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path g.txt\n");
+    }
 }
 
 mod conflicted_merge_add_add_mode_conflict {
@@ -734,6 +742,14 @@ Automatic merge failed; fix conflicts and then commit the result.
             .assert()
             .code(0)
             .stdout("AA g.txt\n");
+    }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path g.txt\n");
     }
 }
 
@@ -814,6 +830,14 @@ A  g.txt/nested.txt
 ",
             );
     }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path g.txt\n");
+    }
 }
 
 mod conflicted_merge_directory_file_addition {
@@ -892,6 +916,14 @@ UA g.txt
 ",
             );
     }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path g.txt\n");
+    }
 }
 
 mod conflicted_merge_edit_edit {
@@ -967,6 +999,14 @@ Automatic merge failed; fix conflicts and then commit the result.
             .code(0)
             .stdout("UU f.txt\n");
     }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path f.txt\n");
+    }
 }
 
 mod conflicted_merge_edit_delete {
@@ -1031,6 +1071,14 @@ Automatic merge failed; fix conflicts and then commit the result.
             .code(0)
             .stdout("UD f.txt\n");
     }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path f.txt\n");
+    }
 }
 
 mod conflicted_merge_delete_edit {
@@ -1094,6 +1142,14 @@ Automatic merge failed; fix conflicts and then commit the result.
             .assert()
             .code(0)
             .stdout("DU f.txt\n");
+    }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path f.txt\n");
     }
 }
 
@@ -1170,6 +1226,16 @@ UD nest/f.txt
 ?? nest~topic
 ",
             );
+    }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff"]).assert().stdout(
+            "\
+* Unmerged path nest
+* Unmerged path nest/f.txt
+",
+        );
     }
 }
 
@@ -1251,6 +1317,14 @@ A  nest/f.txt/g.txt
 ?? nest/f.txt~HEAD
 ",
             );
+    }
+
+    #[rstest]
+    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff"])
+            .assert()
+            .stdout("* Unmerged path nest/f.txt\n");
     }
 }
 

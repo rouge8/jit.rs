@@ -676,6 +676,43 @@ Automatic merge failed; fix conflicts and then commit the result.
             .assert()
             .stdout("* Unmerged path g.txt\n");
     }
+
+    #[rstest]
+    fn show_the_diff_against_our_version(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff", "--ours"]).assert().stdout(
+            "\
+* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+index 0cfbf08..2603ab2 100644
+--- a/g.txt
++++ b/g.txt
+@@ -1,1 +1,5 @@
++<<<<<<< HEAD
+ 2
++=======
++3
++>>>>>>> topic
+",
+        );
+    }
+    #[rstest]
+    fn show_the_diff_against_their_version(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff", "--theirs"]).assert().stdout(
+            "\
+* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+index 00750ed..2603ab2 100644
+--- a/g.txt
++++ b/g.txt
+@@ -1,1 +1,5 @@
++<<<<<<< HEAD
++2
++=======
+ 3
++>>>>>>> topic
+",
+        );
+    }
 }
 
 mod conflicted_merge_add_add_mode_conflict {
@@ -750,6 +787,23 @@ Automatic merge failed; fix conflicts and then commit the result.
             .jit_cmd(&["diff"])
             .assert()
             .stdout("* Unmerged path g.txt\n");
+    }
+
+    #[rstest]
+    fn report_the_mode_change_in_the_appropriate_diff(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["diff", "-2"])
+            .assert()
+            .stdout("* Unmerged path g.txt\n");
+
+        helper.jit_cmd(&["diff", "-3"]).assert().stdout(
+            "\
+* Unmerged path g.txt
+diff --git a/g.txt b/g.txt
+old mode 100755
+new mode 100644
+",
+        );
     }
 }
 

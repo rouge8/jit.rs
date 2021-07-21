@@ -65,6 +65,8 @@ pub enum Command {
         patch: bool,
         #[structopt(short = "s", long)]
         no_patch: bool,
+        #[structopt(flatten)]
+        stage: StageOptions,
     },
     Init {
         #[structopt(parse(from_os_str))]
@@ -99,6 +101,16 @@ pub enum Command {
         #[structopt(long)]
         porcelain: bool,
     },
+}
+
+#[derive(StructOpt, Debug)]
+pub struct StageOptions {
+    #[structopt(short = "1", long, group = "stage")]
+    pub base: bool,
+    #[structopt(short = "2", long, group = "stage")]
+    pub ours: bool,
+    #[structopt(short = "3", long, group = "stage")]
+    pub theirs: bool,
 }
 
 pub fn execute<O: Write + 'static, E: Write + 'static>(

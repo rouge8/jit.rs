@@ -17,18 +17,37 @@ pub struct Diff<'a> {
     cached: bool,
     /// `jit diff --patch`
     patch: bool,
+    /// `jit diff --base` or `jit diff --ours` or `jit diff --theirs`
+    stage: u16,
 }
 
 impl<'a> Diff<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (args, cached, patch) = match &ctx.opt.cmd {
+        let (args, cached, patch, stage) = match &ctx.opt.cmd {
             Command::Diff {
                 args,
                 cached,
                 staged,
                 patch,
                 no_patch,
-            } => (args.to_owned(), *cached || *staged, *patch || !*no_patch),
+                stage,
+            } => {
+                let stage: u16 = if stage.base {
+                    1
+                } else if stage.ours {
+                    2
+                } else if stage.theirs {
+                    3
+                } else {
+                    0
+                };
+                (
+                    args.to_owned(),
+                    *cached || *staged,
+                    *patch || !*no_patch,
+                    stage,
+                )
+            }
             _ => unreachable!(),
         };
 
@@ -40,6 +59,7 @@ impl<'a> Diff<'a> {
             args,
             cached,
             patch,
+            stage,
         }
     }
 
@@ -144,6 +164,11 @@ impl<'a> Diff<'a> {
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(stdout, "* Unmerged path {}", path)?;
 
+        if let Some(mut target) = self.from_index_stage(path, self.stage)? {
+            self.diff_printer
+                .print_diff(&mut stdout, &mut target, &mut self.from_file(path)?)?;
+        }
+
         Ok(())
     }
 
@@ -192,6 +217,21 @@ impl<'a> Diff<'a> {
             Some(entry.mode),
             blob.data,
         ))
+    }
+
+    fn from_index_stage(&self, path: &str, stage: u16) -> Result<Option<Target>> {
+        if let Some(entry) = self.ctx.repo.index.entry_for_path(path, stage) {
+            let blob = self.ctx.repo.database.load_blob(&entry.oid)?;
+
+            Ok(Some(Target::new(
+                path.to_string(),
+                entry.oid.clone(),
+                Some(entry.mode),
+                blob.data,
+            )))
+        } else {
+            Ok(None)
+        }
     }
 
     fn from_file(&self, path: &str) -> Result<Target> {

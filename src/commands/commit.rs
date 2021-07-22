@@ -33,7 +33,7 @@ impl<'a> Commit<'a> {
             return Err(Error::Exit(0));
         }
 
-        let commit = self.commit_writer().write_commit(parents, message)?;
+        let commit = self.commit_writer().write_commit(parents, &message)?;
 
         let mut is_root = String::new();
         match commit.parent() {

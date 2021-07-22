@@ -16,7 +16,7 @@ impl<'a> CommitWriter<'a> {
         Self { ctx }
     }
 
-    pub fn write_commit(&self, parents: Vec<String>, message: String) -> Result<Commit> {
+    pub fn write_commit(&self, parents: Vec<String>, message: &str) -> Result<Commit> {
         let tree = self.write_tree();
         let name = &self.ctx.env["GIT_AUTHOR_NAME"];
         let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
@@ -29,7 +29,7 @@ impl<'a> CommitWriter<'a> {
         };
         let author = Author::new(name.clone(), email.clone(), author_date);
 
-        let commit = Commit::new(parents, tree.oid(), author, message);
+        let commit = Commit::new(parents, tree.oid(), author, message.to_string());
         self.ctx.repo.database.store(&commit)?;
         self.ctx.repo.refs.update_head(&commit.oid())?;
 

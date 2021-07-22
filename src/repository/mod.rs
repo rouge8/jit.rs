@@ -4,6 +4,7 @@ use crate::database::{
 use crate::errors::Result;
 use crate::index::{Entry as IndexEntry, Index};
 use crate::refs::Refs;
+use crate::repository::pending_commit::PendingCommit;
 use crate::util::path_to_string;
 use crate::workspace::Workspace;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -11,6 +12,7 @@ use std::fs;
 use std::path::{Path, PathBuf, MAIN_SEPARATOR};
 
 pub mod migration;
+pub mod pending_commit;
 
 use migration::Migration;
 
@@ -31,6 +33,7 @@ enum ChangeKind {
 #[derive(Debug)]
 pub struct Repository {
     root_path: PathBuf,
+    git_path: PathBuf,
     pub database: Database,
     pub index: Index,
     pub refs: Refs,
@@ -52,6 +55,7 @@ impl Repository {
 
         Repository {
             root_path,
+            git_path: git_path.clone(),
             database: Database::new(git_path.join("objects")),
             index: Index::new(git_path.join("index")),
             refs: Refs::new(git_path.clone()),
@@ -77,6 +81,10 @@ impl Repository {
 
     pub fn migration(&mut self, tree_diff: TreeDiffChanges) -> Migration {
         Migration::new(self, tree_diff)
+    }
+
+    pub fn pending_commit(&self) -> PendingCommit {
+        PendingCommit::new(&self.git_path)
     }
 
     fn record_change(&mut self, path: &str, change_kind: ChangeKind, r#type: ChangeType) {

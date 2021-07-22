@@ -5,6 +5,7 @@ use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
+use crate::repository::pending_commit::PendingCommit;
 use crate::revision::HEAD;
 use std::io;
 use std::io::Read;
@@ -12,6 +13,8 @@ use std::io::Read;
 pub struct Merge<'a> {
     ctx: CommandContext<'a>,
     inputs: Inputs,
+    stdin: String,
+    pending_commit: PendingCommit,
 }
 
 impl<'a> Merge<'a> {
@@ -22,8 +25,18 @@ impl<'a> Merge<'a> {
         };
 
         let inputs = Inputs::new(&ctx.repo, HEAD.to_string(), args[0].clone())?;
+        let pending_commit = ctx.repo.pending_commit();
 
-        Ok(Self { ctx, inputs })
+        let mut message = String::new();
+        io::stdin().read_to_string(&mut message)?;
+        let stdin = message.trim().to_string();
+
+        Ok(Self {
+            ctx,
+            inputs,
+            pending_commit,
+            stdin,
+        })
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -34,6 +47,8 @@ impl<'a> Merge<'a> {
             self.handle_fast_forward()?;
         }
 
+        self.pending_commit
+            .start(&self.inputs.right_oid, &self.stdin)?;
         self.resolve_merge()?;
         self.commit_merge()?;
 
@@ -65,12 +80,11 @@ impl<'a> Merge<'a> {
 
     fn commit_merge(&self) -> Result<()> {
         let parents = vec![self.inputs.left_oid.clone(), self.inputs.right_oid.clone()];
+        let message = &self.pending_commit.merge_message()?;
 
-        let mut message = String::new();
-        io::stdin().read_to_string(&mut message)?;
-        message = message.trim().to_string();
+        self.commit_writer().write_commit(parents, &message)?;
 
-        self.commit_writer().write_commit(parents, message)?;
+        self.pending_commit.clear()?;
 
         Ok(())
     }

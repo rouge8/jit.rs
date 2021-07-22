@@ -43,6 +43,10 @@ impl Index {
 
     pub fn add(&mut self, pathname: PathBuf, oid: String, stat: fs::Metadata) {
         let pathname = path_to_string(&pathname);
+        for stage in 1..=3 {
+            self.remove_entry_with_stage(&pathname, stage);
+        }
+
         let entry = Entry::new(&pathname, oid, stat);
         self.discard_conflicts(&entry);
         self.store_entry(entry);

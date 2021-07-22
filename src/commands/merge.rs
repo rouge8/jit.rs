@@ -34,8 +34,8 @@ impl<'a> Merge<'a> {
         Ok(Self {
             ctx,
             inputs,
-            pending_commit,
             stdin,
+            pending_commit,
         })
     }
 

@@ -1477,3 +1477,127 @@ mod multiple_common_ancestors {
         Ok(())
     }
 }
+
+mod conflict_resolution {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("f.txt", Change::content("1"));
+
+        let mut left = BTreeMap::new();
+        left.insert("f.txt", Change::content("2"));
+
+        let mut right = BTreeMap::new();
+        right.insert("f.txt", Change::content("3"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn prevent_commits_with_unmerged_entries(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["commit"]).assert().code(128).stderr(
+            "\
+error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+",
+        );
+
+        assert_eq!(helper.load_commit("@")?.message, "B");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn prevent_merge_continue_with_unmerged_entries(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["merge", "--continue"])
+            .assert()
+            .code(128)
+            .stderr(
+                "\
+error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+",
+            );
+
+        assert_eq!(helper.load_commit("@")?.message, "B");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn commit_a_merge_after_resolving_conflicts(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["commit"]).assert().code(0);
+
+        let commit = helper.load_commit("@")?;
+        assert_eq!(commit.message, "M");
+
+        let parents: Vec<_> = commit
+            .parents
+            .iter()
+            .map(|oid| helper.load_commit(&oid).unwrap().message)
+            .collect();
+        assert_eq!(parents, vec!["B", "C"]);
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn allow_merge_continue_after_resolving_conflicts(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["merge", "--continue"]).assert().code(0);
+
+        let commit = helper.load_commit("@")?;
+        assert_eq!(commit.message, "M");
+
+        let parents: Vec<_> = commit
+            .parents
+            .iter()
+            .map(|oid| helper.load_commit(&oid).unwrap().message)
+            .collect();
+        assert_eq!(parents, vec!["B", "C"]);
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn prevent_merge_continue_when_none_is_in_progress(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["merge", "--continue"]);
+        helper
+            .jit_cmd(&["merge", "--continue"])
+            .assert()
+            .code(128)
+            .stderr("fatal: There is no merge in progress (MERGE_HEAD missing).\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn prevent_starting_a_new_merge_while_one_is_in_progress(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.jit_cmd(&["merge"]).assert().code(128).stderr(
+            "\
+error: Merging is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+",
+        );
+
+        Ok(())
+    }
+}

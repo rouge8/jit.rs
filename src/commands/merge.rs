@@ -1,31 +1,27 @@
-use crate::commands::shared::commit_writer::CommitWriter;
+use crate::commands::shared::commit_writer::{CommitWriter, CONFLICT_MESSAGE};
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
-use crate::repository::pending_commit::PendingCommit;
 use crate::revision::HEAD;
 use std::io;
 use std::io::Read;
 
 pub struct Merge<'a> {
     ctx: CommandContext<'a>,
-    inputs: Inputs,
+    args: Vec<String>,
     stdin: String,
-    pending_commit: PendingCommit,
+    r#continue: bool,
 }
 
 impl<'a> Merge<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let args = match &ctx.opt.cmd {
-            Command::Merge { args } => args,
+        let (args, r#continue) = match &ctx.opt.cmd {
+            Command::Merge { args, r#continue } => (args, *r#continue),
             _ => unreachable!(),
         };
-
-        let inputs = Inputs::new(&ctx.repo, HEAD.to_string(), args[0].clone())?;
-        let pending_commit = ctx.repo.pending_commit();
 
         let mut message = String::new();
         io::stdin().read_to_string(&mut message)?;
@@ -33,32 +29,42 @@ impl<'a> Merge<'a> {
 
         Ok(Self {
             ctx,
-            inputs,
+            args: args.to_owned(),
             stdin,
-            pending_commit,
+            r#continue,
         })
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.inputs.already_merged() {
-            self.handle_merged_ancestor()?;
-        }
-        if self.inputs.is_fast_forward() {
-            self.handle_fast_forward()?;
+        if self.r#continue {
+            self.handle_continue()?;
         }
 
-        self.pending_commit
-            .start(&self.inputs.right_oid, &self.stdin)?;
-        self.resolve_merge()?;
-        self.commit_merge()?;
+        let pending_commit = self.commit_writer().pending_commit;
+
+        if pending_commit.in_progress() {
+            self.handle_in_progress_merge()?;
+        }
+
+        let inputs = Inputs::new(&self.ctx.repo, HEAD.to_string(), self.args[0].clone())?;
+        if inputs.already_merged() {
+            self.handle_merged_ancestor()?;
+        }
+        if inputs.is_fast_forward() {
+            self.handle_fast_forward(&inputs)?;
+        }
+
+        pending_commit.start(&inputs.right_oid, &self.stdin)?;
+        self.resolve_merge(&inputs)?;
+        self.commit_merge(&inputs)?;
 
         Ok(())
     }
 
-    fn resolve_merge(&mut self) -> Result<()> {
+    fn resolve_merge(&mut self, inputs: &Inputs) -> Result<()> {
         self.ctx.repo.index.load_for_update()?;
 
-        let mut merge = Resolve::new(&mut self.ctx.repo, &self.inputs);
+        let mut merge = Resolve::new(&mut self.ctx.repo, &inputs);
         // While not ideal, it's safe to use `println!()` here because `jit merge` doesn't use a
         // pager. Ideally this would be a closure using `self.ctx.stdout` and `writeln!()`, but I
         // couldn't figure out how to get that to work.
@@ -78,13 +84,15 @@ impl<'a> Merge<'a> {
         Ok(())
     }
 
-    fn commit_merge(&self) -> Result<()> {
-        let parents = vec![self.inputs.left_oid.clone(), self.inputs.right_oid.clone()];
-        let message = &self.pending_commit.merge_message()?;
+    fn commit_merge(&self, inputs: &Inputs) -> Result<()> {
+        let commit_writer = self.commit_writer();
 
-        self.commit_writer().write_commit(parents, &message)?;
+        let parents = vec![inputs.left_oid.clone(), inputs.right_oid.clone()];
+        let message = &commit_writer.pending_commit.merge_message()?;
 
-        self.pending_commit.clear()?;
+        commit_writer.write_commit(parents, &message)?;
+
+        commit_writer.pending_commit.clear()?;
 
         Ok(())
     }
@@ -97,9 +105,9 @@ impl<'a> Merge<'a> {
         Err(Error::Exit(0))
     }
 
-    fn handle_fast_forward(&mut self) -> Result<()> {
-        let a = Database::short_oid(&self.inputs.left_oid);
-        let b = Database::short_oid(&self.inputs.right_oid);
+    fn handle_fast_forward(&mut self, inputs: &Inputs) -> Result<()> {
+        let a = Database::short_oid(&inputs.left_oid);
+        let b = Database::short_oid(&inputs.right_oid);
 
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(stdout, "Updating {}..{}", a, b)?;
@@ -108,16 +116,44 @@ impl<'a> Merge<'a> {
         self.ctx.repo.index.load_for_update()?;
 
         let tree_diff = self.ctx.repo.database.tree_diff(
-            Some(&self.inputs.left_oid),
-            Some(&self.inputs.right_oid),
+            Some(&inputs.left_oid),
+            Some(&inputs.right_oid),
             None,
         )?;
         self.ctx.repo.migration(tree_diff).apply_changes()?;
 
         self.ctx.repo.index.write_updates()?;
-        self.ctx.repo.refs.update_head(&self.inputs.right_oid)?;
+        self.ctx.repo.refs.update_head(&inputs.right_oid)?;
 
         Err(Error::Exit(0))
+    }
+
+    fn handle_continue(&mut self) -> Result<()> {
+        self.ctx.repo.index.load()?;
+
+        match self.commit_writer().resume_merge() {
+            Ok(()) => Ok(()),
+            Err(err) => match err {
+                Error::NoMergeInProgress(..) => {
+                    let mut stderr = self.ctx.stderr.borrow_mut();
+                    writeln!(stderr, "fatal: {}", err)?;
+
+                    Err(Error::Exit(128))
+                }
+                _ => Err(err),
+            },
+        }
+    }
+
+    fn handle_in_progress_merge(&self) -> Result<()> {
+        let mut stderr = self.ctx.stderr.borrow_mut();
+        writeln!(
+            stderr,
+            "error: Merging is not possible because you have unmerged files."
+        )?;
+        writeln!(stderr, "{}", CONFLICT_MESSAGE)?;
+
+        Err(Error::Exit(128))
     }
 
     fn commit_writer(&self) -> CommitWriter {

@@ -1,7 +1,8 @@
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::fs::OpenOptions;
+use std::io;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 pub struct PendingCommit {
@@ -32,17 +33,40 @@ impl PendingCommit {
         Ok(())
     }
 
+    pub fn in_progress(&self) -> bool {
+        self.message_path.exists()
+    }
+
+    pub fn merge_oid(&self) -> Result<String> {
+        match fs::read_to_string(&self.head_path) {
+            Ok(oid) => Ok(oid.trim().to_string()),
+            Err(err) => {
+                if err.kind() == io::ErrorKind::NotFound {
+                    let name = self
+                        .head_path
+                        .file_name()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_string();
+
+                    Err(Error::NoMergeInProgress(name))
+                } else {
+                    Err(Error::Io(err))
+                }
+            }
+        }
+    }
+
+    pub fn merge_message(&self) -> Result<String> {
+        let message = fs::read_to_string(&self.message_path)?;
+
+        Ok(message)
+    }
+
     pub fn clear(&self) -> Result<()> {
         fs::remove_file(&self.head_path)?;
         fs::remove_file(&self.message_path)?;
 
         Ok(())
-    }
-
-    pub fn merge_message(&self) -> Result<String> {
-        let mut message = String::new();
-        File::open(&self.message_path)?.read_to_string(&mut message)?;
-
-        Ok(message)
     }
 }

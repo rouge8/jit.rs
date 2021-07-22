@@ -22,6 +22,8 @@ pub enum Error {
     MigrationConflict,
     #[error("branch '{0}' not found.")]
     BranchNotFound(String),
+    #[error("There is no merge in progress ({0} missing).")]
+    NoMergeInProgress(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

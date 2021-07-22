@@ -18,6 +18,11 @@ impl<'a> Commit<'a> {
     pub fn run(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
 
+        let commit_writer = self.commit_writer();
+        if commit_writer.pending_commit.in_progress() {
+            commit_writer.resume_merge()?;
+        }
+
         let parents = if let Some(parent) = self.ctx.repo.refs.read_head()? {
             vec![parent]
         } else {
@@ -33,7 +38,7 @@ impl<'a> Commit<'a> {
             return Err(Error::Exit(0));
         }
 
-        let commit = self.commit_writer().write_commit(parents, &message)?;
+        let commit = commit_writer.write_commit(parents, &message)?;
 
         let mut is_root = String::new();
         match commit.parent() {

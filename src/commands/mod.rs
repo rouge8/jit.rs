@@ -96,6 +96,8 @@ pub enum Command {
     },
     Merge {
         args: Vec<String>,
+        #[structopt(long)]
+        r#continue: bool,
     },
     Status {
         #[structopt(long)]

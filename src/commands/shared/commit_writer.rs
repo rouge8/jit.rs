@@ -4,16 +4,28 @@ use crate::database::commit::Commit;
 use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
-use crate::errors::Result;
+use crate::errors::{Error, Result};
+use crate::repository::pending_commit::PendingCommit;
 use chrono::{DateTime, Local};
+
+pub const CONFLICT_MESSAGE: &str = "\
+hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.";
 
 pub struct CommitWriter<'a> {
     ctx: &'a CommandContext<'a>,
+    pub pending_commit: PendingCommit,
 }
 
 impl<'a> CommitWriter<'a> {
     pub fn new(ctx: &'a CommandContext) -> Self {
-        Self { ctx }
+        let pending_commit = ctx.repo.pending_commit();
+
+        Self {
+            ctx,
+            pending_commit,
+        }
     }
 
     pub fn write_commit(&self, parents: Vec<String>, message: &str) -> Result<Commit> {
@@ -51,5 +63,33 @@ impl<'a> CommitWriter<'a> {
         });
 
         root
+    }
+
+    pub fn resume_merge(&self) -> Result<()> {
+        self.handle_conflicted_index()?;
+
+        let parents = vec![
+            self.ctx.repo.refs.read_head()?.unwrap(),
+            self.pending_commit.merge_oid()?,
+        ];
+        self.write_commit(parents, &self.pending_commit.merge_message()?)?;
+
+        self.pending_commit.clear()?;
+        Err(Error::Exit(0))
+    }
+
+    fn handle_conflicted_index(&self) -> Result<()> {
+        if !self.ctx.repo.index.has_conflict() {
+            return Ok(());
+        }
+
+        let mut stderr = self.ctx.stderr.borrow_mut();
+        writeln!(
+            stderr,
+            "error: Committing is not possible because you have unmerged files."
+        )?;
+        writeln!(stderr, "{}", CONFLICT_MESSAGE)?;
+
+        Err(Error::Exit(128))
     }
 }

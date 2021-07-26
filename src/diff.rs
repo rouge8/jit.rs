@@ -25,7 +25,7 @@ pub fn diff_hunks(a: &str, b: &str) -> Vec<Hunk> {
 
 #[derive(Debug, Clone)]
 pub struct Line {
-    number: usize,
+    pub number: usize,
     text: String,
 }
 
@@ -41,8 +41,8 @@ impl Line {
 #[derive(Debug, Clone)]
 pub struct Edit {
     pub r#type: EditType,
-    a_line: Option<Line>,
-    b_line: Option<Line>,
+    pub a_line: Option<Line>,
+    pub b_line: Option<Line>,
 }
 
 impl Edit {

@@ -3,6 +3,7 @@ use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree_diff::{Differ, TreeDiffChanges};
 use crate::errors::Result;
+use crate::merge::diff3;
 use crate::merge::inputs::Inputs;
 use crate::repository::Repository;
 use crate::util::path_to_string;
@@ -146,24 +147,30 @@ impl<'a> Resolve<'a> {
             return Ok((result.0, result.1.to_string()));
         }
 
-        let blob = Blob::new(self.merged_data(&left_oid.unwrap(), &right_oid.unwrap())?);
+        let oids = vec![base_oid, left_oid, right_oid];
+        let mut blobs = Vec::new();
+        for oid in oids {
+            if let Some(oid) = oid {
+                let blob = self.repo.database.load_blob(oid)?;
+                blobs.push(
+                    std::str::from_utf8(&blob.data)
+                        .expect("Invalid UTF-8")
+                        .to_string(),
+                );
+            } else {
+                blobs.push("".to_string());
+            }
+        }
+        let blob_base = &blobs[0];
+        let blob_left = &blobs[1];
+        let blob_right = &blobs[2];
+        let merge = diff3::merge(blob_base, blob_left, blob_right);
+
+        let data = merge.to_string(Some(&self.inputs.left_name), Some(&self.inputs.right_name));
+        let blob = Blob::new(data.as_bytes().to_vec());
         self.repo.database.store(&blob)?;
 
-        Ok((false, blob.oid()))
-    }
-
-    fn merged_data(&self, left_oid: &str, right_oid: &str) -> Result<Vec<u8>> {
-        let mut left_blob = self.repo.database.load_blob(left_oid)?;
-        let mut right_blob = self.repo.database.load_blob(right_oid)?;
-
-        let mut result = vec![];
-        result.extend_from_slice(format!("<<<<<<< {}\n", self.inputs.left_name).as_bytes());
-        result.append(&mut left_blob.data);
-        result.extend_from_slice(b"=======\n");
-        result.append(&mut right_blob.data);
-        result.extend_from_slice(format!(">>>>>>> {}\n", self.inputs.right_name).as_bytes());
-
-        Ok(result)
+        Ok((merge.is_clean(), blob.oid()))
     }
 
     fn merge_modes(

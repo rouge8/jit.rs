@@ -1,10 +1,11 @@
 use crate::diff::{diff, EditType};
+use crate::util::LinesWithEndings;
 use std::collections::HashMap;
 
 pub fn merge(o: &str, a: &str, b: &str) -> Result {
-    let o: Vec<_> = o.lines().map(|l| l.to_string()).collect();
-    let a: Vec<_> = a.lines().map(|l| l.to_string()).collect();
-    let b: Vec<_> = b.lines().map(|l| l.to_string()).collect();
+    let o: Vec<_> = LinesWithEndings::from(o).map(|l| l.to_string()).collect();
+    let a: Vec<_> = LinesWithEndings::from(a).map(|l| l.to_string()).collect();
+    let b: Vec<_> = LinesWithEndings::from(b).map(|l| l.to_string()).collect();
 
     Diff3::new(o, a, b).merge()
 }
@@ -276,7 +277,13 @@ e",
         );
 
         assert!(merge.is_clean());
-        assert_eq!(merge.to_string(None, None), "dbe");
+        assert_eq!(
+            merge.to_string(None, None),
+            "\
+d
+b
+e"
+        );
     }
 
     #[test]
@@ -295,7 +302,13 @@ e",
         );
 
         assert!(merge.is_clean());
-        assert_eq!(merge.to_string(None, None), "dbe");
+        assert_eq!(
+            merge.to_string(None, None),
+            "\
+d
+b
+e"
+        );
     }
 
     #[test]
@@ -318,9 +331,12 @@ c",
             merge.to_string(None, None),
             "\
 <<<<<<<
-d=======
-e>>>>>>>
-bc"
+d
+=======
+e
+>>>>>>>
+b
+c"
         );
     }
 
@@ -341,8 +357,12 @@ c",
             merge.to_string(None, None),
             "\
 <<<<<<<
-dbc=======
-ebc>>>>>>>
+d
+b
+c=======
+e
+b
+c>>>>>>>
 "
         );
     }
@@ -367,9 +387,12 @@ c",
             merge.to_string(Some("left"), Some("right")),
             "\
 <<<<<<< left
-d=======
-e>>>>>>> right
-bc"
+d
+=======
+e
+>>>>>>> right
+b
+c"
         );
     }
 }

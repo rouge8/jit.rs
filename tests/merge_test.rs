@@ -395,6 +395,45 @@ mod unconflicted_merge_same_edit_on_both_sides {
     }
 }
 
+mod unconflicted_merge_in_file_merge_possible {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        let mut base = BTreeMap::new();
+        base.insert("f.txt", Change::content("1\n2\n3\n"));
+
+        let mut left = BTreeMap::new();
+        left.insert("f.txt", Change::content("4\n2\n3\n"));
+
+        let mut right = BTreeMap::new();
+        right.insert("f.txt", Change::content("1\n2\n5\n"));
+
+        merge3(&mut helper, base, left, right).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "4\n2\n5\n");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn create_a_clean_merge(mut helper: CommandHelper) -> Result<()> {
+        assert_clean_merge(&mut helper)?;
+
+        Ok(())
+    }
+}
+
 mod unconflicted_merge_edit_and_mode_change {
     use super::*;
 

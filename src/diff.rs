@@ -1,7 +1,9 @@
+use combined::{Combined, Row};
 use hunk::Hunk;
 use myers::Myers;
 use std::fmt;
 
+mod combined;
 pub mod hunk;
 mod myers;
 
@@ -23,7 +25,13 @@ pub fn diff_hunks(a: &str, b: &str) -> Vec<Hunk> {
     Hunk::filter(diff(a, b))
 }
 
-#[derive(Debug, Clone)]
+pub fn combined(r#as: &[&str], b: &str) -> Vec<Row> {
+    let diffs = r#as.iter().map(|a| diff(a, b)).collect();
+
+    Combined::new(diffs).collect()
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Line {
     pub number: usize,
     text: String,
@@ -38,7 +46,7 @@ impl Line {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Edit {
     pub r#type: EditType,
     pub a_line: Option<Line>,

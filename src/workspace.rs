@@ -94,6 +94,19 @@ impl Workspace {
         Ok(())
     }
 
+    pub fn remove(&self, path: &Path) -> Result<()> {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(err) => {
+                if err.kind() == io::ErrorKind::NotFound {
+                    Ok(())
+                } else {
+                    Err(Error::Io(err))
+                }
+            }
+        }
+    }
+
     pub fn apply_migration(&self, migration: &Migration) -> Result<()> {
         self.apply_change_list(migration, Action::Delete)?;
         for dir in migration.rmdirs.iter().rev() {

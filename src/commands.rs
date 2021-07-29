@@ -15,6 +15,7 @@ mod diff;
 mod init;
 mod log;
 mod merge;
+mod rm;
 mod shared;
 mod status;
 
@@ -26,6 +27,7 @@ use diff::Diff;
 use init::Init;
 use log::{Log, LogDecoration, LogFormat};
 use merge::Merge;
+use rm::Rm;
 use status::Status;
 
 #[derive(StructOpt, Debug)]
@@ -101,6 +103,10 @@ pub enum Command {
         #[structopt(long)]
         r#continue: bool,
     },
+    Rm {
+        #[structopt(parse(from_os_str))]
+        files: Vec<PathBuf>,
+    },
     Status {
         #[structopt(long)]
         porcelain: bool,
@@ -158,6 +164,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Merge { .. } => {
             let mut cmd = Merge::new(ctx)?;
+            cmd.run()
+        }
+        Command::Rm { .. } => {
+            let mut cmd = Rm::new(ctx);
             cmd.run()
         }
         Command::Status { .. } => {

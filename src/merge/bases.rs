@@ -14,7 +14,7 @@ impl<'a> Bases<'a> {
     pub fn new(database: &'a Database, one: &str, two: &str) -> Result<Self> {
         Ok(Self {
             database,
-            common: CommonAncestors::new(&database, &one, &[&two])?,
+            common: CommonAncestors::new(database, one, &[two])?,
             commits: Vec::new(),
             redundant: HashSet::new(),
         })
@@ -65,7 +65,7 @@ impl<'a> Bases<'a> {
                 }
             })
             .collect();
-        let mut common = CommonAncestors::new(&self.database, commit, &others)?;
+        let mut common = CommonAncestors::new(self.database, commit, &others)?;
 
         common.find()?;
 

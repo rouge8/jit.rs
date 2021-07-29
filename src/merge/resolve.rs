@@ -110,7 +110,7 @@ impl<'a> Resolve<'a> {
         let right_mode = right.as_ref().map(|right| right.mode);
 
         if left.is_some() && right.is_some() {
-            self.log(format!("Auto-merging {}", path_to_string(&path)));
+            self.log(format!("Auto-merging {}", path_to_string(path)));
         }
 
         let (oid_ok, oid) = self.merge_blobs(
@@ -122,7 +122,7 @@ impl<'a> Resolve<'a> {
 
         self.clean_diff.insert(
             path.to_path_buf(),
-            (left.clone(), Some(Entry::new(&path, oid, mode))),
+            (left.clone(), Some(Entry::new(path, oid, mode))),
         );
 
         if oid_ok && mode_ok {
@@ -130,8 +130,8 @@ impl<'a> Resolve<'a> {
         }
 
         self.conflicts
-            .insert(path_to_string(&path), vec![base, left, right]);
-        self.log_conflict(&path, None);
+            .insert(path_to_string(path), vec![base, left, right]);
+        self.log_conflict(path, None);
 
         Ok(())
     }
@@ -239,9 +239,9 @@ impl<'a> Resolve<'a> {
                 .insert(rename.clone(), new_item.to_owned().unwrap());
 
             if diff.get(path).is_none() {
-                self.log(format!("Adding {}", path_to_string(&path)));
+                self.log(format!("Adding {}", path_to_string(path)));
             }
-            self.log_conflict(&parent, Some(rename));
+            self.log_conflict(parent, Some(rename));
         }
     }
 

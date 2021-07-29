@@ -257,7 +257,7 @@ fatal: Not a valid object name: '{}^^'.
             .refs
             .list_branches()?
             .iter()
-            .map(|r#ref| repo.refs.short_name(&r#ref))
+            .map(|r#ref| repo.refs.short_name(r#ref))
             .collect();
         assert_eq!(branches, vec![String::from("main")]);
 
@@ -286,7 +286,7 @@ fatal: Not a valid object name: '{}^^'.
             .refs
             .list_branches()?
             .iter()
-            .map(|r#ref| repo.refs.short_name(&r#ref))
+            .map(|r#ref| repo.refs.short_name(r#ref))
             .collect();
         branches.sort();
         assert_eq!(branches, vec![String::from("fix/2"), String::from("main")]);

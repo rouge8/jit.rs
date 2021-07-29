@@ -1611,7 +1611,7 @@ fatal: Exiting because of an unresolved conflict.
         let parents: Vec<_> = commit
             .parents
             .iter()
-            .map(|oid| helper.load_commit(&oid).unwrap().message)
+            .map(|oid| helper.load_commit(oid).unwrap().message)
             .collect();
         assert_eq!(parents, vec!["B", "C"]);
 
@@ -1629,7 +1629,7 @@ fatal: Exiting because of an unresolved conflict.
         let parents: Vec<_> = commit
             .parents
             .iter()
-            .map(|oid| helper.load_commit(&oid).unwrap().message)
+            .map(|oid| helper.load_commit(oid).unwrap().message)
             .collect();
         assert_eq!(parents, vec!["B", "C"]);
 

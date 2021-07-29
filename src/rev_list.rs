@@ -53,7 +53,7 @@ impl<'a> RevList<'a> {
         };
 
         for rev in revs {
-            rev_list.handle_revision(&rev)?;
+            rev_list.handle_revision(rev)?;
         }
         if rev_list.queue.is_empty() {
             rev_list.handle_revision(HEAD)?;
@@ -67,13 +67,13 @@ impl<'a> RevList<'a> {
     fn handle_revision(&mut self, rev: &str) -> Result<()> {
         if self.repo.workspace.stat_file(&PathBuf::from(rev)).is_ok() {
             self.prune.push(PathBuf::from(rev));
-        } else if let Some(r#match) = RANGE.captures(&rev) {
+        } else if let Some(r#match) = RANGE.captures(rev) {
             self.set_start_point(&r#match[1], false)?;
             self.set_start_point(&r#match[2], true)?;
-        } else if let Some(r#match) = EXCLUDE.captures(&rev) {
+        } else if let Some(r#match) = EXCLUDE.captures(rev) {
             self.set_start_point(&r#match[1], false)?;
         } else {
-            self.set_start_point(&rev, true)?;
+            self.set_start_point(rev, true)?;
         }
 
         Ok(())
@@ -82,7 +82,7 @@ impl<'a> RevList<'a> {
     fn set_start_point(&mut self, rev: &str, interesting: bool) -> Result<()> {
         let rev = if rev.is_empty() { HEAD } else { rev };
 
-        let oid = Revision::new(&self.repo, &rev).resolve(Some(COMMIT))?;
+        let oid = Revision::new(self.repo, rev).resolve(Some(COMMIT))?;
 
         let commit = self.load_commit(Some(&oid))?;
         self.enqueue_commit(commit.as_ref());
@@ -164,7 +164,7 @@ impl<'a> RevList<'a> {
             let parents: Vec<_> = commit
                 .parents
                 .iter()
-                .map(|oid| self.load_commit(Some(&oid)).unwrap())
+                .map(|oid| self.load_commit(Some(oid)).unwrap())
                 .collect();
             for parent in &parents {
                 self.mark_parents_uninteresting(parent.as_ref());
@@ -172,9 +172,9 @@ impl<'a> RevList<'a> {
 
             parents
         } else {
-            self.simplify_commit(&commit)?
+            self.simplify_commit(commit)?
                 .iter()
-                .map(|oid| self.load_commit(Some(&oid)).unwrap())
+                .map(|oid| self.load_commit(Some(oid)).unwrap())
                 .collect()
         };
 
@@ -213,7 +213,7 @@ impl<'a> RevList<'a> {
         }
         let oid = oid.unwrap();
         if !self.commits.contains_key(oid) {
-            let commit = self.repo.database.load_commit(&oid)?;
+            let commit = self.repo.database.load_commit(oid)?;
             self.commits.insert(oid.to_string(), commit);
         }
 

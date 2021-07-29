@@ -61,7 +61,7 @@ impl Database {
 
     /// Load a commit by its object ID, returning a `Commit`.
     pub fn load_commit(&self, oid: &str) -> io::Result<Commit> {
-        match self.load(&oid)? {
+        match self.load(oid)? {
             ParsedObject::Commit(commit) => Ok(commit),
             _ => unreachable!(),
         }
@@ -69,7 +69,7 @@ impl Database {
 
     /// Load a blob by its object ID, returning a `Blob`.
     pub fn load_blob(&self, oid: &str) -> io::Result<Blob> {
-        match self.load(&oid)? {
+        match self.load(oid)? {
             ParsedObject::Blob(blob) => Ok(blob),
             _ => unreachable!(),
         }
@@ -99,7 +99,7 @@ impl Database {
     }
 
     fn read_object(&self, oid: &str) -> io::Result<ParsedObject> {
-        let compressed_data = fs::read(self.object_path(&oid))?;
+        let compressed_data = fs::read(self.object_path(oid))?;
         let mut data = vec![];
         let mut z = ZlibDecoder::new(&compressed_data[..]);
         z.read_to_end(&mut data)?;
@@ -116,9 +116,9 @@ impl Database {
             .unwrap();
 
         match object_type {
-            "blob" => Ok(Blob::parse(rest, &oid)),
+            "blob" => Ok(Blob::parse(rest, oid)),
             "tree" => Ok(Tree::parse(rest)),
-            "commit" => Ok(Commit::parse(rest, &oid)),
+            "commit" => Ok(Commit::parse(rest, oid)),
             _ => unreachable!(),
         }
     }
@@ -173,8 +173,8 @@ impl Differ for Database {
         } else {
             &empty_filter
         };
-        let mut diff = TreeDiff::new(&self);
-        diff.compare_oids(a, b, &filter)?;
+        let mut diff = TreeDiff::new(self);
+        diff.compare_oids(a, b, filter)?;
         Ok(diff.changes)
     }
 }

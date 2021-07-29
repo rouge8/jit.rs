@@ -129,11 +129,11 @@ impl<'a> Log<'a> {
 
     fn show_commit(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
         match self.format {
-            LogFormat::Medium => self.show_commit_medium(&commit)?,
-            LogFormat::OneLine => self.show_commit_oneline(&commit)?,
+            LogFormat::Medium => self.show_commit_medium(commit)?,
+            LogFormat::OneLine => self.show_commit_oneline(commit)?,
         }
 
-        self.show_patch(&commit, &rev_list)?;
+        self.show_patch(commit, rev_list)?;
 
         Ok(())
     }
@@ -146,15 +146,15 @@ impl<'a> Log<'a> {
         writeln!(
             stdout,
             "{}{}",
-            format!("commit {}", self.maybe_abbrev(&commit)).yellow(),
-            self.decorate(&commit),
+            format!("commit {}", self.maybe_abbrev(commit)).yellow(),
+            self.decorate(commit),
         )?;
 
         if commit.is_merge() {
             let oids: Vec<_> = commit
                 .parents
                 .iter()
-                .map(|oid| Database::short_oid(&oid))
+                .map(|oid| Database::short_oid(oid))
                 .collect();
             writeln!(stdout, "Merge: {}", oids.join(" "))?;
         }
@@ -177,8 +177,8 @@ impl<'a> Log<'a> {
         writeln!(
             stdout,
             "{}{} {}",
-            self.maybe_abbrev(&commit).yellow(),
-            self.decorate(&commit),
+            self.maybe_abbrev(commit).yellow(),
+            self.decorate(commit),
             commit.title_line(),
         )?;
 
@@ -215,18 +215,18 @@ impl<'a> Log<'a> {
 
     fn decoration_name(&self, head: Option<&&Ref>, r#ref: &Ref) -> String {
         let mut name = match self.decorate {
-            LogDecoration::Short | LogDecoration::Auto => self.ctx.repo.refs.short_name(&r#ref),
+            LogDecoration::Short | LogDecoration::Auto => self.ctx.repo.refs.short_name(r#ref),
             LogDecoration::Full => match r#ref {
                 Ref::SymRef { path } => path.to_owned(),
                 _ => unreachable!(),
             },
             _ => unreachable!(),
         };
-        name = name.bold().color(self.ref_color(&r#ref)).to_string();
+        name = name.bold().color(self.ref_color(r#ref)).to_string();
 
         if let Some(head) = head {
             if r#ref == self.current_ref.as_ref().unwrap() {
-                name = format!("{} {}", "HEAD ->".bold().color(self.ref_color(&head)), name);
+                name = format!("{} {}", "HEAD ->".bold().color(self.ref_color(head)), name);
             }
         }
 
@@ -269,7 +269,7 @@ impl<'a> Log<'a> {
             return Ok(());
         }
         if commit.is_merge() {
-            return self.show_merge_patch(&commit, &rev_list);
+            return self.show_merge_patch(commit, rev_list);
         }
 
         self.blank_line()?;
@@ -293,7 +293,7 @@ impl<'a> Log<'a> {
 
         let mut diffs = Vec::new();
         for oid in &commit.parents {
-            diffs.push(rev_list.tree_diff(Some(&oid), Some(&commit.oid()), None)?);
+            diffs.push(rev_list.tree_diff(Some(oid), Some(&commit.oid()), None)?);
         }
 
         let paths = diffs[0]

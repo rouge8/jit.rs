@@ -135,7 +135,7 @@ impl Object for Tree {
         // behavior.
         let mut entries: Vec<_> = self.entries.iter().collect();
         entries.sort_by_key(|(name, entry)| {
-            let mut name = path_to_string(&name);
+            let mut name = path_to_string(name);
 
             if entry.is_tree() {
                 name.push('/');
@@ -145,9 +145,8 @@ impl Object for Tree {
         });
 
         for (name, entry) in entries {
-            content.append(
-                &mut format!("{:o} {}\0", entry.mode(), path_to_string(&name)).into_bytes(),
-            );
+            content
+                .append(&mut format!("{:o} {}\0", entry.mode(), path_to_string(name)).into_bytes());
             content.append(&mut hex::decode(entry.oid()).unwrap());
         }
         content
@@ -162,9 +161,9 @@ mod tests {
     fn tree_bytes_sort_order() {
         let entries = vec![
             // Use "" for oids so they don't clutter the serialized tree
-            Entry::new(&Path::new("test:txt"), String::from(""), 0o100644),
-            Entry::new(&Path::new("test.txt"), String::from(""), 0o100644),
-            Entry::new(&Path::new("test"), String::from(""), TREE_MODE),
+            Entry::new(Path::new("test:txt"), String::from(""), 0o100644),
+            Entry::new(Path::new("test.txt"), String::from(""), 0o100644),
+            Entry::new(Path::new("test"), String::from(""), TREE_MODE),
         ];
         let tree = Tree::build(entries);
 

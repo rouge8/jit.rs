@@ -62,7 +62,7 @@ impl<'a> Branch<'a> {
         let branch_name = &self.args[0];
         let start_oid = match &self.args.get(1) {
             Some(start_point) => {
-                let mut revision = Revision::new(&self.ctx.repo, &start_point);
+                let mut revision = Revision::new(&self.ctx.repo, start_point);
                 match revision.resolve(Some(COMMIT)) {
                     Ok(start_oid) => start_oid,
                     Err(err) => match err {
@@ -86,7 +86,7 @@ impl<'a> Branch<'a> {
             None => self.ctx.repo.refs.read_head()?.unwrap(),
         };
 
-        match self.ctx.repo.refs.create_branch(&branch_name, start_oid) {
+        match self.ctx.repo.refs.create_branch(branch_name, start_oid) {
             Ok(()) => Ok(()),
             Err(err) => match err {
                 Error::InvalidBranch(..) => {
@@ -109,7 +109,7 @@ impl<'a> Branch<'a> {
 
         let max_width = branches
             .iter()
-            .map(|branch| self.ctx.repo.refs.short_name(&branch).len())
+            .map(|branch| self.ctx.repo.refs.short_name(branch).len())
             .max()
             .unwrap_or(0);
 
@@ -128,14 +128,14 @@ impl<'a> Branch<'a> {
 
     fn delete_branches(&self) -> Result<()> {
         for branch_name in &self.args {
-            self.delete_branch(&branch_name)?;
+            self.delete_branch(branch_name)?;
         }
 
         Ok(())
     }
 
     fn format_ref(&self, r#ref: &Ref, current: &Ref) -> String {
-        let short_name = self.ctx.repo.refs.short_name(&r#ref);
+        let short_name = self.ctx.repo.refs.short_name(r#ref);
 
         if r#ref == current {
             format!("* {}", short_name.green())
@@ -153,9 +153,9 @@ impl<'a> Branch<'a> {
             .ctx
             .repo
             .database
-            .load_commit(&self.ctx.repo.refs.read_oid(&r#ref)?.unwrap())?;
+            .load_commit(&self.ctx.repo.refs.read_oid(r#ref)?.unwrap())?;
         let short = Database::short_oid(&commit.oid());
-        let space = " ".repeat(max_width - self.ctx.repo.refs.short_name(&r#ref).len());
+        let space = " ".repeat(max_width - self.ctx.repo.refs.short_name(r#ref).len());
 
         Ok(format!("{} {} {}", space, short, commit.title_line()))
     }
@@ -165,7 +165,7 @@ impl<'a> Branch<'a> {
             return Ok(());
         }
 
-        match self.ctx.repo.refs.delete_branch(&branch_name) {
+        match self.ctx.repo.refs.delete_branch(branch_name) {
             Ok(oid) => {
                 let short = Database::short_oid(&oid);
 

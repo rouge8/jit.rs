@@ -25,7 +25,7 @@ impl Workspace {
     pub fn list_files(&self, path: &Path) -> Result<Vec<PathBuf>> {
         let relative_path = path.strip_prefix(&self.pathname).unwrap();
 
-        if self.should_ignore(&relative_path) {
+        if self.should_ignore(relative_path) {
             Ok(vec![])
         } else if path.is_file() {
             Ok(vec![relative_path.to_path_buf()])
@@ -49,8 +49,8 @@ impl Workspace {
             let path = entry?.path();
             let relative_path = path.strip_prefix(&self.pathname).unwrap();
 
-            if !self.should_ignore(&relative_path) {
-                stats.insert(relative_path.to_path_buf(), self.stat_file(&relative_path)?);
+            if !self.should_ignore(relative_path) {
+                stats.insert(relative_path.to_path_buf(), self.stat_file(relative_path)?);
             }
         }
 

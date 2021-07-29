@@ -54,7 +54,7 @@ mod with_a_chain_of_commits {
     fn commits(helper: &CommandHelper) -> Vec<Commit> {
         ["@", "@^", "@^^"]
             .iter()
-            .map(|rev| helper.load_commit(&rev).unwrap())
+            .map(|rev| helper.load_commit(rev).unwrap())
             .collect()
     }
 
@@ -309,7 +309,7 @@ mod with_commits_changing_different_files {
     fn commits(helper: &CommandHelper) -> Vec<Commit> {
         ["@^^", "@^", "@"]
             .iter()
-            .map(|rev| helper.load_commit(&rev).unwrap())
+            .map(|rev| helper.load_commit(rev).unwrap())
             .collect()
     }
 

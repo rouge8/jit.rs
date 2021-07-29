@@ -213,11 +213,11 @@ impl Chunk {
                 let mut text = String::new();
                 separator(&mut text, "<", a_name);
                 for line in a_lines {
-                    text.push_str(&line);
+                    text.push_str(line);
                 }
                 separator(&mut text, "=", None);
                 for line in b_lines {
-                    text.push_str(&line);
+                    text.push_str(line);
                 }
                 separator(&mut text, ">", b_name);
 

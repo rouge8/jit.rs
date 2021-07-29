@@ -87,7 +87,7 @@ impl<'a> Diff<'a> {
 
         let mut args = vec![];
         for rev in &self.args {
-            args.push(Revision::new(&self.ctx.repo, &rev).resolve(Some("commit"))?);
+            args.push(Revision::new(&self.ctx.repo, rev).resolve(Some("commit"))?);
         }
         let mut stdout = self.ctx.stdout.borrow_mut();
         self.diff_printer.print_commit_diff(
@@ -111,20 +111,20 @@ impl<'a> Diff<'a> {
             let state = &self.ctx.repo.index_changes[path];
             match state {
                 ChangeType::Added => {
-                    let mut a = self.diff_printer.from_nothing(&path);
-                    let mut b = self.from_index(&path)?;
+                    let mut a = self.diff_printer.from_nothing(path);
+                    let mut b = self.from_index(path)?;
 
                     self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Modified => {
-                    let mut a = self.from_head(&path)?;
-                    let mut b = self.from_index(&path)?;
+                    let mut a = self.from_head(path)?;
+                    let mut b = self.from_index(path)?;
 
                     self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
                 ChangeType::Deleted => {
-                    let mut a = self.from_head(&path)?;
-                    let mut b = self.diff_printer.from_nothing(&path);
+                    let mut a = self.from_head(path)?;
+                    let mut b = self.diff_printer.from_nothing(path);
 
                     self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
                 }
@@ -198,14 +198,14 @@ impl<'a> Diff<'a> {
         let state = &self.ctx.repo.workspace_changes[path];
         match state {
             ChangeType::Modified => {
-                let mut a = self.from_index(&path)?;
-                let mut b = self.from_file(&path)?;
+                let mut a = self.from_index(path)?;
+                let mut b = self.from_file(path)?;
 
                 self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
             }
             ChangeType::Deleted => {
-                let mut a = self.from_index(&path)?;
-                let mut b = self.diff_printer.from_nothing(&path);
+                let mut a = self.from_index(path)?;
+                let mut b = self.diff_printer.from_nothing(path);
 
                 self.diff_printer.print_diff(&mut stdout, &mut a, &mut b)?;
             }

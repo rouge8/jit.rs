@@ -156,7 +156,7 @@ impl<'a> Migration<'a> {
     }
 
     fn update_workspace(&self) -> Result<()> {
-        self.repo.workspace.apply_migration(&self)?;
+        self.repo.workspace.apply_migration(self)?;
         Ok(())
     }
 
@@ -214,12 +214,12 @@ impl<'a> Migration<'a> {
         } else if stat.as_ref().unwrap().is_file() {
             let changed = self.repo.compare_index_to_workspace(entry, stat.as_ref())?;
             if changed.is_some() {
-                self.insert_conflict(error_type, &path);
+                self.insert_conflict(error_type, path);
             }
         } else if stat.as_ref().unwrap().is_dir() {
             let trackable = self.repo.trackable_file(path, &stat.unwrap())?;
             if trackable {
-                self.insert_conflict(error_type, &path);
+                self.insert_conflict(error_type, path);
             }
         }
 
@@ -287,11 +287,11 @@ impl<'a> Migration<'a> {
                 continue;
             }
 
-            let (header, footer) = MESSAGES[&conflict_type];
+            let (header, footer) = MESSAGES[conflict_type];
 
             let mut error = vec![header.to_string()];
             for name in paths {
-                error.push(format!("\t{}", path_to_string(&name)));
+                error.push(format!("\t{}", path_to_string(name)));
             }
             error.push(footer.to_string());
 

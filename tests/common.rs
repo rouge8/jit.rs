@@ -236,7 +236,7 @@ impl CommandHelper {
         Ok(self
             .repo()
             .database
-            .load_commit(&self.resolve_revision(&expression)?)?)
+            .load_commit(&self.resolve_revision(expression)?)?)
     }
 }
 

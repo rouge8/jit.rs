@@ -109,24 +109,24 @@ impl Index {
 
     pub fn tracked_file(&self, path: &Path) -> bool {
         (0..=3).any(|stage| {
-            let key = (path_to_string(&path), stage);
+            let key = (path_to_string(path), stage);
             self.entries.contains_key(&key)
         })
     }
 
     pub fn tracked(&self, path: &Path) -> bool {
-        let key = path_to_string(&path);
+        let key = path_to_string(path);
         self.tracked_file(path) || self.parents.contains_key(&key)
     }
 
     pub fn add_conflict_set(&mut self, pathname: &str, items: Vec<Option<DatabaseEntry>>) {
         assert_eq!(items.len(), 3);
 
-        self.remove_entry_with_stage(&pathname, 0);
+        self.remove_entry_with_stage(pathname, 0);
 
         for (n, item) in items.iter().enumerate() {
             if let Some(item) = item {
-                let entry = Entry::create_from_db(&pathname, item, n + 1);
+                let entry = Entry::create_from_db(pathname, item, n + 1);
                 self.store_entry(entry);
             }
         }

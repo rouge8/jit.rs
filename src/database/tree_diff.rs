@@ -42,18 +42,18 @@ impl<'a> TreeDiff<'a> {
         }
 
         let a_entries = if let Some(a_oid) = a {
-            self.oid_to_tree(&a_oid)?.entries
+            self.oid_to_tree(a_oid)?.entries
         } else {
             BTreeMap::new()
         };
         let b_entries = if let Some(b_oid) = b {
-            self.oid_to_tree(&b_oid)?.entries
+            self.oid_to_tree(b_oid)?.entries
         } else {
             BTreeMap::new()
         };
 
-        self.detect_deletions(&a_entries, &b_entries, &filter)?;
-        self.detect_additions(&a_entries, &b_entries, &filter)?;
+        self.detect_deletions(&a_entries, &b_entries, filter)?;
+        self.detect_additions(&a_entries, &b_entries, filter)?;
 
         Ok(())
     }

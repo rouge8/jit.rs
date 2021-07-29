@@ -53,7 +53,7 @@ impl Refs {
     }
 
     pub fn update_head(&self, oid: &str) -> Result<()> {
-        self.update_symref(self.pathname.join(HEAD), &oid)
+        self.update_symref(self.pathname.join(HEAD), oid)
     }
 
     pub fn read_head(&self) -> Result<Option<String>> {
@@ -98,7 +98,7 @@ impl Refs {
             let relative = path.strip_prefix(&self.pathname).unwrap();
             self.update_ref_file(head, &format!("ref: {}", path_to_string(relative)))?;
         } else {
-            self.update_ref_file(head, &oid)?;
+            self.update_ref_file(head, oid)?;
         }
 
         Ok(())
@@ -117,7 +117,7 @@ impl Refs {
 
     pub fn read_oid(&self, r#ref: &Ref) -> Result<Option<String>> {
         match r#ref {
-            Ref::SymRef { path } => self.read_ref(&path),
+            Ref::SymRef { path } => self.read_ref(path),
             Ref::Ref { oid } => Ok(Some(oid.to_owned())),
         }
     }
@@ -142,7 +142,7 @@ impl Refs {
                     })
                     .unwrap();
 
-                path_to_string(&path.strip_prefix(&prefix).unwrap())
+                path_to_string(path.strip_prefix(&prefix).unwrap())
             }
             Ref::Ref { .. } => unreachable!(),
         }
@@ -221,7 +221,7 @@ impl Refs {
                 _ => return Err(err),
             },
         }
-        self.write_lockfile(&mut lockfile, &oid)
+        self.write_lockfile(&mut lockfile, oid)
     }
 
     fn read_oid_or_symref(&self, path: &Path) -> Result<Option<Ref>> {
@@ -231,7 +231,7 @@ impl Refs {
             file.read_to_string(&mut data)?;
             let data = data.trim();
 
-            if let Some(r#match) = SYMREF.captures(&data) {
+            if let Some(r#match) = SYMREF.captures(data) {
                 Ok(Some(Ref::SymRef {
                     path: r#match[1].to_string(),
                 }))
@@ -246,7 +246,7 @@ impl Refs {
     }
 
     fn read_symref(&self, path: &Path) -> Result<Option<String>> {
-        let r#ref = self.read_oid_or_symref(&path)?;
+        let r#ref = self.read_oid_or_symref(path)?;
 
         match r#ref {
             Some(Ref::SymRef { path }) => self.read_symref(&self.pathname.join(path)),
@@ -262,16 +262,14 @@ impl Refs {
         let r#ref = self.read_oid_or_symref(&path)?;
 
         match r#ref {
-            Some(Ref::Ref { .. }) | None => self.write_lockfile(&mut lockfile, &oid),
-            Some(Ref::SymRef { path }) => {
-                match self.update_symref(self.pathname.join(path), &oid) {
-                    Ok(()) => lockfile.rollback(),
-                    Err(err) => {
-                        lockfile.rollback()?;
-                        Err(err)
-                    }
+            Some(Ref::Ref { .. }) | None => self.write_lockfile(&mut lockfile, oid),
+            Some(Ref::SymRef { path }) => match self.update_symref(self.pathname.join(path), oid) {
+                Ok(()) => lockfile.rollback(),
+                Err(err) => {
+                    lockfile.rollback()?;
+                    Err(err)
                 }
-            }
+            },
         }
     }
 

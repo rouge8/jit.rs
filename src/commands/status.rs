@@ -87,7 +87,7 @@ impl<'a> Status<'a> {
         let mut stdout = self.ctx.stdout.borrow_mut();
 
         for path in &self.ctx.repo.changed {
-            let status = self.status_for(&path);
+            let status = self.status_for(path);
             writeln!(stdout, "{} {}", status, path)?;
         }
         for path in &self.ctx.repo.untracked_files {

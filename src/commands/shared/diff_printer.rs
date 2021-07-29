@@ -66,7 +66,7 @@ impl DiffPrinter {
                     blob.data,
                 ))
             }
-            None => Ok(self.from_nothing(&path)),
+            None => Ok(self.from_nothing(path)),
         }
     }
 
@@ -102,12 +102,12 @@ impl DiffPrinter {
 
         for path in paths {
             let (old_entry, new_entry) = &diff[path];
-            let path = path_to_string(&path);
+            let path = path_to_string(path);
 
             self.print_diff(
                 stdout,
-                &mut self.from_entry(&repo, &path, old_entry.as_ref())?,
-                &mut self.from_entry(&repo, &path, new_entry.as_ref())?,
+                &mut self.from_entry(repo, &path, old_entry.as_ref())?,
+                &mut self.from_entry(repo, &path, new_entry.as_ref())?,
             )?;
         }
 
@@ -128,8 +128,8 @@ impl DiffPrinter {
         b.path = format!("b/{}", b.path);
 
         writeln!(stdout, "diff --git {} {}", a.path, b.path)?;
-        self.print_diff_mode(stdout, &a, &b)?;
-        self.print_diff_content(stdout, &a, &b)?;
+        self.print_diff_mode(stdout, a, b)?;
+        self.print_diff_content(stdout, a, b)?;
 
         Ok(())
     }

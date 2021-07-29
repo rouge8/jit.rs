@@ -36,13 +36,13 @@ impl<'a> CommonAncestors<'a> {
         let mut queue = VecDeque::new();
         let mut flags = HashMap::new();
 
-        Self::insert_by_date(&mut queue, database.load_commit(&one)?);
+        Self::insert_by_date(&mut queue, database.load_commit(one)?);
         let mut one_flags = HashSet::new();
         one_flags.insert(Flag::Parent1);
         flags.insert(one.to_string(), one_flags);
 
         for two in twos {
-            Self::insert_by_date(&mut queue, database.load_commit(&two)?);
+            Self::insert_by_date(&mut queue, database.load_commit(two)?);
             // Use `flags.entry(two)` to grab the existing set of flags if `one == two`.
             let two_flags = flags.entry(two.to_string()).or_insert_with(HashSet::new);
             two_flags.insert(Flag::Parent2);
@@ -105,10 +105,10 @@ impl<'a> CommonAncestors<'a> {
 
     fn add_parents(&mut self, commit: &Commit, flags: &HashSet<Flag>) -> Result<()> {
         for parent in &commit.parents {
-            let parent = self.database.load_commit(&parent)?;
+            let parent = self.database.load_commit(parent)?;
 
             let current_flags = self.flags.entry(parent.oid()).or_insert_with(HashSet::new);
-            if current_flags.is_superset(&flags) {
+            if current_flags.is_superset(flags) {
                 continue;
             }
 
@@ -205,7 +205,7 @@ mod tests {
             Ok(common
                 .find()?
                 .iter()
-                .map(|oid| self.database.load_commit(&oid).unwrap().message)
+                .map(|oid| self.database.load_commit(oid).unwrap().message)
                 .collect())
         }
 
@@ -215,7 +215,7 @@ mod tests {
             let result: Vec<_> = bases
                 .find()?
                 .iter()
-                .map(|oid| self.database.load_commit(&oid).unwrap().message)
+                .map(|oid| self.database.load_commit(oid).unwrap().message)
                 .collect();
             assert_eq!(result.len(), 1);
 

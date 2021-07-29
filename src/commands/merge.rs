@@ -64,7 +64,7 @@ impl<'a> Merge<'a> {
     fn resolve_merge(&mut self, inputs: &Inputs) -> Result<()> {
         self.ctx.repo.index.load_for_update()?;
 
-        let mut merge = Resolve::new(&mut self.ctx.repo, &inputs);
+        let mut merge = Resolve::new(&mut self.ctx.repo, inputs);
         // While not ideal, it's safe to use `println!()` here because `jit merge` doesn't use a
         // pager. Ideally this would be a closure using `self.ctx.stdout` and `writeln!()`, but I
         // couldn't figure out how to get that to work.
@@ -90,7 +90,7 @@ impl<'a> Merge<'a> {
         let parents = vec![inputs.left_oid.clone(), inputs.right_oid.clone()];
         let message = &commit_writer.pending_commit.merge_message()?;
 
-        commit_writer.write_commit(parents, &message)?;
+        commit_writer.write_commit(parents, message)?;
 
         commit_writer.pending_commit.clear()?;
 

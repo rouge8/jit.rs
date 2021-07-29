@@ -99,7 +99,7 @@ impl<'a> Checkout<'a> {
         target_oid: &str,
     ) -> Result<()> {
         if current_ref.is_head() && current_oid != target_oid {
-            self.print_head_position("Previous HEAD position was", &current_oid)?;
+            self.print_head_position("Previous HEAD position was", current_oid)?;
         }
 
         Ok(())
@@ -130,7 +130,7 @@ impl<'a> Checkout<'a> {
         target_oid: &str,
     ) -> Result<()> {
         if new_ref.is_head() {
-            self.print_head_position("HEAD is now at", &target_oid)?;
+            self.print_head_position("HEAD is now at", target_oid)?;
         } else if new_ref == current_ref {
             let mut stderr = self.ctx.stderr.borrow_mut();
             writeln!(stderr, "Already on '{}'", target)?;
@@ -143,8 +143,8 @@ impl<'a> Checkout<'a> {
     }
 
     fn print_head_position(&self, message: &str, oid: &str) -> Result<()> {
-        let commit = self.ctx.repo.database.load_commit(&oid)?;
-        let short = Database::short_oid(&oid);
+        let commit = self.ctx.repo.database.load_commit(oid)?;
+        let short = Database::short_oid(oid);
 
         let mut stderr = self.ctx.stderr.borrow_mut();
         writeln!(stderr, "{} {} {}", message, short, commit.title_line())?;

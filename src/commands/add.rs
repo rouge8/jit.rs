@@ -39,7 +39,7 @@ impl<'a> Add<'a> {
         for path in &paths {
             let path = match path.canonicalize() {
                 Ok(path) => path,
-                Err(err) => return self.handle_missing_file(&path_to_string(&path), err),
+                Err(err) => return self.handle_missing_file(&path_to_string(path), err),
             };
 
             for path in self.ctx.repo.workspace.list_files(&path)? {

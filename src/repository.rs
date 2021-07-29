@@ -104,9 +104,9 @@ impl Repository {
                 if stat.is_file() {
                     self.stats.insert(path_to_string(path), stat.clone());
                 } else if stat.is_dir() {
-                    self.scan_workspace(&path)?;
+                    self.scan_workspace(path)?;
                 }
-            } else if self.trackable_file(&path, &stat)? {
+            } else if self.trackable_file(path, stat)? {
                 let mut path = path_to_string(path);
                 if stat.is_dir() {
                     path.push(MAIN_SEPARATOR);
@@ -177,7 +177,7 @@ impl Repository {
         for mut entry in cloned_entries.values_mut() {
             if entry.stage() == 0 {
                 self.check_index_against_workspace(&mut entry)?;
-                self.check_index_against_head_tree(&entry);
+                self.check_index_against_head_tree(entry);
             } else {
                 self.changed.insert(entry.path.clone());
                 self.conflicts
@@ -198,11 +198,11 @@ impl Repository {
 
     fn check_index_against_workspace(&mut self, entry: &mut IndexEntry) -> Result<()> {
         let stat = self.stats.get(&entry.path);
-        let status = self.compare_index_to_workspace(Some(&entry), stat)?;
+        let status = self.compare_index_to_workspace(Some(entry), stat)?;
 
         match status {
             Some(status) => self.record_change(&entry.path, ChangeKind::Workspace, status),
-            None => self.index.update_entry_stat(entry, &stat.unwrap()),
+            None => self.index.update_entry_stat(entry, stat.unwrap()),
         }
 
         Ok(())
@@ -210,7 +210,7 @@ impl Repository {
 
     fn check_index_against_head_tree(&mut self, entry: &IndexEntry) {
         let item = self.head_tree.get(&entry.path);
-        let status = self.compare_tree_to_index(item, Some(&entry));
+        let status = self.compare_tree_to_index(item, Some(entry));
 
         if let Some(status) = status {
             self.record_change(&entry.path, ChangeKind::Index, status)
@@ -240,9 +240,9 @@ impl Repository {
         let entry = entry.unwrap();
         let stat = stat.unwrap();
 
-        if !entry.stat_match(&stat) {
+        if !entry.stat_match(stat) {
             return Ok(Some(ChangeType::Modified));
-        } else if entry.times_match(&stat) {
+        } else if entry.times_match(stat) {
             return Ok(None);
         }
 

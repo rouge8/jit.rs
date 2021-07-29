@@ -93,6 +93,8 @@ pub enum Command {
         patch: bool,
         #[structopt(short = "s", long, overrides_with = "patch")]
         _no_patch: bool,
+        #[structopt(long = "cc")]
+        combined: bool,
     },
     Merge {
         args: Vec<String>,

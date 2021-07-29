@@ -64,6 +64,10 @@ impl Commit {
         self.author.time
     }
 
+    pub fn is_merge(&self) -> bool {
+        self.parents.len() > 1
+    }
+
     pub fn parent(&self) -> Option<String> {
         self.parents.first().map(|parent| parent.to_owned())
     }

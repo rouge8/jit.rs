@@ -2,10 +2,12 @@ use crate::commands::shared::diff_printer::DiffPrinter;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
+use crate::database::tree_diff::Differ;
 use crate::database::Database;
 use crate::errors::Result;
 use crate::refs::Ref;
 use crate::rev_list::RevList;
+use crate::util::path_to_string;
 use colored::Colorize;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -43,6 +45,8 @@ pub struct Log<'a> {
     format: LogFormat,
     /// `jit log --patch`
     patch: bool,
+    /// `jit log --cc`
+    combined: bool,
     /// `jit log --decorate=<format>` or `jit log --no-decorate`
     decorate: LogDecoration,
     reverse_refs: Option<HashMap<String, Vec<Ref>>>,
@@ -51,7 +55,7 @@ pub struct Log<'a> {
 
 impl<'a> Log<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (args, abbrev, format, patch, decorate) = match &ctx.opt.cmd {
+        let (args, abbrev, format, patch, combined, decorate) = match &ctx.opt.cmd {
             Command::Log {
                 args,
                 abbrev,
@@ -62,6 +66,7 @@ impl<'a> Log<'a> {
                 no_decorate,
                 patch,
                 _no_patch,
+                combined,
             } => {
                 let format = if *one_line {
                     LogFormat::OneLine
@@ -82,7 +87,9 @@ impl<'a> Log<'a> {
                     }
                 };
 
-                (args.to_owned(), abbrev, format, *patch, decorate)
+                let patch = if *combined { true } else { *patch };
+
+                (args.to_owned(), abbrev, format, patch, *combined, decorate)
             }
             _ => unreachable!(),
         };
@@ -95,6 +102,7 @@ impl<'a> Log<'a> {
             abbrev,
             format,
             patch,
+            combined,
             decorate,
             reverse_refs: None,
             current_ref: None,
@@ -141,6 +149,16 @@ impl<'a> Log<'a> {
             format!("commit {}", self.maybe_abbrev(&commit)).yellow(),
             self.decorate(&commit),
         )?;
+
+        if commit.is_merge() {
+            let oids: Vec<_> = commit
+                .parents
+                .iter()
+                .map(|oid| Database::short_oid(&oid))
+                .collect();
+            writeln!(stdout, "Merge: {}", oids.join(" "))?;
+        }
+
         writeln!(stdout, "Author: {} <{}>", author.name, author.email)?;
         writeln!(stdout, "Date:   {}", author.readable_time())?;
         drop(stdout);
@@ -247,8 +265,11 @@ impl<'a> Log<'a> {
     }
 
     fn show_patch(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
-        if !self.patch || commit.parents.len() > 1 {
+        if !self.patch {
             return Ok(());
+        }
+        if commit.is_merge() {
+            return self.show_merge_patch(&commit, &rev_list);
         }
 
         self.blank_line()?;
@@ -261,6 +282,46 @@ impl<'a> Log<'a> {
             &commit.oid(),
             Some(rev_list),
         )?;
+
+        Ok(())
+    }
+
+    fn show_merge_patch(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
+        if !self.combined {
+            return Ok(());
+        }
+
+        let mut diffs = Vec::new();
+        for oid in &commit.parents {
+            diffs.push(rev_list.tree_diff(Some(&oid), Some(&commit.oid()), None)?);
+        }
+
+        let paths = diffs[0]
+            .keys()
+            .into_iter()
+            .filter(|path| diffs.iter().all(|diff| diff.contains_key(path.to_owned())));
+
+        self.blank_line()?;
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        for path in paths {
+            let mut parents = Vec::new();
+            for diff in &diffs {
+                parents.push(self.diff_printer.from_entry(
+                    &self.ctx.repo,
+                    &path_to_string(path),
+                    diff[path].0.as_ref(),
+                )?);
+            }
+            let child = self.diff_printer.from_entry(
+                &self.ctx.repo,
+                &path_to_string(path),
+                diffs[0][path].1.as_ref(),
+            )?;
+
+            self.diff_printer
+                .print_combined_diff(&mut stdout, &parents, &child)?;
+        }
 
         Ok(())
     }

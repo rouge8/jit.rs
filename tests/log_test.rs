@@ -21,7 +21,7 @@ fn commit_file(helper: &mut CommandHelper, message: &str) -> Result<()> {
 fn commit_tree(
     helper: &mut CommandHelper,
     message: &str,
-    files: HashMap<&'static str, &'static str>,
+    files: HashMap<&'static str, &str>,
 ) -> Result<()> {
     for (path, contents) in files {
         helper.write_file(path, contents)?;
@@ -568,7 +568,7 @@ mod with_a_tree_of_commits {
 }
 
 ///   A   B   C   D   J   K
-///   o---o---o---o---o---o [master]
+///   o---o---o---o---o---o [main]
 ///        \         /
 ///         o---o---o---o [topic]
 ///         E   F   G   H
@@ -591,6 +591,7 @@ mod with_a_graph_of_commits {
         commit_tree(&mut helper, "A", tree).unwrap();
         let mut tree = HashMap::new();
         tree.insert("f.txt", "B");
+        tree.insert("h.txt", "one\ntwo\nthree\n");
         commit_tree(&mut helper, "B", tree).unwrap();
 
         helper.env.insert(
@@ -600,6 +601,8 @@ mod with_a_graph_of_commits {
         for n in ["C", "D"] {
             let mut tree = HashMap::new();
             tree.insert("f.txt", n);
+            let h = format!("{}\ntwo\nthree\n", n);
+            tree.insert("h.txt", h.as_str());
             commit_tree(&mut helper, n, tree).unwrap();
         }
 
@@ -613,6 +616,8 @@ mod with_a_graph_of_commits {
         for n in ["E", "F", "G", "H"] {
             let mut tree = HashMap::new();
             tree.insert("g.txt", n);
+            let h = format!("one\ntwo\n{}\n", n);
+            tree.insert("h.txt", h.as_str());
             commit_tree(&mut helper, n, tree).unwrap();
         }
 
@@ -757,6 +762,66 @@ index 96d80cd..02358d2 100644
 @@ -1,1 +1,1 @@
 -C
 +D
+diff --git a/h.txt b/h.txt
+index 4e5ce14..4139691 100644
+--- a/h.txt
++++ b/h.txt
+@@ -1,3 +1,3 @@
+-C
++D
+ two
+ three
+",
+                main[0], main[1], main[2]
+            ));
+    }
+
+    #[rstest]
+    fn show_combined_patches_for_merges(mut helper: CommandHelper) {
+        let main = main_commits(&helper);
+
+        helper
+            .jit_cmd(&["log", "--pretty=oneline", "--cc", "topic..main", "^main^^^"])
+            .assert()
+            .code(0)
+            .stdout(format!(
+                "\
+{} K
+diff --git a/f.txt b/f.txt
+index 02358d2..449e49e 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-D
++K
+{} J
+diff --cc h.txt
+index 4139691,f3e97ee..4e78f4f
+--- a/h.txt
++++ b/h.txt
+@@@ -1,3 -1,3 +1,3 @@@
+ -one
+ +D
+  two
+- three
++ G
+{} D
+diff --git a/f.txt b/f.txt
+index 96d80cd..02358d2 100644
+--- a/f.txt
++++ b/f.txt
+@@ -1,1 +1,1 @@
+-C
++D
+diff --git a/h.txt b/h.txt
+index 4e5ce14..4139691 100644
+--- a/h.txt
++++ b/h.txt
+@@ -1,3 +1,3 @@
+-C
++D
+ two
+ three
 ",
                 main[0], main[1], main[2]
             ));

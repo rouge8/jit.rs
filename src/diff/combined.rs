@@ -120,15 +120,16 @@ impl fmt::Display for Row {
 
 impl GenericEdit for Row {
     fn r#type(&self) -> EditType {
-        let mut types = self
+        let types: Vec<_> = self
             .edits
             .iter()
-            .filter_map(|edit| edit.as_ref().map(|edit| edit.r#type.clone()));
+            .filter_map(|edit| edit.as_ref().map(|edit| edit.r#type.clone()))
+            .collect();
 
-        if types.any(|r#type| matches!(r#type, EditType::Ins)) {
+        if types.iter().any(|r#type| matches!(r#type, EditType::Ins)) {
             EditType::Ins
         } else {
-            types.collect::<Vec<_>>()[0].clone()
+            types[0].clone()
         }
     }
 

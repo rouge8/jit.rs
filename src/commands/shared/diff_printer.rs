@@ -49,7 +49,12 @@ impl DiffPrinter {
         Self {}
     }
 
-    fn from_entry(&self, repo: &Repository, path: &str, entry: Option<&Entry>) -> Result<Target> {
+    pub fn from_entry(
+        &self,
+        repo: &Repository,
+        path: &str,
+        entry: Option<&Entry>,
+    ) -> Result<Target> {
         match entry {
             Some(entry) => {
                 let blob = repo.database.load_blob(&entry.oid)?;

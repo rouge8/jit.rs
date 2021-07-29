@@ -1,8 +1,8 @@
 use crate::database::entry::Entry;
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
-use crate::diff::hunk::Hunk;
-use crate::diff::{diff_hunks, Edit, EditType};
+use crate::diff::hunk::{GenericEdit, Hunk};
+use crate::diff::{diff_hunks, EditType};
 use crate::errors::Result;
 use crate::repository::Repository;
 use crate::util::path_to_string;
@@ -177,19 +177,27 @@ impl DiffPrinter {
         Ok(())
     }
 
-    fn print_diff_hunk(&self, stdout: &mut RefMut<Box<dyn Write>>, hunk: &Hunk) -> Result<()> {
+    fn print_diff_hunk<T: GenericEdit>(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        hunk: &Hunk<T>,
+    ) -> Result<()> {
         writeln!(stdout, "{}", hunk.header().cyan())?;
         for edit in &hunk.edits {
-            self.print_diff_edit(stdout, &edit)?;
+            self.print_diff_edit(stdout, edit)?;
         }
 
         Ok(())
     }
 
-    fn print_diff_edit(&self, stdout: &mut RefMut<Box<dyn Write>>, edit: &Edit) -> Result<()> {
+    fn print_diff_edit<T: GenericEdit>(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        edit: &T,
+    ) -> Result<()> {
         let text = edit.to_string();
 
-        match edit.r#type {
+        match edit.r#type() {
             EditType::Eql => writeln!(stdout, "{}", text)?,
             EditType::Ins => writeln!(stdout, "{}", text.green())?,
             EditType::Del => writeln!(stdout, "{}", text.red())?,

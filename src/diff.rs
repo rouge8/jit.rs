@@ -1,5 +1,5 @@
 use combined::{Combined, Row};
-use hunk::Hunk;
+use hunk::{GenericEdit, Hunk};
 use myers::Myers;
 use std::fmt;
 
@@ -21,7 +21,7 @@ pub fn diff(a: &str, b: &str) -> Vec<Edit> {
     Myers::new(lines(a), lines(b)).diff()
 }
 
-pub fn diff_hunks(a: &str, b: &str) -> Vec<Hunk> {
+pub fn diff_hunks(a: &str, b: &str) -> Vec<Hunk<Edit>> {
     Hunk::filter(diff(a, b))
 }
 
@@ -29,6 +29,10 @@ pub fn combined(r#as: &[&str], b: &str) -> Vec<Row> {
     let diffs = r#as.iter().map(|a| diff(a, b)).collect();
 
     Combined::new(diffs).collect()
+}
+
+pub fn combined_hunks(r#as: &[&str], b: &str) -> Vec<Hunk<Row>> {
+    Hunk::filter(combined(r#as, b))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,6 +74,20 @@ impl fmt::Display for Edit {
             .as_ref()
             .unwrap_or_else(|| self.b_line.as_ref().unwrap());
         write!(f, "{}{}", self.r#type, line.text)
+    }
+}
+
+impl GenericEdit for Edit {
+    fn r#type(&self) -> EditType {
+        self.r#type.clone()
+    }
+
+    fn a_lines(&self) -> Vec<Option<Line>> {
+        vec![self.a_line.clone()]
+    }
+
+    fn b_line(&self) -> Option<Line> {
+        self.b_line.clone()
     }
 }
 

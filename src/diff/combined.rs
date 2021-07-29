@@ -1,4 +1,5 @@
-use crate::diff::{Edit, EditType};
+use crate::diff::hunk::GenericEdit;
+use crate::diff::{Edit, EditType, Line};
 use std::fmt;
 
 pub struct Combined {
@@ -72,7 +73,7 @@ impl Iterator for Combined {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Row {
     edits: Vec<Option<Edit>>,
 }
@@ -114,6 +115,42 @@ impl fmt::Display for Row {
                 .clone()
         };
         write!(f, "{}{}", symbols.join(""), line)
+    }
+}
+
+impl GenericEdit for Row {
+    fn r#type(&self) -> EditType {
+        let mut types = self
+            .edits
+            .iter()
+            .filter_map(|edit| edit.as_ref().map(|edit| edit.r#type.clone()));
+
+        if types.any(|r#type| matches!(r#type, EditType::Ins)) {
+            EditType::Ins
+        } else {
+            types.collect::<Vec<_>>()[0].clone()
+        }
+    }
+
+    fn a_lines(&self) -> Vec<Option<Line>> {
+        self.edits
+            .iter()
+            .map(|edit| {
+                if let Some(edit) = edit {
+                    edit.a_line.clone()
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>()
+    }
+
+    fn b_line(&self) -> Option<Line> {
+        if let Some(edit) = &self.edits[0] {
+            edit.b_line.clone()
+        } else {
+            None
+        }
     }
 }
 

@@ -60,8 +60,35 @@ impl<'a> Iterator for LinesWithEndings<'a> {
     }
 }
 
+/// Transpose the rows and columns of `ary`.
+///
+/// Panics if the length of the subvectors don't match.
+///
+/// Based on Ruby's `Array.transpose()`
+pub fn transpose<T: Clone>(ary: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let alen = ary.len();
+    if alen == 0 {
+        return Vec::new();
+    }
+
+    let elen = ary[0].len();
+    let mut result: Vec<_> = (0..elen).map(|_| Vec::with_capacity(alen)).collect();
+
+    for tmp in &ary {
+        if tmp.len() != elen {
+            panic!("element size differs ({} should be {})", tmp.len(), elen);
+        }
+        for j in 0..elen {
+            result[j].push(tmp[j].clone());
+        }
+    }
+
+    result
+}
+
 #[cfg(test)]
 pub mod tests {
+    use super::*;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use sha1::{Digest, Sha1};
@@ -75,5 +102,18 @@ pub mod tests {
         let hash = Sha1::new().chain(rand_string).finalize();
 
         format!("{:x}", hash)
+    }
+
+    #[test]
+    fn transpose_works() {
+        let ary = vec![
+            vec![1, 2, 3],
+            vec![4, 5, 6],
+            vec![7, 8, 9],
+            vec![10, 11, 12],
+        ];
+        let expected = vec![vec![1, 4, 7, 10], vec![2, 5, 8, 11], vec![3, 6, 9, 12]];
+
+        assert_eq!(transpose(ary), expected);
     }
 }

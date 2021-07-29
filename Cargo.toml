@@ -17,7 +17,7 @@ hex = { version = "0.4.3", features = ["alloc"] }
 indexmap = "1.7.0"
 itertools = "0.10.0"
 lazy_static = "1.4.0"
-nix = "0.21.0"
+nix = "0.22.0"
 regex = "1.5.4"
 sha-1 = "0.9.6"
 structopt = "0.3.21"

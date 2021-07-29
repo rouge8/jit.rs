@@ -24,10 +24,12 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-          components: clippy
+          components: clippy, rustfmt
       - name: Build
         run: cargo build --verbose
       - name: Run tests
         run: cargo test --no-fail-fast
       - name: Run clippy
         run: cargo clippy -- --deny clippy::all
+      - name: Run rustfmt
+        run: cargo fmt --all -- --check

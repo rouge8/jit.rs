@@ -2,7 +2,7 @@ use crate::database::entry::Entry;
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
 use crate::diff::hunk::{GenericEdit, Hunk};
-use crate::diff::{diff_hunks, EditType};
+use crate::diff::{combined_hunks, diff_hunks, EditType};
 use crate::errors::Result;
 use crate::repository::Repository;
 use crate::util::path_to_string;
@@ -16,6 +16,7 @@ lazy_static! {
 }
 const NULL_PATH: &str = "/dev/null";
 
+#[derive(Debug, Clone)]
 pub struct Target {
     path: String,
     oid: String,
@@ -168,6 +169,49 @@ impl DiffPrinter {
 
         let hunks = diff_hunks(
             std::str::from_utf8(&a.data).expect("Invalid UTF-8"),
+            std::str::from_utf8(&b.data).expect("Invalid UTF-8"),
+        );
+        for hunk in hunks {
+            self.print_diff_hunk(stdout, &hunk)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn print_combined_diff(
+        &self,
+        stdout: &mut RefMut<Box<dyn Write>>,
+        r#as: &[Target],
+        b: &Target,
+    ) -> Result<()> {
+        self.header(stdout, format!("diff --cc {}", b.path))?;
+
+        let a_oids: Vec<_> = r#as.iter().map(|a| self.short(&a.oid)).collect();
+        let oid_range = format!("index {}..{}", a_oids.join(","), self.short(&b.oid));
+        self.header(stdout, oid_range)?;
+
+        if !r#as.iter().all(|a| a.mode == b.mode) {
+            self.header(
+                stdout,
+                format!(
+                    "mode {}..{:o}",
+                    r#as.iter()
+                        .map(|a| format!("{:o}", a.mode.unwrap()))
+                        .collect::<Vec<_>>()
+                        .join(","),
+                    b.mode.unwrap()
+                ),
+            )?;
+        }
+
+        self.header(stdout, format!("--- a/{}", b.diff_path()))?;
+        self.header(stdout, format!("+++ b/{}", b.diff_path()))?;
+
+        let hunks = combined_hunks(
+            &r#as
+                .iter()
+                .map(|a| std::str::from_utf8(&a.data).expect("Invalid UTF-8"))
+                .collect::<Vec<_>>(),
             std::str::from_utf8(&b.data).expect("Invalid UTF-8"),
         );
         for hunk in hunks {

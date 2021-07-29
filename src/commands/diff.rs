@@ -161,12 +161,33 @@ impl<'a> Diff<'a> {
     }
 
     fn print_conflict_diff(&self, path: &str) -> Result<()> {
-        let mut stdout = self.ctx.stdout.borrow_mut();
-        writeln!(stdout, "* Unmerged path {}", path)?;
+        let mut targets = Vec::new();
+        for stage in 0..=3 {
+            targets.push(self.from_index_stage(path, stage)?);
+        }
+        let left = &targets[2];
+        let right = &targets[3];
 
-        if let Some(mut target) = self.from_index_stage(path, self.stage)? {
-            self.diff_printer
-                .print_diff(&mut stdout, &mut target, &mut self.from_file(path)?)?;
+        let mut stdout = self.ctx.stdout.borrow_mut();
+
+        if self.stage != 0 {
+            writeln!(stdout, "* Unmerged path {}", path)?;
+            self.diff_printer.print_diff(
+                &mut stdout,
+                &mut targets[self.stage as usize].as_mut().unwrap(),
+                &mut self.from_file(path)?,
+            )?;
+        } else if left.is_some() && right.is_some() {
+            self.diff_printer.print_combined_diff(
+                &mut stdout,
+                &[
+                    left.as_ref().unwrap().clone(),
+                    right.as_ref().unwrap().clone(),
+                ],
+                &self.from_file(path)?,
+            )?;
+        } else {
+            writeln!(stdout, "* Unmerged path {}", path)?;
         }
 
         Ok(())

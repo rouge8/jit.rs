@@ -709,11 +709,21 @@ Automatic merge failed; fix conflicts and then commit the result.
     }
 
     #[rstest]
-    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
-        helper
-            .jit_cmd(&["diff"])
-            .assert()
-            .stdout("* Unmerged path g.txt\n");
+    fn show_the_combined_diff_against_stages_2_and_3(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff"]).assert().stdout(
+            "\
+diff --cc g.txt
+index 0cfbf08,00750ed..2603ab2
+--- a/g.txt
++++ b/g.txt
+@@@ -1,1 -1,1 +1,5 @@@
+++<<<<<<< HEAD
+ +2
+++=======
++ 3
+++>>>>>>> topic
+",
+        );
     }
 
     #[rstest]
@@ -821,11 +831,16 @@ Automatic merge failed; fix conflicts and then commit the result.
     }
 
     #[rstest]
-    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
-        helper
-            .jit_cmd(&["diff"])
-            .assert()
-            .stdout("* Unmerged path g.txt\n");
+    fn show_the_combined_diff_against_stages_2_and_3(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff"]).assert().stdout(
+            "\
+diff --cc g.txt
+index d8263ee,d8263ee..d8263ee
+mode 100644,100755..100644
+--- a/g.txt
++++ b/g.txt
+",
+        );
     }
 
     #[rstest]
@@ -1094,11 +1109,21 @@ Automatic merge failed; fix conflicts and then commit the result.
     }
 
     #[rstest]
-    fn list_the_files_as_unmerged_in_the_diff(mut helper: CommandHelper) {
-        helper
-            .jit_cmd(&["diff"])
-            .assert()
-            .stdout("* Unmerged path f.txt\n");
+    fn show_the_combined_diff_against_stages_2_and_3(mut helper: CommandHelper) {
+        helper.jit_cmd(&["diff"]).assert().stdout(
+            "\
+diff --cc f.txt
+index 0cfbf08,00750ed..2603ab2
+--- a/f.txt
++++ b/f.txt
+@@@ -1,1 -1,1 +1,5 @@@
+++<<<<<<< HEAD
+ +2
+++=======
++ 3
+++>>>>>>> topic
+",
+        );
     }
 }
 

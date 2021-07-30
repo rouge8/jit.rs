@@ -226,7 +226,7 @@ impl Repository {
         }
     }
 
-    fn compare_index_to_workspace(
+    pub fn compare_index_to_workspace(
         &self,
         entry: Option<&IndexEntry>,
         stat: Option<&fs::Metadata>,

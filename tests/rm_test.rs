@@ -48,4 +48,38 @@ mod with_a_single_file {
 
         Ok(())
     }
+
+    #[rstest]
+    fn succeed_if_the_file_is_not_in_the_workspace(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("f.txt")?;
+        helper.jit_cmd(&["rm", "f.txt"]).assert().code(0);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_if_the_file_has_unstaged_changed(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+
+        helper.jit_cmd(&["rm", "f.txt"]).assert().code(1).stderr(
+            "\
+error: the following file has local modifications:
+    f.txt
+",
+        );
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
 }

@@ -50,7 +50,10 @@ impl Workspace {
             let relative_path = path.strip_prefix(&self.pathname).unwrap();
 
             if !self.should_ignore(relative_path) {
-                stats.insert(relative_path.to_path_buf(), self.stat_file(relative_path)?);
+                stats.insert(
+                    relative_path.to_path_buf(),
+                    self.stat_file(relative_path)?.unwrap(),
+                );
             }
         }
 
@@ -70,17 +73,26 @@ impl Workspace {
         })
     }
 
-    pub fn stat_file(&self, path: &Path) -> Result<fs::Metadata> {
-        fs::metadata(&self.pathname.join(&path)).map_err(|err| {
-            if err.kind() == io::ErrorKind::PermissionDenied {
-                Error::NoPermission {
-                    method: String::from("stat"),
-                    path: path.to_path_buf(),
+    pub fn stat_file(&self, path: &Path) -> Result<Option<fs::Metadata>> {
+        let stat = fs::metadata(&self.pathname.join(&path));
+
+        match stat {
+            Ok(stat) => Ok(Some(stat)),
+            Err(err) => {
+                if err.kind() == io::ErrorKind::PermissionDenied {
+                    Err(Error::NoPermission {
+                        method: String::from("stat"),
+                        path: path.to_path_buf(),
+                    })
+                } else if err.kind() == io::ErrorKind::NotFound
+                    || err.raw_os_error() == Some(Errno::ENOTDIR as i32)
+                {
+                    Ok(None)
+                } else {
+                    Err(Error::Io(err))
                 }
-            } else {
-                Error::Io(err)
             }
-        })
+        }
     }
 
     pub fn write_file(&self, path: &Path, data: Vec<u8>) -> Result<()> {

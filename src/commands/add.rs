@@ -58,7 +58,7 @@ impl<'a> Add<'a> {
             Err(err) => return self.handle_unreadable_file(err),
         };
         let stat = match self.ctx.repo.workspace.stat_file(&path) {
-            Ok(stat) => stat,
+            Ok(stat) => stat.unwrap(),
             Err(err) => return self.handle_unreadable_file(err),
         };
 

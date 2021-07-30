@@ -65,7 +65,12 @@ impl<'a> RevList<'a> {
     }
 
     fn handle_revision(&mut self, rev: &str) -> Result<()> {
-        if self.repo.workspace.stat_file(&PathBuf::from(rev)).is_ok() {
+        if self
+            .repo
+            .workspace
+            .stat_file(&PathBuf::from(rev))?
+            .is_some()
+        {
             self.prune.push(PathBuf::from(rev));
         } else if let Some(r#match) = RANGE.captures(rev) {
             self.set_start_point(&r#match[1], false)?;

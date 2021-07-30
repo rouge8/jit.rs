@@ -167,7 +167,7 @@ impl<'a> Migration<'a> {
 
         for action in [Action::Create, Action::Update] {
             for (path, entry) in &self.changes[&action] {
-                let stat = self.repo.workspace.stat_file(path)?;
+                let stat = self.repo.workspace.stat_file(path)?.unwrap();
                 self.repo.index.add(
                     path.to_path_buf(),
                     entry.as_ref().unwrap().oid.clone(),
@@ -198,7 +198,7 @@ impl<'a> Migration<'a> {
             return Ok(());
         }
 
-        let stat = self.repo.workspace.stat_file(path).ok();
+        let stat = self.repo.workspace.stat_file(path)?;
         let error_type = self.get_error_type(stat.as_ref(), entry, new_item);
 
         if stat.is_none() {
@@ -251,7 +251,7 @@ impl<'a> Migration<'a> {
                 continue;
             }
 
-            if let Ok(parent_stat) = self.repo.workspace.stat_file(parent) {
+            if let Ok(Some(parent_stat)) = self.repo.workspace.stat_file(parent) {
                 if !parent_stat.is_file() {
                     continue;
                 }

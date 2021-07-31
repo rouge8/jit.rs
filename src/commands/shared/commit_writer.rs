@@ -1,7 +1,6 @@
 use crate::commands::CommandContext;
 use crate::database::author::Author;
 use crate::database::commit::Commit;
-use crate::database::entry::Entry;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::errors::{Error, Result};
@@ -55,7 +54,7 @@ impl<'a> CommitWriter<'a> {
             .index
             .entries
             .values()
-            .map(Entry::from)
+            .map(|entry| entry.to_owned())
             .collect();
         let root = Tree::build(entries);
         root.traverse(&|tree| {

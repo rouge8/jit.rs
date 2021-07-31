@@ -122,7 +122,7 @@ impl<'a> Resolve<'a> {
 
         self.clean_diff.insert(
             path.to_path_buf(),
-            (left.clone(), Some(Entry::new(path, oid, mode))),
+            (left.clone(), Some(Entry::new(oid, mode))),
         );
 
         if oid_ok && mode_ok {

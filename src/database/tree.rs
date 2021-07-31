@@ -1,10 +1,11 @@
-use crate::database::entry::Entry;
+use crate::database::entry::Entry as DatabaseEntry;
 use crate::database::object::Object;
 use crate::database::ParsedObject;
+use crate::index::Entry as IndexEntry;
 use crate::util::path_to_string;
 use itertools::Itertools;
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 pub const TREE_MODE: u32 = 0o40000;
 
@@ -15,7 +16,7 @@ pub struct Tree {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TreeEntry {
-    Entry(Entry),
+    Entry(DatabaseEntry),
     Tree(Tree),
 }
 
@@ -43,15 +44,18 @@ impl TreeEntry {
 }
 
 impl Tree {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Tree {
-            entries: BTreeMap::new(),
-        }
+    pub fn new(entries: Option<BTreeMap<PathBuf, TreeEntry>>) -> Self {
+        let entries = if let Some(entries) = entries {
+            entries
+        } else {
+            BTreeMap::new()
+        };
+
+        Tree { entries }
     }
 
     pub fn parse(data: &[u8]) -> ParsedObject {
-        let mut entries: Vec<Entry> = vec![];
+        let mut entries = BTreeMap::new();
 
         let mut data = data;
 
@@ -72,16 +76,19 @@ impl Tree {
             let (oid, rest) = rest.split_at(20);
             let oid = hex::encode(oid);
 
-            entries.push(Entry::new(Path::new(name), oid, mode));
+            entries.insert(
+                PathBuf::from(name),
+                TreeEntry::Entry(DatabaseEntry::new(oid, mode)),
+            );
 
             data = rest;
         }
 
-        ParsedObject::Tree(Tree::build(entries))
+        ParsedObject::Tree(Tree::new(Some(entries)))
     }
 
-    pub fn build(entries: Vec<Entry>) -> Self {
-        let mut root = Tree::new();
+    pub fn build(entries: Vec<IndexEntry>) -> Self {
+        let mut root = Tree::new(None);
         for entry in entries {
             root.add_entry(entry.parent_directories(), entry);
         }
@@ -103,10 +110,12 @@ impl Tree {
         f(self);
     }
 
-    fn add_entry(&mut self, parents: Vec<PathBuf>, entry: Entry) {
+    fn add_entry(&mut self, parents: Vec<PathBuf>, entry: IndexEntry) {
         if parents.is_empty() {
-            self.entries
-                .insert(entry.basename(), TreeEntry::Entry(entry));
+            self.entries.insert(
+                entry.basename(),
+                TreeEntry::Entry(DatabaseEntry::from(&entry)),
+            );
         } else {
             let key = PathBuf::from(parents[0].file_name().unwrap());
             let new_parents = parents[1..].to_vec();
@@ -114,7 +123,7 @@ impl Tree {
             if let Some(TreeEntry::Tree(tree)) = self.entries.get_mut(&key) {
                 tree.add_entry(new_parents, entry);
             } else {
-                let mut tree = Tree::new();
+                let mut tree = Tree::new(None);
                 tree.add_entry(new_parents, entry);
                 self.entries.insert(key, TreeEntry::Tree(tree));
             }
@@ -159,13 +168,21 @@ mod tests {
 
     #[test]
     fn tree_bytes_sort_order() {
-        let entries = vec![
-            // Use "" for oids so they don't clutter the serialized tree
-            Entry::new(Path::new("test:txt"), String::from(""), 0o100644),
-            Entry::new(Path::new("test.txt"), String::from(""), 0o100644),
-            Entry::new(Path::new("test"), String::from(""), TREE_MODE),
-        ];
-        let tree = Tree::build(entries);
+        let mut entries = BTreeMap::new();
+        // Use "" for oids so they don't clutter the serialized tree
+        entries.insert(
+            PathBuf::from("test:txt"),
+            TreeEntry::Entry(DatabaseEntry::new(String::from(""), 0o100644)),
+        );
+        entries.insert(
+            PathBuf::from("test.txt"),
+            TreeEntry::Entry(DatabaseEntry::new(String::from(""), 0o100644)),
+        );
+        entries.insert(
+            PathBuf::from("test"),
+            TreeEntry::Entry(DatabaseEntry::new(String::from(""), TREE_MODE)),
+        );
+        let tree = Tree::new(Some(entries));
 
         let bytes = tree.bytes();
         let serialized = std::str::from_utf8(&bytes).unwrap();

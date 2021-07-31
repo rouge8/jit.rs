@@ -1,9 +1,7 @@
 use crate::database::entry::Entry as DatabaseEntry;
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
-use crate::util::is_executable;
-use crate::util::parent_directories;
-use crate::util::path_to_string;
+use crate::util::{basename, is_executable, parent_directories, path_to_string};
 use hex::ToHex;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
@@ -290,7 +288,7 @@ pub struct Entry {
 }
 
 impl Entry {
-    fn new(pathname: &str, oid: String, stat: fs::Metadata) -> Self {
+    pub fn new(pathname: &str, oid: String, stat: fs::Metadata) -> Self {
         Entry {
             ctime: stat.ctime(),
             ctime_nsec: stat.ctime_nsec(),
@@ -374,8 +372,12 @@ impl Entry {
         (self.flags >> 12) & 0x3
     }
 
-    fn parent_directories(&self) -> Vec<PathBuf> {
+    pub fn parent_directories(&self) -> Vec<PathBuf> {
         parent_directories(PathBuf::from(&self.path))
+    }
+
+    pub fn basename(&self) -> PathBuf {
+        basename(PathBuf::from(&self.path))
     }
 
     fn bytes(&self) -> Vec<u8> {

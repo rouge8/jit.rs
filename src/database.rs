@@ -211,24 +211,26 @@ mod tests {
     mod tree_diff {
         use super::*;
         use crate::database::entry::Entry;
+        use crate::database::tree::TreeEntry;
         use indexmap::IndexMap;
         use rstest::{fixture, rstest};
-        use std::collections::HashMap;
-        use std::path::Path;
+        use std::collections::{BTreeMap, HashMap};
+        use std::path::PathBuf;
         use tempfile::TempDir;
 
         fn store_tree(database: &Database, contents: HashMap<&str, &str>) -> String {
-            let entries: Vec<_> = contents
-                .into_iter()
-                .map(|(path, data)| {
-                    let blob = Blob::new(data.as_bytes().to_vec());
-                    database.store(&blob).unwrap();
+            let mut entries = BTreeMap::new();
+            for (path, data) in contents {
+                let blob = Blob::new(data.as_bytes().to_vec());
+                database.store(&blob).unwrap();
 
-                    Entry::new(Path::new(path), blob.oid(), 0o100644)
-                })
-                .collect();
+                entries.insert(
+                    PathBuf::from(path),
+                    TreeEntry::Entry(Entry::new(blob.oid(), 0o100644)),
+                );
+            }
 
-            let tree = Tree::build(entries);
+            let tree = Tree::new(Some(entries));
             tree.traverse(&|t| database.store(t).unwrap());
 
             tree.oid()
@@ -256,12 +258,10 @@ mod tests {
                 PathBuf::from("alice.txt"),
                 (
                     Some(Entry::new(
-                        Path::new("alice.txt"),
                         String::from("ca56b59dbf8c0884b1b9ceb306873b24b73de969"),
                         0o100644,
                     )),
                     Some(Entry::new(
-                        Path::new("alice.txt"),
                         String::from("21fb1eca31e64cd3914025058b21992ab76edcf9"),
                         0o100644,
                     )),
@@ -293,7 +293,6 @@ mod tests {
                 (
                     None,
                     Some(Entry::new(
-                        Path::new("bob.txt"),
                         String::from("2529de8969e5ee206e572ed72a0389c3115ad95c"),
                         0o100644,
                     )),
@@ -324,7 +323,6 @@ mod tests {
                 PathBuf::from("bob.txt"),
                 (
                     Some(Entry::new(
-                        Path::new("bob.txt"),
                         String::from("2529de8969e5ee206e572ed72a0389c3115ad95c"),
                         0o100644,
                     )),
@@ -359,7 +357,6 @@ mod tests {
                 (
                     None,
                     Some(Entry::new(
-                        Path::new("4.txt"),
                         String::from("bf0d87ab1b2b0ec1a11a3973d2845b42413d9767"),
                         0o100644,
                     )),
@@ -392,7 +389,6 @@ mod tests {
                 PathBuf::from("outer/inner/3.txt"),
                 (
                     Some(Entry::new(
-                        Path::new("3.txt"),
                         String::from("e440e5c842586965a7fb77deda2eca68612b1f53"),
                         0o100644,
                     )),

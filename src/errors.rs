@@ -24,6 +24,8 @@ pub enum Error {
     BranchNotFound(String),
     #[error("There is no merge in progress ({0} missing).")]
     NoMergeInProgress(String),
+    #[error("pathspec '{0}' did not match any files")]
+    RmUntrackedFile(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

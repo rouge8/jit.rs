@@ -36,7 +36,19 @@ impl<'a> Rm<'a> {
 
         let paths = self.paths.clone();
         for path in &paths {
-            self.plan_removal(path)?;
+            match self.plan_removal(path) {
+                Ok(()) => (),
+                Err(err) => match err {
+                    Error::RmUntrackedFile(..) => {
+                        self.ctx.repo.index.release_lock()?;
+                        let mut stderr = self.ctx.stderr.borrow_mut();
+                        writeln!(stderr, "fatal: {}", err)?;
+
+                        return Err(Error::Exit(128));
+                    }
+                    _ => return Err(err),
+                },
+            }
         }
         self.exit_on_errors()?;
 
@@ -49,6 +61,10 @@ impl<'a> Rm<'a> {
     }
 
     fn plan_removal(&mut self, path: &Path) -> Result<()> {
+        if !self.ctx.repo.index.tracked_file(path) {
+            return Err(Error::RmUntrackedFile(path_to_string(path)));
+        }
+
         let item = self
             .ctx
             .repo

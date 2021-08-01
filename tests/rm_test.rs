@@ -84,6 +84,17 @@ error: the following file has local modifications:
     }
 
     #[rstest]
+    fn fail_if_the_file_is_not_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["rm", "nope.txt"])
+            .assert()
+            .code(128)
+            .stderr("fatal: pathspec 'nope.txt' did not match any files\n");
+
+        Ok(())
+    }
+
+    #[rstest]
     fn fail_if_the_file_has_uncommitted_changes(mut helper: CommandHelper) -> Result<()> {
         helper.write_file("f.txt", "2")?;
         helper.jit_cmd(&["add", "f.txt"]);

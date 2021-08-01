@@ -106,6 +106,8 @@ pub enum Command {
     Rm {
         #[structopt(parse(from_os_str))]
         files: Vec<PathBuf>,
+        #[structopt(long)]
+        cached: bool,
     },
     Status {
         #[structopt(long)]

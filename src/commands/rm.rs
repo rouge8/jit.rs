@@ -7,15 +7,18 @@ pub struct Rm<'a> {
     ctx: CommandContext<'a>,
     /// `jit rm <paths>...`
     paths: Vec<PathBuf>,
+    /// `jit rm --cached`
+    cached: bool,
     head_oid: Option<String>,
     uncommitted: Vec<PathBuf>,
     unstaged: Vec<PathBuf>,
+    both_changed: Vec<PathBuf>,
 }
 
 impl<'a> Rm<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let paths = match &ctx.opt.cmd {
-            Command::Rm { files } => files.to_owned(),
+        let (paths, cached) = match &ctx.opt.cmd {
+            Command::Rm { files, cached } => (files.to_owned(), *cached),
             _ => unreachable!(),
         };
 
@@ -24,9 +27,11 @@ impl<'a> Rm<'a> {
         Ok(Self {
             ctx,
             paths,
+            cached,
             head_oid,
             uncommitted: Vec::new(),
             unstaged: Vec::new(),
+            both_changed: Vec::new(),
         })
     }
 
@@ -72,20 +77,20 @@ impl<'a> Rm<'a> {
         let entry = self.ctx.repo.index.entry_for_path(&path_to_string(path), 0);
         let stat = self.ctx.repo.workspace.stat_file(path)?;
 
-        if self
-            .ctx
-            .repo
-            .compare_tree_to_index(item.as_ref(), entry)
-            .is_some()
-        {
-            self.uncommitted.push(path.to_path_buf());
-        } else if stat.is_some()
-            && self
-                .ctx
+        let staged_change = self.ctx.repo.compare_tree_to_index(item.as_ref(), entry);
+        let unstaged_change = if stat.is_some() {
+            self.ctx
                 .repo
                 .compare_index_to_workspace(entry, stat.as_ref())?
-                .is_some()
-        {
+        } else {
+            None
+        };
+
+        if staged_change.is_some() && unstaged_change.is_some() {
+            self.both_changed.push(path.to_path_buf());
+        } else if staged_change.is_some() && !self.cached {
+            self.uncommitted.push(path.to_path_buf());
+        } else if unstaged_change.is_some() && !self.cached {
             self.unstaged.push(path.to_path_buf());
         }
 
@@ -94,7 +99,9 @@ impl<'a> Rm<'a> {
 
     fn remove_file(&mut self, path: &Path) -> Result<()> {
         self.ctx.repo.index.remove(path);
-        self.ctx.repo.workspace.remove(path)?;
+        if !self.cached {
+            self.ctx.repo.workspace.remove(path)?;
+        }
 
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(stdout, "rm '{}'", path_to_string(path))?;
@@ -103,10 +110,14 @@ impl<'a> Rm<'a> {
     }
 
     fn exit_on_errors(&self) -> Result<()> {
-        if self.uncommitted.is_empty() && self.unstaged.is_empty() {
+        if self.both_changed.is_empty() && self.uncommitted.is_empty() && self.unstaged.is_empty() {
             return Ok(());
         }
 
+        self.print_errors(
+            &self.both_changed,
+            "staged content different from both the file and the HEAD",
+        )?;
         self.print_errors(&self.uncommitted, "changes staged in the index")?;
         self.print_errors(&self.unstaged, "local modifications")?;
 

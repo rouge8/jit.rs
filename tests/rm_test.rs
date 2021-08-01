@@ -116,6 +116,87 @@ error: the following file has changes staged in the index:
 
         Ok(())
     }
+
+    #[rstest]
+    fn remove_a_file_only_from_the_index(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["rm", "--cached", "f.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn remove_a_file_from_the_index_if_it_has_unstaged_changes(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["rm", "--cached", "f.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn remove_a_file_from_the_index_if_it_has_uncommitted_changes(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["rm", "--cached", "f.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_remove_a_file_with_both_uncommitted_and_unstaged_changes(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.write_file("f.txt", "3")?;
+        helper
+            .jit_cmd(&["rm", "--cached", "f.txt"])
+            .assert()
+            .code(1)
+            .stderr(
+                "\
+error: the following file has staged content different from both the file and the HEAD:
+    f.txt
+",
+            );
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
 }
 
 mod with_no_commit {

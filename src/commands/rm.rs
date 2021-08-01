@@ -9,6 +9,8 @@ pub struct Rm<'a> {
     paths: Vec<PathBuf>,
     /// `jit rm --cached`
     cached: bool,
+    /// `jit rm -f`
+    force: bool,
     head_oid: Option<String>,
     uncommitted: Vec<PathBuf>,
     unstaged: Vec<PathBuf>,
@@ -17,8 +19,12 @@ pub struct Rm<'a> {
 
 impl<'a> Rm<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let (paths, cached) = match &ctx.opt.cmd {
-            Command::Rm { files, cached } => (files.to_owned(), *cached),
+        let (paths, cached, force) = match &ctx.opt.cmd {
+            Command::Rm {
+                files,
+                cached,
+                force,
+            } => (files.to_owned(), *cached, *force),
             _ => unreachable!(),
         };
 
@@ -28,6 +34,7 @@ impl<'a> Rm<'a> {
             ctx,
             paths,
             cached,
+            force,
             head_oid,
             uncommitted: Vec::new(),
             unstaged: Vec::new(),
@@ -67,6 +74,10 @@ impl<'a> Rm<'a> {
     fn plan_removal(&mut self, path: &Path) -> Result<()> {
         if !self.ctx.repo.index.tracked_file(path) {
             return Err(Error::RmUntrackedFile(path_to_string(path)));
+        }
+
+        if self.force {
+            return Ok(());
         }
 
         let item = if let Some(head_oid) = &self.head_oid {

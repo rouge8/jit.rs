@@ -118,6 +118,37 @@ error: the following file has changes staged in the index:
     }
 
     #[rstest]
+    fn force_removal_of_unstaged_changes(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["rm", "-f", "f.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let workspace = HashMap::new();
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn force_removal_of_uncommitted_changes(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["rm", "-f", "f.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let workspace = HashMap::new();
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
     fn remove_a_file_only_from_the_index(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["rm", "--cached", "f.txt"]);
 

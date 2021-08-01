@@ -108,6 +108,8 @@ pub enum Command {
         files: Vec<PathBuf>,
         #[structopt(long)]
         cached: bool,
+        #[structopt(short, long)]
+        force: bool,
     },
     Status {
         #[structopt(long)]

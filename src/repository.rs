@@ -257,7 +257,7 @@ impl Repository {
         }
     }
 
-    fn compare_tree_to_index(
+    pub fn compare_tree_to_index(
         &self,
         item: Option<&TreeEntry>,
         entry: Option<&IndexEntry>,

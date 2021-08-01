@@ -1,7 +1,8 @@
 use crate::database::blob::Blob;
 use crate::database::commit::Commit;
+use crate::database::entry::Entry;
 use crate::database::object::Object;
-use crate::database::tree::Tree;
+use crate::database::tree::{Tree, TreeEntry, TREE_MODE};
 use crate::database::tree_diff::{Differ, TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
@@ -13,7 +14,7 @@ use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 pub mod author;
@@ -73,6 +74,35 @@ impl Database {
             ParsedObject::Blob(blob) => Ok(blob),
             _ => unreachable!(),
         }
+    }
+
+    /// Load a tree by its object ID, returning a `Tree`.
+    pub fn load_tree(&self, oid: &str) -> io::Result<Tree> {
+        match self.load(oid)? {
+            ParsedObject::Tree(tree) => Ok(tree),
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn load_tree_entry(&self, oid: &str, pathname: &Path) -> io::Result<Option<TreeEntry>> {
+        let commit = self.load_commit(oid)?;
+        let root = Entry::new(commit.tree, TREE_MODE);
+
+        let mut entry = Some(TreeEntry::Entry(root));
+        for name in pathname.iter() {
+            let name = PathBuf::from(name);
+
+            entry = if let Some(entry) = entry {
+                self.load_tree(&entry.oid())?
+                    .entries
+                    .get(&name)
+                    .map(|entry| entry.to_owned())
+            } else {
+                None
+            };
+        }
+
+        Ok(entry)
     }
 
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {
@@ -210,7 +240,6 @@ mod tests {
 
     mod tree_diff {
         use super::*;
-        use crate::database::entry::Entry;
         use crate::database::tree::TreeEntry;
         use indexmap::IndexMap;
         use rstest::{fixture, rstest};

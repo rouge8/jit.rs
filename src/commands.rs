@@ -167,7 +167,7 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
             cmd.run()
         }
         Command::Rm { .. } => {
-            let mut cmd = Rm::new(ctx);
+            let mut cmd = Rm::new(ctx)?;
             cmd.run()
         }
         Command::Status { .. } => {

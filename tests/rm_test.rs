@@ -82,4 +82,27 @@ error: the following file has local modifications:
 
         Ok(())
     }
+
+    #[rstest]
+    fn fail_if_the_file_has_uncommitted_changes(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("f.txt", "2")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+
+        helper.jit_cmd(&["rm", "f.txt"]).assert().code(1).stderr(
+            "\
+error: the following file has changes staged in the index:
+    f.txt
+",
+        );
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
 }

@@ -7,21 +7,28 @@ pub struct Rm<'a> {
     ctx: CommandContext<'a>,
     /// `jit rm <paths>...`
     paths: Vec<PathBuf>,
+    head_oid: String,
+    uncommitted: Vec<PathBuf>,
     unstaged: Vec<PathBuf>,
 }
 
 impl<'a> Rm<'a> {
-    pub fn new(ctx: CommandContext<'a>) -> Self {
+    pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
         let paths = match &ctx.opt.cmd {
             Command::Rm { files } => files.to_owned(),
             _ => unreachable!(),
         };
 
-        Self {
+        // TODO: Support running `jit rm` before the first commit by handling `head_oid = None`.
+        let head_oid = ctx.repo.refs.read_head()?.unwrap();
+
+        Ok(Self {
             ctx,
             paths,
+            head_oid,
+            uncommitted: Vec::new(),
             unstaged: Vec::new(),
-        }
+        })
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -42,10 +49,22 @@ impl<'a> Rm<'a> {
     }
 
     fn plan_removal(&mut self, path: &Path) -> Result<()> {
+        let item = self
+            .ctx
+            .repo
+            .database
+            .load_tree_entry(&self.head_oid, path)?;
         let entry = self.ctx.repo.index.entry_for_path(&path_to_string(path), 0);
         let stat = self.ctx.repo.workspace.stat_file(path)?;
 
-        if stat.is_some()
+        if self
+            .ctx
+            .repo
+            .compare_tree_to_index(item.as_ref(), entry)
+            .is_some()
+        {
+            self.uncommitted.push(path.to_path_buf());
+        } else if stat.is_some()
             && self
                 .ctx
                 .repo
@@ -69,26 +88,33 @@ impl<'a> Rm<'a> {
     }
 
     fn exit_on_errors(&self) -> Result<()> {
-        if self.unstaged.is_empty() {
+        if self.uncommitted.is_empty() && self.unstaged.is_empty() {
             return Ok(());
         }
 
-        let files_have = if self.unstaged.len() == 1 {
+        self.print_errors(&self.uncommitted, "changes staged in the index")?;
+        self.print_errors(&self.unstaged, "local modifications")?;
+
+        Err(Error::Exit(1))
+    }
+
+    fn print_errors(&self, paths: &[PathBuf], message: &str) -> Result<()> {
+        if paths.is_empty() {
+            return Ok(());
+        }
+
+        let files_have = if paths.len() == 1 {
             "file has"
         } else {
             "files have"
         };
 
         let mut stderr = self.ctx.stderr.borrow_mut();
-        writeln!(
-            stderr,
-            "error: the following {} local modifications:",
-            files_have
-        )?;
-        for path in &self.unstaged {
+        writeln!(stderr, "error: the following {} {}:", files_have, message,)?;
+        for path in paths {
             writeln!(stderr, "    {}", path_to_string(path))?;
         }
 
-        Err(Error::Exit(1))
+        Ok(())
     }
 }

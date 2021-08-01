@@ -109,7 +109,7 @@ impl<'a> Rm<'a> {
         Ok(())
     }
 
-    fn exit_on_errors(&self) -> Result<()> {
+    fn exit_on_errors(&mut self) -> Result<()> {
         if self.both_changed.is_empty() && self.uncommitted.is_empty() && self.unstaged.is_empty() {
             return Ok(());
         }
@@ -121,6 +121,7 @@ impl<'a> Rm<'a> {
         self.print_errors(&self.uncommitted, "changes staged in the index")?;
         self.print_errors(&self.unstaged, "local modifications")?;
 
+        self.ctx.repo.index.release_lock()?;
         Err(Error::Exit(1))
     }
 

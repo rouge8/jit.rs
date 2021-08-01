@@ -4,7 +4,8 @@ pub fn is_executable(mode: u32) -> bool {
     mode & 0o1111 != 0
 }
 
-pub fn parent_directories(mut path: PathBuf) -> Vec<PathBuf> {
+pub fn parent_directories(path: &Path) -> Vec<PathBuf> {
+    let mut path = path.to_path_buf();
     let mut parents = Vec::new();
 
     // TODO: path.ancestors()
@@ -91,6 +92,7 @@ pub mod tests {
     use super::*;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
+    use rstest::rstest;
     use sha1::{Digest, Sha1};
 
     pub fn random_oid() -> String {
@@ -115,5 +117,14 @@ pub mod tests {
         let expected = vec![vec![1, 4, 7, 10], vec![2, 5, 8, 11], vec![3, 6, 9, 12]];
 
         assert_eq!(transpose(ary), expected);
+    }
+
+    #[rstest]
+    #[case("outer/inner/f.txt", &["outer", "outer/inner"])]
+    #[case("/outer/inner/f.txt", &["/", "/outer", "/outer/inner"])]
+    fn parent_directories_works(#[case] input: &str, #[case] expected: &[&str]) {
+        let expected: Vec<_> = expected.iter().map(PathBuf::from).collect();
+
+        assert_eq!(parent_directories(Path::new(input)), expected);
     }
 }

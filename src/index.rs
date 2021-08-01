@@ -373,7 +373,7 @@ impl Entry {
     }
 
     pub fn parent_directories(&self) -> Vec<PathBuf> {
-        parent_directories(PathBuf::from(&self.path))
+        parent_directories(Path::new(&self.path))
     }
 
     pub fn basename(&self) -> PathBuf {

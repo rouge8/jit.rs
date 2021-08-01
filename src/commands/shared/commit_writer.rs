@@ -8,7 +8,7 @@ use crate::repository::pending_commit::PendingCommit;
 use chrono::{DateTime, Local};
 
 pub const CONFLICT_MESSAGE: &str = "\
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.";
 

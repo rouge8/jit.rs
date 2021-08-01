@@ -1569,7 +1569,7 @@ mod conflict_resolution {
         helper.jit_cmd(&["commit"]).assert().code(128).stderr(
             "\
 error: Committing is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 ",
@@ -1589,7 +1589,7 @@ fatal: Exiting because of an unresolved conflict.
             .stderr(
                 "\
 error: Committing is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 ",
@@ -1656,7 +1656,7 @@ fatal: Exiting because of an unresolved conflict.
         helper.jit_cmd(&["merge"]).assert().code(128).stderr(
             "\
 error: Merging is not possible because you have unmerged files.
-hint: Fix them up in the work tree, and then use 'jit add <file>'
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 ",

@@ -6,7 +6,7 @@ use crate::errors::Result;
 use crate::merge::diff3;
 use crate::merge::inputs::Inputs;
 use crate::repository::Repository;
-use crate::util::path_to_string;
+use crate::util::{parent_directories, path_to_string};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -209,39 +209,37 @@ impl<'a> Resolve<'a> {
     }
 
     fn file_dir_conflict(&mut self, path: &Path, diff: &TreeDiffChanges, name: &str) {
-        let mut ancestors = path.ancestors();
-        ancestors.next(); // Skip `path`
-        for parent in ancestors {
-            if !diff.contains_key(parent) {
+        for parent in parent_directories(path) {
+            if !diff.contains_key(&parent) {
                 continue;
             }
 
-            let (old_item, new_item) = &diff[parent];
+            let (old_item, new_item) = &diff[&parent];
             if new_item.is_none() {
                 continue;
             }
 
             if name == self.inputs.left_name {
                 self.conflicts.insert(
-                    path_to_string(parent),
+                    path_to_string(&parent),
                     vec![old_item.to_owned(), new_item.to_owned(), None],
                 );
             } else if name == self.inputs.right_name {
                 self.conflicts.insert(
-                    path_to_string(parent),
+                    path_to_string(&parent),
                     vec![old_item.to_owned(), None, new_item.to_owned()],
                 );
             }
 
-            self.clean_diff.remove(parent);
-            let rename = format!("{}~{}", path_to_string(parent), name);
+            self.clean_diff.remove(&parent);
+            let rename = format!("{}~{}", path_to_string(&parent), name);
             self.untracked
                 .insert(rename.clone(), new_item.to_owned().unwrap());
 
             if diff.get(path).is_none() {
                 self.log(format!("Adding {}", path_to_string(path)));
             }
-            self.log_conflict(parent, Some(rename));
+            self.log_conflict(&parent, Some(rename));
         }
     }
 

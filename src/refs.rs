@@ -1,7 +1,7 @@
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::revision::Revision;
-use crate::util::path_to_string;
+use crate::util::{parent_directories, path_to_string};
 use lazy_static::lazy_static;
 use nix::errno::Errno;
 use regex::Regex;
@@ -135,9 +135,8 @@ impl Refs {
                 let prefix = dirs
                     .iter()
                     .find(|dir| {
-                        path.parent()
-                            .unwrap()
-                            .ancestors()
+                        parent_directories(&path)
+                            .iter()
                             .any(|parent| &parent == dir)
                     })
                     .unwrap();
@@ -307,7 +306,7 @@ impl Refs {
     }
 
     fn delete_parent_directories(&self, path: &Path) -> Result<()> {
-        for dir in path.parent().unwrap().ancestors() {
+        for dir in parent_directories(path) {
             if dir == self.heads_path {
                 break;
             }

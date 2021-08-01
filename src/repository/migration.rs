@@ -4,7 +4,7 @@ use crate::database::tree_diff::TreeDiffChanges;
 use crate::errors::{Error, Result};
 use crate::index::Entry as IndexEntry;
 use crate::repository::Repository;
-use crate::util::path_to_string;
+use crate::util::{parent_directories, path_to_string};
 use lazy_static::lazy_static;
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
@@ -245,18 +245,13 @@ impl<'a> Migration<'a> {
     }
 
     fn untracked_parent(&self, path: &Path) -> Result<Option<PathBuf>> {
-        let dirname = path.parent().unwrap();
-        for parent in dirname.ancestors() {
-            if parent == Path::new("") {
-                continue;
-            }
-
-            if let Ok(Some(parent_stat)) = self.repo.workspace.stat_file(parent) {
+        for parent in parent_directories(path) {
+            if let Ok(Some(parent_stat)) = self.repo.workspace.stat_file(&parent) {
                 if !parent_stat.is_file() {
                     continue;
                 }
 
-                if self.repo.trackable_file(parent, &parent_stat)? {
+                if self.repo.trackable_file(&parent, &parent_stat)? {
                     return Ok(Some(parent.to_path_buf()));
                 }
             }

@@ -4,21 +4,26 @@ pub fn is_executable(mode: u32) -> bool {
     mode & 0o1111 != 0
 }
 
+/// Return the parent directories of `path` in ascending order, e.g.:
+///
+/// ```
+/// # use jit::util::parent_directories;
+/// # use std::path::{Path, PathBuf};
+/// assert_eq!(
+///     parent_directories(Path::new("outer/inner/f.txt")),
+///     vec![PathBuf::from("outer/inner"), PathBuf::from("outer")]
+/// );
+/// ```
 pub fn parent_directories(path: &Path) -> Vec<PathBuf> {
-    let mut path = path.to_path_buf();
-    let mut parents = Vec::new();
-
-    // TODO: path.ancestors()
-    while let Some(parent) = path.parent() {
-        let parent = parent.to_path_buf();
-        path = parent.clone();
-
-        if parent != PathBuf::from("") {
-            parents.insert(0, parent);
-        }
-    }
-
-    parents
+    path.ancestors()
+        .filter_map(|p| {
+            if p != path && p != Path::new("") {
+                Some(p.to_path_buf())
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 pub fn basename(path: PathBuf) -> PathBuf {
@@ -120,8 +125,9 @@ pub mod tests {
     }
 
     #[rstest]
-    #[case("outer/inner/f.txt", &["outer", "outer/inner"])]
-    #[case("/outer/inner/f.txt", &["/", "/outer", "/outer/inner"])]
+    #[case("outer/inner/f.txt", &["outer/inner", "outer"])]
+    #[case("/outer/inner/f.txt", &["/outer/inner", "/outer", "/"])]
+    #[case("f.txt", &[])]
     fn parent_directories_works(#[case] input: &str, #[case] expected: &[&str]) {
         let expected: Vec<_> = expected.iter().map(PathBuf::from).collect();
 

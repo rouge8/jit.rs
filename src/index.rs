@@ -374,6 +374,10 @@ impl Entry {
 
     pub fn parent_directories(&self) -> Vec<PathBuf> {
         parent_directories(Path::new(&self.path))
+            .iter()
+            .rev()
+            .map(|path| path.to_owned())
+            .collect()
     }
 
     pub fn basename(&self) -> PathBuf {

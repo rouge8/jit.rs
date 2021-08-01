@@ -7,7 +7,7 @@ pub struct Rm<'a> {
     ctx: CommandContext<'a>,
     /// `jit rm <paths>...`
     paths: Vec<PathBuf>,
-    head_oid: String,
+    head_oid: Option<String>,
     uncommitted: Vec<PathBuf>,
     unstaged: Vec<PathBuf>,
 }
@@ -19,8 +19,7 @@ impl<'a> Rm<'a> {
             _ => unreachable!(),
         };
 
-        // TODO: Support running `jit rm` before the first commit by handling `head_oid = None`.
-        let head_oid = ctx.repo.refs.read_head()?.unwrap();
+        let head_oid = ctx.repo.refs.read_head()?;
 
         Ok(Self {
             ctx,
@@ -65,11 +64,11 @@ impl<'a> Rm<'a> {
             return Err(Error::RmUntrackedFile(path_to_string(path)));
         }
 
-        let item = self
-            .ctx
-            .repo
-            .database
-            .load_tree_entry(&self.head_oid, path)?;
+        let item = if let Some(head_oid) = &self.head_oid {
+            self.ctx.repo.database.load_tree_entry(head_oid, path)?
+        } else {
+            None
+        };
         let entry = self.ctx.repo.index.entry_for_path(&path_to_string(path), 0);
         let stat = self.ctx.repo.workspace.stat_file(path)?;
 

@@ -117,3 +117,46 @@ error: the following file has changes staged in the index:
         Ok(())
     }
 }
+
+mod with_no_commit {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        helper.write_file("f.txt", "1").unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn fail_if_the_file_has_uncommitted_changes(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["add", "f.txt"]);
+
+        helper.jit_cmd(&["rm", "f.txt"]).assert().code(1).stderr(
+            "\
+error: the following file has changes staged in the index:
+    f.txt
+",
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_if_the_file_is_not_in_the_index(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["rm", "f.txt"])
+            .assert()
+            .code(128)
+            .stderr("fatal: pathspec 'f.txt' did not match any files\n");
+
+        Ok(())
+    }
+}

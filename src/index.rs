@@ -126,6 +126,13 @@ impl Index {
         self.tracked_file(path) || self.tracked_directory(path)
     }
 
+    pub fn add_from_db(&mut self, pathname: &str, item: &DatabaseEntry) {
+        let entry = Entry::create_from_db(pathname, item, 0);
+        self.store_entry(entry);
+
+        self.changed = true
+    }
+
     pub fn add_conflict_set(&mut self, pathname: &str, items: Vec<Option<DatabaseEntry>>) {
         assert_eq!(items.len(), 3);
 

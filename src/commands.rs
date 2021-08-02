@@ -15,6 +15,7 @@ mod diff;
 mod init;
 mod log;
 mod merge;
+mod reset;
 mod rm;
 mod shared;
 mod status;
@@ -27,6 +28,7 @@ use diff::Diff;
 use init::Init;
 use log::{Log, LogDecoration, LogFormat};
 use merge::Merge;
+use reset::Reset;
 use rm::Rm;
 use status::Status;
 
@@ -103,6 +105,10 @@ pub enum Command {
         #[structopt(long)]
         r#continue: bool,
     },
+    Reset {
+        #[structopt(parse(from_os_str))]
+        files: Vec<PathBuf>,
+    },
     Rm {
         #[structopt(parse(from_os_str))]
         files: Vec<PathBuf>,
@@ -170,6 +176,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Merge { .. } => {
             let mut cmd = Merge::new(ctx)?;
+            cmd.run()
+        }
+        Command::Reset { .. } => {
+            let mut cmd = Reset::new(ctx)?;
             cmd.run()
         }
         Command::Rm { .. } => {

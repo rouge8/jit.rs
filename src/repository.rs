@@ -1,6 +1,4 @@
-use crate::database::{
-    blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database, ParsedObject,
-};
+use crate::database::{blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database};
 use crate::errors::Result;
 use crate::index::{Entry as IndexEntry, Index};
 use crate::refs::Refs;
@@ -71,8 +69,11 @@ impl Repository {
     }
 
     pub fn initialize_status(&mut self) -> Result<()> {
+        self.head_tree = self
+            .database
+            .load_tree_list(self.refs.read_head()?.as_deref(), None)?;
+
         self.scan_workspace(&self.root_path.clone())?;
-        self.load_head_tree()?;
         self.check_index_entries()?;
         self.collect_deleted_head_files();
 
@@ -136,37 +137,6 @@ impl Repository {
         }
 
         Ok(false)
-    }
-
-    fn load_head_tree(&mut self) -> Result<()> {
-        let head_oid = self.refs.read_head()?;
-
-        if let Some(head_oid) = head_oid {
-            let commit = self.database.load_commit(&head_oid)?;
-            let tree_oid = commit.tree;
-            self.read_tree(tree_oid, PathBuf::new())?;
-        }
-
-        Ok(())
-    }
-
-    fn read_tree(&mut self, tree_oid: String, pathname: PathBuf) -> Result<()> {
-        let tree = match self.database.load(&tree_oid)? {
-            ParsedObject::Tree(tree) => tree,
-            _ => unreachable!(),
-        };
-
-        for (name, entry) in tree.entries {
-            let path = pathname.join(name);
-
-            if entry.is_tree() {
-                self.read_tree(entry.oid(), path)?;
-            } else {
-                self.head_tree.insert(path_to_string(&path), entry);
-            }
-        }
-
-        Ok(())
     }
 
     fn check_index_entries(&mut self) -> Result<()> {

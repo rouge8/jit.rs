@@ -128,7 +128,10 @@ impl<'a> Rm<'a> {
         }
 
         let item = if let Some(head_oid) = &self.head_oid {
-            self.ctx.repo.database.load_tree_entry(head_oid, path)?
+            self.ctx
+                .repo
+                .database
+                .load_tree_entry(head_oid, Some(path))?
         } else {
             None
         };

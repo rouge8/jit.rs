@@ -6,10 +6,12 @@ use crate::database::tree::{Tree, TreeEntry, TREE_MODE};
 use crate::database::tree_diff::{Differ, TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
+use crate::util::path_to_string;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io;
@@ -84,12 +86,20 @@ impl Database {
         }
     }
 
-    pub fn load_tree_entry(&self, oid: &str, pathname: &Path) -> io::Result<Option<TreeEntry>> {
+    pub fn load_tree_entry(
+        &self,
+        oid: &str,
+        pathname: Option<&Path>,
+    ) -> io::Result<Option<TreeEntry>> {
         let commit = self.load_commit(oid)?;
         let root = Entry::new(commit.tree, TREE_MODE);
 
         let mut entry = Some(TreeEntry::Entry(root));
-        for name in pathname.iter() {
+        if pathname.is_none() {
+            return Ok(entry);
+        }
+
+        for name in pathname.unwrap().iter() {
             let name = PathBuf::from(name);
 
             entry = if let Some(entry) = entry {
@@ -103,6 +113,41 @@ impl Database {
         }
 
         Ok(entry)
+    }
+
+    pub fn load_tree_list(
+        &self,
+        oid: Option<&str>,
+        pathname: Option<&Path>,
+    ) -> io::Result<HashMap<String, TreeEntry>> {
+        let mut list = HashMap::new();
+
+        if let Some(oid) = oid {
+            let entry = self.load_tree_entry(oid, pathname)?;
+            self.build_list(&mut list, entry, pathname.unwrap_or_else(|| Path::new("")))?;
+        }
+
+        Ok(list)
+    }
+
+    fn build_list(
+        &self,
+        list: &mut HashMap<String, TreeEntry>,
+        entry: Option<TreeEntry>,
+        prefix: &Path,
+    ) -> io::Result<()> {
+        if let Some(entry) = entry {
+            if !entry.is_tree() {
+                list.insert(path_to_string(prefix), entry);
+                return Ok(());
+            }
+
+            for (name, item) in self.load_tree(&entry.oid())?.entries {
+                self.build_list(list, Some(item), &prefix.join(name))?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn prefix_match(&self, name: &str) -> io::Result<Vec<String>> {

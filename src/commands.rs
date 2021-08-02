@@ -110,6 +110,8 @@ pub enum Command {
         cached: bool,
         #[structopt(short, long)]
         force: bool,
+        #[structopt(short)]
+        recursive: bool,
     },
     Status {
         #[structopt(long)]

@@ -272,3 +272,149 @@ error: the following file has changes staged in the index:
         Ok(())
     }
 }
+
+mod with_a_tree {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        helper.write_file("f.txt", "1").unwrap();
+        helper.write_file("outer/g.txt", "2").unwrap();
+        helper.write_file("outer/inner/h.txt", "3").unwrap();
+
+        helper.jit_cmd(&["add", "."]);
+        helper.commit("first");
+
+        helper
+    }
+
+    #[rstest]
+    fn remove_multiple_files(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["rm", "f.txt", "outer/inner/h.txt"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert_eq!(
+            repo.index
+                .entries
+                .values()
+                .map(|entry| entry.path.clone())
+                .collect::<Vec<_>>(),
+            vec!["outer/g.txt"]
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("outer/g.txt", "2");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn refuse_to_remove_a_directory(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["rm", "f.txt", "outer"])
+            .assert()
+            .code(128)
+            .stderr("fatal: not removing 'outer' recursively without -r\n");
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert_eq!(
+            repo.index
+                .entries
+                .values()
+                .map(|entry| entry.path.clone())
+                .collect::<Vec<_>>(),
+            vec!["f.txt", "outer/g.txt", "outer/inner/h.txt"]
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        workspace.insert("outer/g.txt", "2");
+        workspace.insert("outer/inner/h.txt", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_remove_a_file_replaced_with_a_directory(mut helper: CommandHelper) -> Result<()> {
+        helper.delete("f.txt")?;
+        helper.write_file("f.txt/nested", "keep me")?;
+
+        helper
+            .jit_cmd(&["rm", "f.txt"])
+            .assert()
+            .code(128)
+            .stderr("fatal: jit rm: 'f.txt': Operation not permitted\n");
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert_eq!(
+            repo.index
+                .entries
+                .values()
+                .map(|entry| entry.path.clone())
+                .collect::<Vec<_>>(),
+            vec!["f.txt", "outer/g.txt", "outer/inner/h.txt"]
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt/nested", "keep me");
+        workspace.insert("outer/g.txt", "2");
+        workspace.insert("outer/inner/h.txt", "3");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn remove_a_directory_with_dash_r(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["rm", "-r", "outer"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert_eq!(
+            repo.index
+                .entries
+                .values()
+                .map(|entry| entry.path.clone())
+                .collect::<Vec<_>>(),
+            vec!["f.txt"]
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn do_not_remove_untracked_files(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("outer/inner/j.txt", "4")?;
+        helper.jit_cmd(&["rm", "-r", "outer"]);
+
+        let mut repo = helper.repo();
+        repo.index.load()?;
+        assert_eq!(
+            repo.index
+                .entries
+                .values()
+                .map(|entry| entry.path.clone())
+                .collect::<Vec<_>>(),
+            vec!["f.txt"]
+        );
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "1");
+        workspace.insert("outer/inner/j.txt", "4");
+        helper.assert_workspace(&workspace)?;
+
+        Ok(())
+    }
+}

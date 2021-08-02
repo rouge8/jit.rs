@@ -1,5 +1,6 @@
 use crate::errors::{Error, Result};
 use crate::repository::migration::{Action, Migration};
+use crate::util::parent_directories;
 use nix::errno::Errno;
 use std::collections::HashMap;
 use std::fs;
@@ -108,15 +109,19 @@ impl Workspace {
 
     pub fn remove(&self, path: &Path) -> Result<()> {
         match fs::remove_file(path) {
-            Ok(()) => Ok(()),
+            Ok(()) => (),
             Err(err) => {
-                if err.kind() == io::ErrorKind::NotFound {
-                    Ok(())
-                } else {
-                    Err(Error::Io(err))
+                if err.kind() != io::ErrorKind::NotFound {
+                    return Err(Error::Io(err));
                 }
             }
         }
+
+        for dirname in parent_directories(path) {
+            self.remove_directory(&dirname)?;
+        }
+
+        Ok(())
     }
 
     pub fn apply_migration(&self, migration: &Migration) -> Result<()> {

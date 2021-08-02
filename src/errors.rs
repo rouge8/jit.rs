@@ -26,6 +26,10 @@ pub enum Error {
     NoMergeInProgress(String),
     #[error("pathspec '{0}' did not match any files")]
     RmUntrackedFile(String),
+    #[error("not removing '{0}' recursively without -r")]
+    RmNotRecursive(String),
+    #[error("jit rm: '{0}': Operation not permitted")]
+    RmOperationNotPermitted(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

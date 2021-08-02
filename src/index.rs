@@ -105,6 +105,11 @@ impl Index {
         Ok(())
     }
 
+    pub fn child_paths(&self, path: &Path) -> HashSet<String> {
+        let key = path_to_string(path);
+        self.parents[&key].clone()
+    }
+
     pub fn tracked_file(&self, path: &Path) -> bool {
         (0..=3).any(|stage| {
             let key = (path_to_string(path), stage);
@@ -112,9 +117,13 @@ impl Index {
         })
     }
 
-    pub fn tracked(&self, path: &Path) -> bool {
+    pub fn tracked_directory(&self, path: &Path) -> bool {
         let key = path_to_string(path);
-        self.tracked_file(path) || self.parents.contains_key(&key)
+        self.parents.contains_key(&key)
+    }
+
+    pub fn tracked(&self, path: &Path) -> bool {
+        self.tracked_file(path) || self.tracked_directory(path)
     }
 
     pub fn add_conflict_set(&mut self, pathname: &str, items: Vec<Option<DatabaseEntry>>) {

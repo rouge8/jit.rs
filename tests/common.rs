@@ -20,6 +20,7 @@ use tempfile::TempDir;
 
 pub struct CommandHelper {
     pub repo_path: PathBuf,
+    pub repo: Repository,
     pub env: HashMap<String, String>,
     pub stdin: String,
     stdout: Option<String>,
@@ -38,9 +39,11 @@ impl CommandHelper {
     pub fn new() -> Self {
         let tmp_dir = TempDir::new().unwrap();
         let repo_path = tmp_dir.into_path().canonicalize().unwrap();
+        let repo = Repository::new(repo_path.join(".git"));
 
         CommandHelper {
             repo_path,
+            repo,
             env: HashMap::new(),
             stdin: String::from(""),
             stdout: None,
@@ -159,11 +162,11 @@ impl CommandHelper {
         self.jit_cmd(&["commit"]);
     }
 
-    pub fn assert_index(&self, expected: Vec<(u32, &str)>) -> Result<()> {
-        let mut repo = self.repo();
-        repo.index.load()?;
+    pub fn assert_index(&mut self, expected: Vec<(u32, &str)>) -> Result<()> {
+        self.repo.index.load()?;
 
-        let actual: Vec<(u32, &str)> = repo
+        let actual: Vec<(u32, &str)> = self
+            .repo
             .index
             .entries
             .values()
@@ -198,12 +201,11 @@ impl CommandHelper {
         }
 
         let mut files = HashMap::new();
-        let repo = self.repo();
 
-        for pathname in repo.workspace.list_files(&self.repo_path)? {
+        for pathname in self.repo.workspace.list_files(&self.repo_path)? {
             files.insert(
                 path_to_string(&pathname),
-                String::from_utf8(repo.workspace.read_file(&pathname)?).unwrap(),
+                String::from_utf8(self.repo.workspace.read_file(&pathname)?).unwrap(),
             );
         }
 
@@ -224,17 +226,13 @@ impl CommandHelper {
         assert_eq!(self.stdout.as_ref().expect("no stdout found"), stdout);
     }
 
-    pub fn repo(&self) -> Repository {
-        Repository::new(self.repo_path.join(".git"))
-    }
-
     pub fn resolve_revision(&self, expression: &str) -> Result<String> {
-        Revision::new(&self.repo(), expression).resolve(None)
+        Revision::new(&self.repo, expression).resolve(None)
     }
 
     pub fn load_commit(&self, expression: &str) -> Result<Commit> {
         Ok(self
-            .repo()
+            .repo
             .database
             .load_commit(&self.resolve_revision(expression)?)?)
     }

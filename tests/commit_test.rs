@@ -42,14 +42,12 @@ mod committing_to_branches {
 
         #[rstest]
         fn advance_a_branch_pointer(mut helper: CommandHelper) -> Result<()> {
-            let repo = helper.repo();
-
-            let head_before = repo.refs.read_ref("HEAD")?;
+            let head_before = helper.repo.refs.read_ref("HEAD")?;
 
             commit_change(&mut helper, "change")?;
 
-            let head_after = repo.refs.read_ref("HEAD")?;
-            let branch_after = repo.refs.read_ref("topic")?;
+            let head_after = helper.repo.refs.read_ref("HEAD")?;
+            let branch_after = helper.repo.refs.read_ref("topic")?;
 
             assert_ne!(head_after, head_before);
             assert_eq!(branch_after, head_after);
@@ -94,11 +92,9 @@ mod committing_to_branches {
 
         #[rstest]
         fn advance_head(mut helper: CommandHelper) -> Result<()> {
-            let repo = helper.repo();
-
-            let head_before = repo.refs.read_ref("HEAD")?;
+            let head_before = helper.repo.refs.read_ref("HEAD")?;
             commit_change(&mut helper, "change")?;
-            let head_after = repo.refs.read_ref("HEAD")?;
+            let head_after = helper.repo.refs.read_ref("HEAD")?;
 
             assert_ne!(head_after, head_before);
 
@@ -107,11 +103,9 @@ mod committing_to_branches {
 
         #[rstest]
         fn do_not_advance_the_detached_branch(mut helper: CommandHelper) -> Result<()> {
-            let repo = helper.repo();
-
-            let branch_before = repo.refs.read_ref("topic")?;
+            let branch_before = helper.repo.refs.read_ref("topic")?;
             commit_change(&mut helper, "change")?;
-            let branch_after = repo.refs.read_ref("topic")?;
+            let branch_after = helper.repo.refs.read_ref("topic")?;
 
             assert_eq!(branch_after, branch_before);
 
@@ -124,7 +118,7 @@ mod committing_to_branches {
 
             assert_eq!(
                 helper.resolve_revision("@^")?,
-                helper.repo().refs.read_ref("topic")?.unwrap(),
+                helper.repo.refs.read_ref("topic")?.unwrap(),
             );
 
             Ok(())

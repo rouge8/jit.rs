@@ -30,8 +30,10 @@ mod with_a_chain_of_commits {
     fn create_a_branch_pointing_at_head(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["branch", "topic"]);
 
-        let repo = helper.repo();
-        assert_eq!(repo.refs.read_ref("topic")?, repo.refs.read_head()?);
+        assert_eq!(
+            helper.repo.refs.read_ref("topic")?,
+            helper.repo.refs.read_head()?
+        );
 
         Ok(())
     }
@@ -59,14 +61,13 @@ mod with_a_chain_of_commits {
     fn create_a_branch_pointing_at_heads_parent(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["branch", "topic", "HEAD^"]);
 
-        let repo = helper.repo();
-
-        let head = repo
+        let head = helper
+            .repo
             .database
-            .load_commit(&repo.refs.read_head()?.unwrap())?;
+            .load_commit(&helper.repo.refs.read_head()?.unwrap())?;
 
         assert_eq!(
-            &repo.refs.read_ref("topic")?.unwrap(),
+            &helper.repo.refs.read_ref("topic")?.unwrap(),
             head.parent().as_ref().unwrap(),
         );
 
@@ -77,16 +78,18 @@ mod with_a_chain_of_commits {
     fn create_a_branch_pointing_at_heads_grandparent(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["branch", "topic", "@~2"]);
 
-        let repo = helper.repo();
-        let head = repo
+        let head = helper
+            .repo
             .database
-            .load_commit(&repo.refs.read_head()?.unwrap())?;
+            .load_commit(&helper.repo.refs.read_head()?.unwrap())?;
 
-        let repo = helper.repo();
-        let parent = repo.database.load_commit(head.parent().as_ref().unwrap())?;
+        let parent = helper
+            .repo
+            .database
+            .load_commit(head.parent().as_ref().unwrap())?;
 
         assert_eq!(
-            &repo.refs.read_ref("topic")?.unwrap(),
+            &helper.repo.refs.read_ref("topic")?.unwrap(),
             parent.parent().as_ref().unwrap(),
         );
 
@@ -98,9 +101,8 @@ mod with_a_chain_of_commits {
         helper.jit_cmd(&["branch", "topic", "@~1"]);
         helper.jit_cmd(&["branch", "another", "topic^"]);
 
-        let repo = helper.repo();
         assert_eq!(
-            repo.refs.read_ref("another")?.unwrap(),
+            helper.repo.refs.read_ref("another")?.unwrap(),
             helper.resolve_revision("HEAD~2")?,
         );
 
@@ -109,12 +111,10 @@ mod with_a_chain_of_commits {
 
     #[rstest]
     fn create_a_branch_from_a_short_commit_id(mut helper: CommandHelper) -> Result<()> {
-        let repo = helper.repo();
-
         let commit_id = helper.resolve_revision("@~2")?;
         helper.jit_cmd(&["branch", "topic", &Database::short_oid(&commit_id)]);
 
-        assert_eq!(repo.refs.read_ref("topic")?.unwrap(), commit_id);
+        assert_eq!(helper.repo.refs.read_ref("topic")?.unwrap(), commit_id);
 
         Ok(())
     }
@@ -157,10 +157,10 @@ mod with_a_chain_of_commits {
 
     #[rstest]
     fn fail_for_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
-        let repo = helper.repo();
-        let tree_id = repo
+        let tree_id = helper
+            .repo
             .database
-            .load_commit(&repo.refs.read_head()?.unwrap())?
+            .load_commit(&helper.repo.refs.read_head()?.unwrap())?
             .tree;
 
         helper
@@ -180,10 +180,10 @@ fatal: Not a valid object name: '{}'.
 
     #[rstest]
     fn fail_for_parents_of_revisions_that_are_not_commits(mut helper: CommandHelper) -> Result<()> {
-        let repo = helper.repo();
-        let tree_id = repo
+        let tree_id = helper
+            .repo
             .database
-            .load_commit(&repo.refs.read_head()?.unwrap())?
+            .load_commit(&helper.repo.refs.read_head()?.unwrap())?
             .tree;
 
         helper
@@ -238,9 +238,7 @@ fatal: Not a valid object name: '{}^^'.
 
     #[rstest]
     fn delete_a_branch(mut helper: CommandHelper) -> Result<()> {
-        let repo = helper.repo();
-
-        let head = repo.refs.read_head()?.unwrap();
+        let head = helper.repo.refs.read_head()?.unwrap();
 
         helper.jit_cmd(&["branch", "bug-fix"]);
 
@@ -253,11 +251,12 @@ fatal: Not a valid object name: '{}^^'.
                 Database::short_oid(&head)
             ));
 
-        let branches: Vec<_> = repo
+        let branches: Vec<_> = helper
+            .repo
             .refs
             .list_branches()?
             .iter()
-            .map(|r#ref| repo.refs.short_name(r#ref))
+            .map(|r#ref| helper.repo.refs.short_name(r#ref))
             .collect();
         assert_eq!(branches, vec![String::from("main")]);
 
@@ -266,9 +265,7 @@ fatal: Not a valid object name: '{}^^'.
 
     #[rstest]
     fn delete_the_empty_parent_directories_of_a_branch(mut helper: CommandHelper) -> Result<()> {
-        let repo = helper.repo();
-
-        let head = repo.refs.read_head()?.unwrap();
+        let head = helper.repo.refs.read_head()?.unwrap();
 
         helper.jit_cmd(&["branch", "fix/bug/1"]);
         helper.jit_cmd(&["branch", "fix/2"]);
@@ -282,11 +279,12 @@ fatal: Not a valid object name: '{}^^'.
                 Database::short_oid(&head)
             ));
 
-        let mut branches: Vec<_> = repo
+        let mut branches: Vec<_> = helper
+            .repo
             .refs
             .list_branches()?
             .iter()
-            .map(|r#ref| repo.refs.short_name(r#ref))
+            .map(|r#ref| helper.repo.refs.short_name(r#ref))
             .collect();
         branches.sort();
         assert_eq!(branches, vec![String::from("fix/2"), String::from("main")]);

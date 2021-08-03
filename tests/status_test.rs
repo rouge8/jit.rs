@@ -2,6 +2,7 @@ mod common;
 
 pub use common::{helper, CommandHelper};
 use jit::errors::Result;
+use jit::repository::Repository;
 use rstest::{fixture, rstest};
 
 #[rstest]
@@ -144,7 +145,7 @@ mod index_workspace_changes {
 
     #[rstest]
     fn print_nothing_if_a_file_is_touched(mut helper: CommandHelper) -> Result<()> {
-        let mut index = helper.repo().index;
+        let mut index = Repository::new(helper.repo_path.join(".git")).index;
         index.load()?;
         let entry_before = &index.entries[&(String::from("1.txt"), 0)];
 
@@ -152,7 +153,7 @@ mod index_workspace_changes {
 
         helper.assert_status("");
 
-        let mut index = helper.repo().index;
+        let mut index = Repository::new(helper.repo_path.join(".git")).index;
         index.load()?;
         let entry_after = &index.entries[&(String::from("1.txt"), 0)];
 

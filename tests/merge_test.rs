@@ -115,10 +115,10 @@ fn assert_no_merge(helper: &mut CommandHelper) -> Result<()> {
 }
 
 fn assert_index(helper: &mut CommandHelper, entries: Vec<(&str, u16)>) -> Result<()> {
-    let mut repo = helper.repo();
-    repo.index.load()?;
+    helper.repo.index.load()?;
 
-    let actual: Vec<_> = repo
+    let actual: Vec<_> = helper
+        .repo
         .index
         .entries
         .values()

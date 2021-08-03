@@ -862,7 +862,7 @@ mod with_a_chain_of_commits {
 
         #[rstest]
         fn link_head_to_the_branch(helper: CommandHelper) -> Result<()> {
-            let path = match helper.repo().refs.current_ref("HEAD")? {
+            let path = match helper.repo.refs.current_ref("HEAD")? {
                 Ref::SymRef { path } => path,
                 _ => unreachable!(),
             };
@@ -873,8 +873,10 @@ mod with_a_chain_of_commits {
 
         #[rstest]
         fn resolve_head_to_the_same_object_as_the_branch(helper: CommandHelper) -> Result<()> {
-            let repo = helper.repo();
-            assert_eq!(repo.refs.read_head()?, repo.refs.read_ref("topic")?);
+            assert_eq!(
+                helper.repo.refs.read_head()?,
+                helper.repo.refs.read_ref("topic")?
+            );
 
             Ok(())
         }
@@ -931,7 +933,7 @@ HEAD is now at {} third\n",
 
         #[rstest]
         fn detach_head(helper: CommandHelper) -> Result<()> {
-            let path = match helper.repo().refs.current_ref("HEAD")? {
+            let path = match helper.repo.refs.current_ref("HEAD")? {
                 Ref::SymRef { path } => path,
                 _ => unreachable!(),
             };
@@ -943,7 +945,7 @@ HEAD is now at {} third\n",
         #[rstest]
         fn put_the_revision_value_in_head(helper: CommandHelper) -> Result<()> {
             assert_eq!(
-                helper.repo().refs.read_head()?,
+                helper.repo.refs.read_head()?,
                 Some(helper.resolve_revision("topic^")?),
             );
 

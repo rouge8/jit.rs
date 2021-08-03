@@ -32,9 +32,8 @@ mod with_a_single_file {
     fn remove_a_file_from_the_index(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["rm", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         Ok(())
     }
@@ -54,9 +53,8 @@ mod with_a_single_file {
         helper.delete("f.txt")?;
         helper.jit_cmd(&["rm", "f.txt"]).assert().code(0);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         Ok(())
     }
@@ -72,9 +70,8 @@ error: the following file has local modifications:
 ",
         );
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "2");
@@ -106,9 +103,8 @@ error: the following file has changes staged in the index:
 ",
         );
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "2");
@@ -122,9 +118,8 @@ error: the following file has changes staged in the index:
         helper.write_file("f.txt", "2")?;
         helper.jit_cmd(&["rm", "-f", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let workspace = HashMap::new();
         helper.assert_workspace(&workspace)?;
@@ -138,9 +133,8 @@ error: the following file has changes staged in the index:
         helper.jit_cmd(&["add", "f.txt"]);
         helper.jit_cmd(&["rm", "-f", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let workspace = HashMap::new();
         helper.assert_workspace(&workspace)?;
@@ -152,9 +146,8 @@ error: the following file has changes staged in the index:
     fn remove_a_file_only_from_the_index(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["rm", "--cached", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "1");
@@ -170,9 +163,8 @@ error: the following file has changes staged in the index:
         helper.write_file("f.txt", "2")?;
         helper.jit_cmd(&["rm", "--cached", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "2");
@@ -189,9 +181,8 @@ error: the following file has changes staged in the index:
         helper.jit_cmd(&["add", "f.txt"]);
         helper.jit_cmd(&["rm", "--cached", "f.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(!repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "2");
@@ -218,9 +209,8 @@ error: the following file has staged content different from both the file and th
 ",
             );
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
-        assert!(repo.index.tracked_file(&PathBuf::from("f.txt")));
+        helper.repo.index.load()?;
+        assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "3");
@@ -295,10 +285,11 @@ mod with_a_tree {
     fn remove_multiple_files(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["rm", "f.txt", "outer/inner/h.txt"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
+        helper.repo.index.load()?;
         assert_eq!(
-            repo.index
+            helper
+                .repo
+                .index
                 .entries
                 .values()
                 .map(|entry| entry.path.clone())
@@ -321,10 +312,11 @@ mod with_a_tree {
             .code(128)
             .stderr("fatal: not removing 'outer' recursively without -r\n");
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
+        helper.repo.index.load()?;
         assert_eq!(
-            repo.index
+            helper
+                .repo
+                .index
                 .entries
                 .values()
                 .map(|entry| entry.path.clone())
@@ -352,10 +344,11 @@ mod with_a_tree {
             .code(128)
             .stderr("fatal: jit rm: 'f.txt': Operation not permitted\n");
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
+        helper.repo.index.load()?;
         assert_eq!(
-            repo.index
+            helper
+                .repo
+                .index
                 .entries
                 .values()
                 .map(|entry| entry.path.clone())
@@ -376,10 +369,11 @@ mod with_a_tree {
     fn remove_a_directory_with_dash_r(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["rm", "-r", "outer"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
+        helper.repo.index.load()?;
         assert_eq!(
-            repo.index
+            helper
+                .repo
+                .index
                 .entries
                 .values()
                 .map(|entry| entry.path.clone())
@@ -399,10 +393,11 @@ mod with_a_tree {
         helper.write_file("outer/inner/j.txt", "4")?;
         helper.jit_cmd(&["rm", "-r", "outer"]);
 
-        let mut repo = helper.repo();
-        repo.index.load()?;
+        helper.repo.index.load()?;
         assert_eq!(
-            repo.index
+            helper
+                .repo
+                .index
                 .entries
                 .values()
                 .map(|entry| entry.path.clone())

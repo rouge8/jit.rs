@@ -9,11 +9,10 @@ use std::collections::HashMap;
 fn assert_index(helper: &mut CommandHelper, contents: &HashMap<&str, &str>) -> Result<()> {
     let mut files = HashMap::new();
 
-    let mut repo = helper.repo();
-    repo.index.load()?;
+    helper.repo.index.load()?;
 
-    for entry in repo.index.entries.values() {
-        let blob = repo.database.load_blob(&entry.oid)?;
+    for entry in helper.repo.index.entries.values() {
+        let blob = helper.repo.database.load_blob(&entry.oid)?;
         files.insert(
             entry.path.clone(),
             std::str::from_utf8(&blob.data)

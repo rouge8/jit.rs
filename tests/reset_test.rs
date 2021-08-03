@@ -1,5 +1,6 @@
 mod common;
 
+use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
@@ -59,7 +60,7 @@ mod with_no_head_commit {
 
     #[rstest]
     fn remove_a_single_file_from_the_index(mut helper: CommandHelper) -> Result<()> {
-        helper.jit_cmd(&["reset", "a.txt"]);
+        helper.jit_cmd(&["reset", "a.txt"]).assert().code(0);
 
         let mut index = HashMap::new();
         index.insert("outer/b.txt", "2");
@@ -73,7 +74,7 @@ mod with_no_head_commit {
 
     #[rstest]
     fn remove_a_directory_from_the_index(mut helper: CommandHelper) -> Result<()> {
-        helper.jit_cmd(&["reset", "outer"]);
+        helper.jit_cmd(&["reset", "outer"]).assert().code(0);
 
         let mut index = HashMap::new();
         index.insert("a.txt", "1");
@@ -100,21 +101,25 @@ mod with_a_head_commit {
         helper.jit_cmd(&["add", "."]);
         helper.commit("first");
 
-        helper.jit_cmd(&["rm", "a.txt"]);
-        helper.write_file("outer/d.txt", "4").unwrap();
-        helper.write_file("outer/inner/c.txt", "5").unwrap();
+        helper.write_file("outer/b.txt", "4").unwrap();
         helper.jit_cmd(&["add", "."]);
-        helper.write_file("outer/e.txt", "6").unwrap();
+        helper.commit("second");
+
+        helper.jit_cmd(&["rm", "a.txt"]);
+        helper.write_file("outer/d.txt", "5").unwrap();
+        helper.write_file("outer/inner/c.txt", "6").unwrap();
+        helper.jit_cmd(&["add", "."]);
+        helper.write_file("outer/e.txt", "7").unwrap();
 
         helper
     }
 
     fn assert_unchanged_workspace(helper: &CommandHelper) -> Result<()> {
         let mut workspace = HashMap::new();
-        workspace.insert("outer/b.txt", "2");
-        workspace.insert("outer/d.txt", "4");
-        workspace.insert("outer/e.txt", "6");
-        workspace.insert("outer/inner/c.txt", "5");
+        workspace.insert("outer/b.txt", "4");
+        workspace.insert("outer/d.txt", "5");
+        workspace.insert("outer/e.txt", "7");
+        workspace.insert("outer/inner/c.txt", "6");
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -122,13 +127,13 @@ mod with_a_head_commit {
 
     #[rstest]
     fn restore_a_file_removed_from_the_index(mut helper: CommandHelper) -> Result<()> {
-        helper.jit_cmd(&["reset", "a.txt"]);
+        helper.jit_cmd(&["reset", "a.txt"]).assert().code(0);
 
         let mut index = HashMap::new();
         index.insert("a.txt", "1");
-        index.insert("outer/b.txt", "2");
-        index.insert("outer/d.txt", "4");
-        index.insert("outer/inner/c.txt", "5");
+        index.insert("outer/b.txt", "4");
+        index.insert("outer/d.txt", "5");
+        index.insert("outer/inner/c.txt", "6");
         assert_index(&mut helper, &index)?;
 
         assert_unchanged_workspace(&helper)?;
@@ -138,11 +143,11 @@ mod with_a_head_commit {
 
     #[rstest]
     fn reset_a_file_modified_in_the_index(mut helper: CommandHelper) -> Result<()> {
-        helper.jit_cmd(&["reset", "outer/inner"]);
+        helper.jit_cmd(&["reset", "outer/inner"]).assert().code(0);
 
         let mut index = HashMap::new();
-        index.insert("outer/b.txt", "2");
-        index.insert("outer/d.txt", "4");
+        index.insert("outer/b.txt", "4");
+        index.insert("outer/d.txt", "5");
         index.insert("outer/inner/c.txt", "3");
         assert_index(&mut helper, &index)?;
 
@@ -153,11 +158,29 @@ mod with_a_head_commit {
 
     #[rstest]
     fn remove_a_file_added_to_the_index(mut helper: CommandHelper) -> Result<()> {
-        helper.jit_cmd(&["reset", "outer/d.txt"]);
+        helper.jit_cmd(&["reset", "outer/d.txt"]).assert().code(0);
+
+        let mut index = HashMap::new();
+        index.insert("outer/b.txt", "4");
+        index.insert("outer/inner/c.txt", "6");
+        assert_index(&mut helper, &index)?;
+
+        assert_unchanged_workspace(&helper)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn reset_a_file_to_a_specific_commit(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["reset", "@^", "outer/b.txt"])
+            .assert()
+            .code(0);
 
         let mut index = HashMap::new();
         index.insert("outer/b.txt", "2");
-        index.insert("outer/inner/c.txt", "5");
+        index.insert("outer/d.txt", "5");
+        index.insert("outer/inner/c.txt", "6");
         assert_index(&mut helper, &index)?;
 
         assert_unchanged_workspace(&helper)?;

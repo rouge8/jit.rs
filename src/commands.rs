@@ -108,6 +108,10 @@ pub enum Command {
     Reset {
         #[structopt(parse(from_os_str))]
         files: Vec<PathBuf>,
+        #[structopt(long)]
+        soft: bool,
+        #[structopt(long)]
+        _mixed: bool,
     },
     Rm {
         #[structopt(parse(from_os_str))]

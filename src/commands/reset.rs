@@ -5,17 +5,30 @@ use crate::revision::{Revision, COMMIT};
 use crate::util::path_to_string;
 use std::path::{Path, PathBuf};
 
+enum Mode {
+    Soft,
+    Mixed,
+}
+
 pub struct Reset<'a> {
     ctx: CommandContext<'a>,
     commit_oid: Option<String>,
+    mode: Mode,
     /// `jit reset <paths>...`
     paths: Vec<PathBuf>,
 }
 
 impl<'a> Reset<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let paths = match &ctx.opt.cmd {
-            Command::Reset { files } => files.to_owned(),
+        let (paths, mode) = match &ctx.opt.cmd {
+            Command::Reset {
+                files,
+                soft,
+                _mixed,
+            } => {
+                let mode = if *soft { Mode::Soft } else { Mode::Mixed };
+                (files.to_owned(), mode)
+            }
             _ => unreachable!(),
         };
 
@@ -24,6 +37,7 @@ impl<'a> Reset<'a> {
         Ok(Self {
             ctx,
             commit_oid: head_oid,
+            mode,
             paths,
         })
     }
@@ -32,11 +46,14 @@ impl<'a> Reset<'a> {
         self.select_commit_id()?;
 
         self.ctx.repo.index.load_for_update()?;
-        let paths = self.paths.clone();
-        for path in &paths {
-            self.reset_path(path)?;
-        }
+        self.reset_files()?;
         self.ctx.repo.index.write_updates()?;
+
+        if let Some(commit_oid) = &self.commit_oid {
+            if self.paths.is_empty() {
+                self.ctx.repo.refs.update_head(commit_oid)?;
+            }
+        }
 
         Ok(())
     }
@@ -58,13 +75,33 @@ impl<'a> Reset<'a> {
         Ok(())
     }
 
-    fn reset_path(&mut self, pathname: &Path) -> Result<()> {
+    fn reset_files(&mut self) -> Result<()> {
+        if matches!(self.mode, Mode::Soft) {
+            return Ok(());
+        }
+
+        if self.paths.is_empty() {
+            self.ctx.repo.index.clear();
+            self.reset_path(None)?;
+        } else {
+            let paths = self.paths.clone();
+            for path in &paths {
+                self.reset_path(Some(path))?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn reset_path(&mut self, pathname: Option<&Path>) -> Result<()> {
         let listing = self
             .ctx
             .repo
             .database
-            .load_tree_list(self.commit_oid.as_deref(), Some(pathname))?;
-        self.ctx.repo.index.remove(pathname);
+            .load_tree_list(self.commit_oid.as_deref(), pathname)?;
+        if let Some(pathname) = pathname {
+            self.ctx.repo.index.remove(pathname);
+        }
 
         for (path, entry) in listing {
             let entry = match entry {

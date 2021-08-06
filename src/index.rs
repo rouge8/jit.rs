@@ -79,6 +79,12 @@ impl Index {
         Ok(())
     }
 
+    /// Reset the in-memory state of the index and set `self.changed = true`
+    pub fn clear(&mut self) {
+        self._clear();
+        self.changed = true;
+    }
+
     pub fn load_for_update(&mut self) -> Result<()> {
         self.lockfile.hold_for_update()?;
         self.load()?;
@@ -87,7 +93,7 @@ impl Index {
     }
 
     pub fn load(&mut self) -> Result<()> {
-        self.clear();
+        self._clear();
 
         if let Some(file) = self.open_index_file()? {
             let mut reader = Checksum::new(file);
@@ -171,7 +177,8 @@ impl Index {
         self.changed = true;
     }
 
-    fn clear(&mut self) {
+    /// Reset the in-memory state of the index and set `self.changed = false`
+    fn _clear(&mut self) {
         self.entries = BTreeMap::new();
         self.parents = HashMap::new();
         self.changed = false;

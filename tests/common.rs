@@ -24,6 +24,7 @@ pub struct CommandHelper {
     pub env: HashMap<String, String>,
     pub stdin: String,
     stdout: Option<String>,
+    pub head_oid: Option<String>,
 }
 
 #[fixture]
@@ -47,6 +48,7 @@ impl CommandHelper {
             env: HashMap::new(),
             stdin: String::from(""),
             stdout: None,
+            head_oid: None,
         }
     }
 

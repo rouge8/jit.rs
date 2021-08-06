@@ -3,6 +3,7 @@ use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
 use crate::errors::Result;
 use crate::index::Entry;
+use crate::repository::status::Status;
 use crate::repository::ChangeType;
 use crate::revision::Revision;
 use itertools::Itertools;
@@ -11,6 +12,7 @@ use std::path::Path;
 pub struct Diff<'a> {
     ctx: CommandContext<'a>,
     diff_printer: DiffPrinter,
+    status: Status,
     /// `jit diff <commit> <commit>`
     args: Vec<String>,
     /// `jit diff --cached` or `jit diff --staged`
@@ -22,7 +24,7 @@ pub struct Diff<'a> {
 }
 
 impl<'a> Diff<'a> {
-    pub fn new(ctx: CommandContext<'a>) -> Self {
+    pub fn new(mut ctx: CommandContext<'a>) -> Self {
         let (args, cached, patch, stage) = match &ctx.opt.cmd {
             Command::Diff {
                 args,
@@ -53,9 +55,12 @@ impl<'a> Diff<'a> {
 
         let diff_printer = DiffPrinter::new();
 
+        let status = ctx.repo.status();
+
         Self {
             ctx,
             diff_printer,
+            status,
             args,
             cached,
             patch,
@@ -65,7 +70,7 @@ impl<'a> Diff<'a> {
 
     pub fn run(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
-        self.ctx.repo.initialize_status()?;
+        self.status.initialize()?;
 
         self.ctx.setup_pager();
 
@@ -106,9 +111,9 @@ impl<'a> Diff<'a> {
             return Ok(());
         }
 
-        for path in self.ctx.repo.index_changes.keys() {
+        for path in self.status.index_changes.keys() {
             let mut stdout = self.ctx.stdout.borrow_mut();
-            let state = &self.ctx.repo.index_changes[path];
+            let state = &self.status.index_changes[path];
             match state {
                 ChangeType::Added => {
                     let mut a = self.diff_printer.from_nothing(path);
@@ -141,16 +146,15 @@ impl<'a> Diff<'a> {
         }
 
         let paths = self
-            .ctx
-            .repo
+            .status
             .workspace_changes
             .keys()
             .into_iter()
             // Merge the two iterators in sorted order
-            .merge(self.ctx.repo.conflicts.keys().into_iter());
+            .merge(self.status.conflicts.keys().into_iter());
 
         for path in paths {
-            if self.ctx.repo.conflicts.contains_key(path) {
+            if self.status.conflicts.contains_key(path) {
                 self.print_conflict_diff(path)?;
             } else {
                 self.print_workspace_diff(path)?;
@@ -195,7 +199,7 @@ impl<'a> Diff<'a> {
 
     fn print_workspace_diff(&self, path: &str) -> Result<()> {
         let mut stdout = self.ctx.stdout.borrow_mut();
-        let state = &self.ctx.repo.workspace_changes[path];
+        let state = &self.status.workspace_changes[path];
         match state {
             ChangeType::Modified => {
                 let mut a = self.from_index(path)?;
@@ -216,7 +220,7 @@ impl<'a> Diff<'a> {
     }
 
     fn from_head(&self, path: &str) -> Result<Target> {
-        let entry = &self.ctx.repo.head_tree[path];
+        let entry = &self.status.head_tree[path];
         let oid = entry.oid();
         let blob = self.ctx.repo.database.load_blob(&oid)?;
 
@@ -258,7 +262,7 @@ impl<'a> Diff<'a> {
     fn from_file(&self, path: &str) -> Result<Target> {
         let blob = Blob::new(self.ctx.repo.workspace.read_file(Path::new(path))?);
         let oid = self.ctx.repo.database.hash_object(&blob);
-        let mode = Entry::mode_for_stat(&self.ctx.repo.stats[path]);
+        let mode = Entry::mode_for_stat(&self.status.stats[path]);
 
         Ok(Target::new(path.to_string(), oid, Some(mode), blob.data))
     }

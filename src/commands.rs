@@ -201,7 +201,7 @@ pub struct CommandContext<'a> {
     dir: PathBuf,
     env: HashMap<String, String>,
     opt: &'a Jit,
-    repo: Repository,
+    repo: Box<Repository>,
     stdout: RefCell<Box<dyn Write>>,
     stderr: RefCell<Box<dyn Write>>,
     using_pager: bool,
@@ -217,7 +217,7 @@ impl<'a> CommandContext<'a> {
         stderr: Box<dyn Write>,
         isatty: bool,
     ) -> Self {
-        let repo = Repository::new(dir.join(".git"));
+        let repo = Box::new(Repository::new(dir.join(".git")));
 
         Self {
             dir,

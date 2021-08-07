@@ -7,10 +7,12 @@ use crate::workspace::Workspace;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+mod hard_reset;
 pub mod migration;
 pub mod pending_commit;
 pub mod status;
 
+use hard_reset::HardReset;
 use migration::Migration;
 use status::Status;
 
@@ -52,6 +54,12 @@ impl Repository {
         }
     }
 
+    pub fn hard_reset(&mut self, oid: &str) -> Result<()> {
+        HardReset::new(self, oid).execute()?;
+
+        Ok(())
+    }
+
     pub fn migration(&mut self, tree_diff: TreeDiffChanges) -> Migration {
         Migration::new(self, tree_diff)
     }
@@ -60,8 +68,8 @@ impl Repository {
         PendingCommit::new(&self.git_path)
     }
 
-    pub fn status(&mut self) -> Status {
-        Status::new(self)
+    pub fn status(&mut self, commit_oid: Option<&str>) -> Status {
+        Status::new(self, commit_oid)
     }
 
     fn trackable_file(&self, path: &Path, stat: &fs::Metadata) -> Result<bool> {

@@ -273,4 +273,27 @@ mod with_a_head_commit {
 
         Ok(())
     }
+
+    #[rstest]
+    fn reset_the_index_and_workspace(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("a.txt/nested", "remove me")?;
+        helper.write_file("outer/b.txt", "10")?;
+        helper.delete("outer/inner")?;
+
+        helper.jit_cmd(&["reset", "--hard"]).assert().code(0);
+        assert_unchanged_head(&helper)?;
+
+        let mut index = HashMap::new();
+        index.insert("a.txt", "1");
+        index.insert("outer/b.txt", "4");
+        index.insert("outer/inner/c.txt", "3");
+        assert_index(&mut helper, &index)?;
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("?? outer/e.txt\n");
+
+        Ok(())
+    }
 }

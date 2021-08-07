@@ -254,7 +254,7 @@ impl<'a> Resolve<'a> {
             let blob = self.repo.database.load_blob(&item.oid)?;
             self.repo
                 .workspace
-                .write_file(Path::new(&path), blob.data)?;
+                .write_file(Path::new(&path), blob.data, None, false)?;
         }
 
         Ok(())

@@ -62,7 +62,7 @@ impl<'a> Status<'a> {
             _ => unreachable!(),
         };
 
-        let status = ctx.repo.status();
+        let status = ctx.repo.status(None);
 
         Self {
             ctx,

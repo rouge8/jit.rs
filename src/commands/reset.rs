@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 enum Mode {
     Soft,
     Mixed,
+    Hard,
 }
 
 pub struct Reset<'a> {
@@ -25,8 +26,15 @@ impl<'a> Reset<'a> {
                 files,
                 soft,
                 _mixed,
+                hard,
             } => {
-                let mode = if *soft { Mode::Soft } else { Mode::Mixed };
+                let mode = if *hard {
+                    Mode::Hard
+                } else if *soft {
+                    Mode::Soft
+                } else {
+                    Mode::Mixed
+                };
                 (files.to_owned(), mode)
             }
             _ => unreachable!(),
@@ -77,6 +85,11 @@ impl<'a> Reset<'a> {
 
     fn reset_files(&mut self) -> Result<()> {
         if matches!(self.mode, Mode::Soft) {
+            return Ok(());
+        } else if matches!(self.mode, Mode::Hard) {
+            self.ctx
+                .repo
+                .hard_reset(self.commit_oid.as_ref().unwrap())?;
             return Ok(());
         }
 

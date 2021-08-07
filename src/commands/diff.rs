@@ -55,7 +55,7 @@ impl<'a> Diff<'a> {
 
         let diff_printer = DiffPrinter::new();
 
-        let status = ctx.repo.status();
+        let status = ctx.repo.status(None);
 
         Self {
             ctx,

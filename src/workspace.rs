@@ -96,25 +96,47 @@ impl Workspace {
         }
     }
 
-    pub fn write_file(&self, path: &Path, data: Vec<u8>) -> Result<()> {
+    pub fn write_file(
+        &self,
+        path: &Path,
+        data: Vec<u8>,
+        mode: Option<u32>,
+        mkdir: bool,
+    ) -> Result<()> {
+        let full_path = self.pathname.join(path);
+
+        if mkdir {
+            fs::create_dir_all(full_path.parent().unwrap())?;
+        }
+
         let mut file = OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
-            .open(&self.pathname.join(path))?;
+            .open(&full_path)?;
         file.write_all(&data)?;
+
+        if let Some(mode) = mode {
+            let mut perms = fs::metadata(&path)?.permissions();
+            perms.set_mode(mode);
+            fs::set_permissions(&path, perms)?;
+        }
 
         Ok(())
     }
 
     pub fn remove(&self, path: &Path) -> Result<()> {
-        match fs::remove_file(path) {
-            Ok(()) => (),
-            Err(err) => {
-                if err.kind() != io::ErrorKind::NotFound {
-                    return Err(Error::Io(err));
+        if path.is_file() {
+            match fs::remove_file(path) {
+                Ok(()) => (),
+                Err(err) => {
+                    if err.kind() != io::ErrorKind::NotFound {
+                        return Err(Error::Io(err));
+                    }
                 }
             }
+        } else if path.is_dir() {
+            fs::remove_dir_all(path)?;
         }
 
         for dirname in parent_directories(path) {

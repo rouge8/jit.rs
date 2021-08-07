@@ -112,6 +112,8 @@ pub enum Command {
         soft: bool,
         #[structopt(long)]
         _mixed: bool,
+        #[structopt(long)]
+        hard: bool,
     },
     Rm {
         #[structopt(parse(from_os_str))]

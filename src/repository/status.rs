@@ -10,6 +10,7 @@ use std::path::{Path, MAIN_SEPARATOR};
 #[derive(Debug)]
 pub struct Status {
     repo: *mut Repository,
+    commit_oid: Option<String>,
     pub stats: HashMap<String, fs::Metadata>,
     pub changed: BTreeSet<String>,
     pub index_changes: BTreeMap<String, ChangeType>,
@@ -22,9 +23,10 @@ pub struct Status {
 impl Status {
     /// You **must** call `status.initialize()` after `repo.index.load()` or
     /// `repo.index.load_for_update()`.
-    pub fn new(repo: &mut Repository) -> Self {
+    pub fn new(repo: &mut Repository, commit_oid: Option<&str>) -> Self {
         Self {
             repo,
+            commit_oid: commit_oid.map(|oid| oid.to_owned()),
             stats: HashMap::new(),
             changed: BTreeSet::new(),
             index_changes: BTreeMap::new(),
@@ -37,10 +39,16 @@ impl Status {
 
     /// Call after `repo.index.load()` or `repo.index.load_for_update()`.
     pub fn initialize(&mut self) -> Result<()> {
+        let commit_oid = if self.commit_oid.is_some() {
+            self.commit_oid.clone()
+        } else {
+            unsafe { (*self.repo).refs.read_head()? }
+        };
+
         unsafe {
             self.head_tree = (*self.repo)
                 .database
-                .load_tree_list((*self.repo).refs.read_head()?.as_deref(), None)?;
+                .load_tree_list(commit_oid.as_deref(), None)?;
 
             self.scan_workspace(&(*self.repo).root_path)?;
         }

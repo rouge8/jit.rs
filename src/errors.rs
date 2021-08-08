@@ -24,6 +24,8 @@ pub enum Error {
     BranchNotFound(String),
     #[error("There is no merge in progress ({0} missing).")]
     NoMergeInProgress(String),
+    #[error("There is no merge to abort ({0} missing).")]
+    NoMergeToAbort(String),
     #[error("pathspec '{0}' did not match any files")]
     RmUntrackedFile(String),
     #[error("not removing '{0}' recursively without -r")]

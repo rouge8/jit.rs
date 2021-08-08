@@ -1637,22 +1637,37 @@ fatal: Exiting because of an unresolved conflict.
     }
 
     #[rstest]
-    fn prevent_merge_continue_when_none_is_in_progress(mut helper: CommandHelper) -> Result<()> {
+    fn prevent_merge_continue_when_none_is_in_progress(mut helper: CommandHelper) {
         helper.jit_cmd(&["add", "f.txt"]);
-        helper.jit_cmd(&["merge", "--continue"]);
+        helper.jit_cmd(&["merge", "--continue"]).assert().code(0);
         helper
             .jit_cmd(&["merge", "--continue"])
             .assert()
             .code(128)
             .stderr("fatal: There is no merge in progress (MERGE_HEAD missing).\n");
-
-        Ok(())
     }
 
     #[rstest]
-    fn prevent_starting_a_new_merge_while_one_is_in_progress(
-        mut helper: CommandHelper,
-    ) -> Result<()> {
+    fn abort_the_merge(mut helper: CommandHelper) {
+        helper.jit_cmd(&["merge", "--abort"]).assert().code(0);
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("");
+    }
+
+    #[rstest]
+    fn prevent_aborting_a_merge_when_none_is_in_progress(mut helper: CommandHelper) {
+        helper.jit_cmd(&["merge", "--abort"]).assert().code(0);
+        helper
+            .jit_cmd(&["merge", "--abort"])
+            .assert()
+            .code(128)
+            .stderr("fatal: There is no merge to abort (MERGE_HEAD missing).\n");
+    }
+
+    #[rstest]
+    fn prevent_starting_a_new_merge_while_one_is_in_progress(mut helper: CommandHelper) {
         helper.jit_cmd(&["merge"]).assert().code(128).stderr(
             "\
 error: Merging is not possible because you have unmerged files.
@@ -1661,7 +1676,5 @@ hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.
 ",
         );
-
-        Ok(())
     }
 }

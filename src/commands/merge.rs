@@ -5,21 +5,41 @@ use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
+use crate::refs::ORIG_HEAD;
 use crate::revision::HEAD;
 use std::io;
 use std::io::Read;
+
+enum Mode {
+    Run,
+    Abort,
+    Continue,
+}
 
 pub struct Merge<'a> {
     ctx: CommandContext<'a>,
     args: Vec<String>,
     stdin: String,
-    r#continue: bool,
+    mode: Mode,
 }
 
 impl<'a> Merge<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let (args, r#continue) = match &ctx.opt.cmd {
-            Command::Merge { args, r#continue } => (args, *r#continue),
+        let (args, mode) = match &ctx.opt.cmd {
+            Command::Merge {
+                args,
+                abort,
+                r#continue,
+            } => {
+                let mode = if *abort {
+                    Mode::Abort
+                } else if *r#continue {
+                    Mode::Continue
+                } else {
+                    Mode::Run
+                };
+                (args, mode)
+            }
             _ => unreachable!(),
         };
 
@@ -31,12 +51,14 @@ impl<'a> Merge<'a> {
             ctx,
             args: args.to_owned(),
             stdin,
-            r#continue,
+            mode,
         })
     }
 
     pub fn run(&mut self) -> Result<()> {
-        if self.r#continue {
+        if matches!(self.mode, Mode::Abort) {
+            self.handle_abort()?;
+        } else if matches!(self.mode, Mode::Continue) {
             self.handle_continue()?;
         }
 
@@ -47,6 +69,8 @@ impl<'a> Merge<'a> {
         }
 
         let inputs = Inputs::new(&self.ctx.repo, HEAD.to_string(), self.args[0].clone())?;
+        self.ctx.repo.refs.update_ref(ORIG_HEAD, &inputs.left_oid)?;
+
         if inputs.already_merged() {
             self.handle_merged_ancestor()?;
         }
@@ -124,6 +148,26 @@ impl<'a> Merge<'a> {
 
         self.ctx.repo.index.write_updates()?;
         self.ctx.repo.refs.update_head(&inputs.right_oid)?;
+
+        Err(Error::Exit(0))
+    }
+
+    fn handle_abort(&mut self) -> Result<()> {
+        match self.ctx.repo.pending_commit().clear() {
+            Ok(()) => (),
+            Err(err) => {
+                let mut stderr = self.ctx.stderr.borrow_mut();
+                writeln!(stderr, "fatal: {}", err)?;
+
+                return Err(Error::Exit(128));
+            }
+        }
+
+        self.ctx.repo.index.load_for_update()?;
+        self.ctx
+            .repo
+            .hard_reset(self.ctx.repo.refs.read_head()?.as_ref().unwrap())?;
+        self.ctx.repo.index.write_updates()?;
 
         Err(Error::Exit(0))
     }

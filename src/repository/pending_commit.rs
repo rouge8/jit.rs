@@ -64,9 +64,29 @@ impl PendingCommit {
     }
 
     pub fn clear(&self) -> Result<()> {
-        fs::remove_file(&self.head_path)?;
-        fs::remove_file(&self.message_path)?;
+        match fs::remove_file(&self.head_path) {
+            Ok(()) => (),
+            Err(err) => return self.handle_no_merge_to_abort(err),
+        }
+        match fs::remove_file(&self.message_path) {
+            Ok(()) => (),
+            Err(err) => return self.handle_no_merge_to_abort(err),
+        }
 
         Ok(())
+    }
+
+    fn handle_no_merge_to_abort(&self, err: io::Error) -> Result<()> {
+        if err.kind() == io::ErrorKind::NotFound {
+            let name = self
+                .head_path
+                .file_name()
+                .unwrap()
+                .to_string_lossy()
+                .to_string();
+            Err(Error::NoMergeToAbort(name))
+        } else {
+            Err(Error::Io(err))
+        }
     }
 }

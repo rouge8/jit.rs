@@ -1,6 +1,7 @@
 use crate::commands::{Command, CommandContext};
 use crate::database::tree::TreeEntry;
 use crate::errors::{Error, Result};
+use crate::refs::ORIG_HEAD;
 use crate::revision::{Revision, COMMIT};
 use crate::util::path_to_string;
 use std::path::{Path, PathBuf};
@@ -59,7 +60,11 @@ impl<'a> Reset<'a> {
 
         if let Some(commit_oid) = &self.commit_oid {
             if self.paths.is_empty() {
-                self.ctx.repo.refs.update_head(commit_oid)?;
+                let head_oid = self.ctx.repo.refs.update_head(commit_oid)?;
+                self.ctx
+                    .repo
+                    .refs
+                    .update_ref(ORIG_HEAD, head_oid.as_ref().unwrap())?;
             }
         }
 

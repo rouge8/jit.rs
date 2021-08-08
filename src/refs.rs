@@ -13,6 +13,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 pub const HEAD: &str = "HEAD";
+pub const ORIG_HEAD: &str = "ORIG_HEAD";
 
 lazy_static! {
     static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
@@ -52,7 +53,7 @@ impl Refs {
         }
     }
 
-    pub fn update_head(&self, oid: &str) -> Result<()> {
+    pub fn update_head(&self, oid: &str) -> Result<Option<String>> {
         self.update_symref(self.pathname.join(HEAD), oid)
     }
 
@@ -66,6 +67,10 @@ impl Refs {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn update_ref(&self, name: &str, oid: &str) -> Result<()> {
+        self.update_ref_file(self.pathname.join(name), oid)
     }
 
     pub fn create_branch(&self, branch_name: &str, start_oid: String) -> Result<()> {
@@ -254,21 +259,31 @@ impl Refs {
         }
     }
 
-    fn update_symref(&self, path: PathBuf, oid: &str) -> Result<()> {
+    fn update_symref(&self, path: PathBuf, oid: &str) -> Result<Option<String>> {
         let mut lockfile = Lockfile::new(path.clone());
         lockfile.hold_for_update()?;
 
         let r#ref = self.read_oid_or_symref(&path)?;
 
         match r#ref {
-            Some(Ref::Ref { .. }) | None => self.write_lockfile(&mut lockfile, oid),
+            Some(Ref::Ref { oid: ref_oid }) => {
+                self.write_lockfile(&mut lockfile, oid)?;
+                Ok(Some(ref_oid))
+            }
             Some(Ref::SymRef { path }) => match self.update_symref(self.pathname.join(path), oid) {
-                Ok(()) => lockfile.rollback(),
+                Ok(maybe_oid) => {
+                    lockfile.rollback()?;
+                    Ok(maybe_oid)
+                }
                 Err(err) => {
                     lockfile.rollback()?;
                     Err(err)
                 }
             },
+            None => {
+                self.write_lockfile(&mut lockfile, oid)?;
+                Ok(None)
+            }
         }
     }
 

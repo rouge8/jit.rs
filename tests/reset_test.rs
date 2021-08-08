@@ -296,4 +296,30 @@ mod with_a_head_commit {
 
         Ok(())
     }
+
+    #[rstest]
+    fn let_you_return_to_the_previous_state_using_orig_head(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        helper.jit_cmd(&["reset", "--hard", "@^"]).assert().code(0);
+
+        let mut index = HashMap::new();
+        index.insert("a.txt", "1");
+        index.insert("outer/b.txt", "2");
+        index.insert("outer/inner/c.txt", "3");
+        assert_index(&mut helper, &index)?;
+
+        helper
+            .jit_cmd(&["reset", "--hard", "ORIG_HEAD"])
+            .assert()
+            .code(0);
+
+        let mut index = HashMap::new();
+        index.insert("a.txt", "1");
+        index.insert("outer/b.txt", "4");
+        index.insert("outer/inner/c.txt", "3");
+        assert_index(&mut helper, &index)?;
+
+        Ok(())
+    }
 }

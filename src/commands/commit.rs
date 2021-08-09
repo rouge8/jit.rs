@@ -1,6 +1,5 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::CommandContext;
-use crate::database::object::Object;
 use crate::errors::Error;
 use crate::errors::Result;
 use std::io;
@@ -40,20 +39,7 @@ impl<'a> Commit<'a> {
 
         let commit = commit_writer.write_commit(parents, &message)?;
 
-        let mut is_root = String::new();
-        match commit.parent() {
-            Some(_) => (),
-            None => is_root.push_str("(root-commit) "),
-        }
-
-        let mut stdout = self.ctx.stdout.borrow_mut();
-        writeln!(
-            stdout,
-            "[{}{}] {}",
-            is_root,
-            commit.oid(),
-            commit.message.lines().next().unwrap(),
-        )?;
+        commit_writer.print_commit(&commit)?;
 
         Ok(())
     }

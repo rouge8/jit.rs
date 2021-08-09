@@ -3,7 +3,9 @@ use crate::database::author::Author;
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
+use crate::database::Database;
 use crate::errors::{Error, Result};
+use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommit;
 use chrono::{DateTime, Local};
 
@@ -62,6 +64,26 @@ impl<'a> CommitWriter<'a> {
         });
 
         root
+    }
+
+    pub fn print_commit(&self, commit: &Commit) -> Result<()> {
+        let r#ref = self.ctx.repo.refs.current_ref(HEAD)?;
+        let mut info = if r#ref.is_head() {
+            String::from("detached HEAD")
+        } else {
+            self.ctx.repo.refs.short_name(&r#ref)
+        };
+        let oid = Database::short_oid(&commit.oid());
+
+        if commit.parent().is_none() {
+            info.push_str(" (root-commit)");
+        }
+        info.push_str(&format!(" {}", oid));
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(stdout, "[{}] {}", info, commit.title_line(),)?;
+
+        Ok(())
     }
 
     pub fn resume_merge(&self) -> Result<()> {

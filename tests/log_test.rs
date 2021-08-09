@@ -622,8 +622,10 @@ mod with_a_graph_of_commits {
         }
 
         helper.jit_cmd(&["checkout", "main"]);
-        helper.stdin = String::from("J");
-        helper.jit_cmd(&["merge", "topic^"]).assert().code(0);
+        helper
+            .jit_cmd(&["merge", "topic^", "-m", "J"])
+            .assert()
+            .code(0);
 
         helper.env.insert(
             String::from("GIT_AUTHOR_DATE"),
@@ -871,8 +873,10 @@ index 4e5ce14..4139691 100644
                 commit_tree(&mut base_helper, n, tree).unwrap();
             }
 
-            base_helper.stdin = String::from("J");
-            base_helper.jit_cmd(&["merge", "topic^"]).assert().code(0);
+            base_helper
+                .jit_cmd(&["merge", "topic^", "-m", "J"])
+                .assert()
+                .code(0);
 
             base_helper.env.insert(
                 String::from("GIT_AUTHOR_DATE"),

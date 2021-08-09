@@ -7,8 +7,7 @@ use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
 use crate::refs::ORIG_HEAD;
 use crate::revision::HEAD;
-use std::io;
-use std::io::Read;
+use std::path::PathBuf;
 
 enum Mode {
     Run,
@@ -19,17 +18,20 @@ enum Mode {
 pub struct Merge<'a> {
     ctx: CommandContext<'a>,
     args: Vec<String>,
-    stdin: String,
+    message: Option<String>,
+    file: Option<PathBuf>,
     mode: Mode,
 }
 
 impl<'a> Merge<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let (args, mode) = match &ctx.opt.cmd {
+        let (args, mode, message, file) = match &ctx.opt.cmd {
             Command::Merge {
                 args,
                 abort,
                 r#continue,
+                message,
+                file,
             } => {
                 let mode = if *abort {
                     Mode::Abort
@@ -38,19 +40,21 @@ impl<'a> Merge<'a> {
                 } else {
                     Mode::Run
                 };
-                (args, mode)
+                (
+                    args,
+                    mode,
+                    message.as_ref().map(|m| m.to_owned()),
+                    file.as_ref().map(|f| f.to_owned()),
+                )
             }
             _ => unreachable!(),
         };
 
-        let mut message = String::new();
-        io::stdin().read_to_string(&mut message)?;
-        let stdin = message.trim().to_string();
-
         Ok(Self {
             ctx,
             args: args.to_owned(),
-            stdin,
+            message,
+            file,
             mode,
         })
     }
@@ -63,7 +67,6 @@ impl<'a> Merge<'a> {
         }
 
         let pending_commit = self.commit_writer().pending_commit;
-
         if pending_commit.in_progress() {
             self.handle_in_progress_merge()?;
         }
@@ -78,7 +81,12 @@ impl<'a> Merge<'a> {
             self.handle_fast_forward(&inputs)?;
         }
 
-        pending_commit.start(&inputs.right_oid, &self.stdin)?;
+        pending_commit.start(
+            &inputs.right_oid,
+            &self
+                .commit_writer()
+                .read_message(self.message.as_deref(), self.file.as_deref())?,
+        )?;
         self.resolve_merge(&inputs)?;
         self.commit_merge(&inputs)?;
 

@@ -8,6 +8,8 @@ use crate::errors::{Error, Result};
 use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommit;
 use chrono::{DateTime, Local};
+use std::fs::read_to_string;
+use std::path::Path;
 
 pub const CONFLICT_MESSAGE: &str = "\
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
@@ -27,6 +29,24 @@ impl<'a> CommitWriter<'a> {
             ctx,
             pending_commit,
         }
+    }
+
+    pub fn read_message(&self, message: Option<&str>, file: Option<&Path>) -> Result<String> {
+        let message = if let Some(message) = message {
+            format!("{}\n", message)
+        } else if let Some(file) = file {
+            read_to_string(file)?
+        } else {
+            String::new()
+        };
+
+        if message.is_empty() {
+            let mut stderr = self.ctx.stderr.borrow_mut();
+            writeln!(stderr, "Aborting commit due to empty commit message.")?;
+            return Err(Error::Exit(0));
+        }
+
+        Ok(message)
     }
 
     pub fn write_commit(&self, parents: Vec<String>, message: &str) -> Result<Commit> {

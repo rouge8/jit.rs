@@ -58,7 +58,12 @@ pub enum Command {
     Checkout {
         tree_ish: String,
     },
-    Commit,
+    Commit {
+        #[structopt(short, long)]
+        message: Option<String>,
+        #[structopt(short = "-F", long)]
+        file: Option<PathBuf>,
+    },
     Diff {
         args: Vec<String>,
         #[structopt(long)]
@@ -106,6 +111,10 @@ pub enum Command {
         abort: bool,
         #[structopt(long)]
         r#continue: bool,
+        #[structopt(short, long)]
+        message: Option<String>,
+        #[structopt(short = "-F", long)]
+        file: Option<PathBuf>,
     },
     Reset {
         #[structopt(parse(from_os_str))]

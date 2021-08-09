@@ -1,17 +1,25 @@
 use crate::commands::shared::commit_writer::CommitWriter;
-use crate::commands::CommandContext;
-use crate::errors::Error;
+use crate::commands::{Command, CommandContext};
 use crate::errors::Result;
-use std::io;
-use std::io::{Read, Write};
+use std::path::PathBuf;
 
 pub struct Commit<'a> {
     ctx: CommandContext<'a>,
+    message: Option<String>,
+    file: Option<PathBuf>,
 }
 
 impl<'a> Commit<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        Self { ctx }
+        let (message, file) = match &ctx.opt.cmd {
+            Command::Commit { message, file } => (
+                message.as_ref().map(|m| m.to_owned()),
+                file.as_ref().map(|f| f.to_owned()),
+            ),
+            _ => unreachable!(),
+        };
+
+        Self { ctx, message, file }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -27,16 +35,7 @@ impl<'a> Commit<'a> {
         } else {
             vec![]
         };
-        let mut message = String::new();
-        io::stdin().read_to_string(&mut message)?;
-
-        message = message.trim().to_string();
-        if message.is_empty() {
-            let mut stderr = self.ctx.stderr.borrow_mut();
-            writeln!(stderr, "Aborting commit due to empty commit message.")?;
-            return Err(Error::Exit(0));
-        }
-
+        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
         let commit = commit_writer.write_commit(parents, &message)?;
 
         commit_writer.print_commit(&commit)?;

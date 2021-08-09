@@ -83,8 +83,7 @@ fn merge3(helper: &mut CommandHelper, base: Tree, left: Tree, right: Tree) -> Re
     commit_tree(helper, "C", right)?;
 
     helper.jit_cmd(&["checkout", "main"]);
-    helper.stdin = String::from("M");
-    helper.jit_cmd(&["merge", "topic"]);
+    helper.jit_cmd(&["merge", "topic", "-m", "M"]);
 
     Ok(())
 }
@@ -100,7 +99,7 @@ fn assert_clean_merge(helper: &mut CommandHelper) -> Result<()> {
     let old_head = helper.load_commit("@^")?;
     let merge_head = helper.load_commit("topic")?;
 
-    assert_eq!(commit.message, "M");
+    assert_eq!(commit.message.trim_end(), "M");
     assert_eq!(commit.parents, vec![old_head.oid(), merge_head.oid()]);
 
     Ok(())
@@ -108,7 +107,7 @@ fn assert_clean_merge(helper: &mut CommandHelper) -> Result<()> {
 
 fn assert_no_merge(helper: &mut CommandHelper) -> Result<()> {
     let commit = helper.load_commit("@")?;
-    assert_eq!(commit.message, "B");
+    assert_eq!(commit.message.trim_end(), "B");
     assert_eq!(commit.parents.len(), 1);
 
     Ok(())
@@ -163,7 +162,7 @@ mod merging_an_ancestor {
             .stdout("Already up to date.\n");
 
         let commit = helper.load_commit("@")?;
-        assert_eq!(commit.message, "C");
+        assert_eq!(commit.message.trim_end(), "C");
 
         helper
             .jit_cmd(&["status", "--porcelain"])
@@ -208,9 +207,8 @@ mod fast_forward_merge {
         let a = helper.resolve_revision("main^^")?;
         let b = helper.resolve_revision("main")?;
 
-        helper.stdin = String::from("M");
         helper
-            .jit_cmd(&["merge", "main"])
+            .jit_cmd(&["merge", "main", "-m", "M"])
             .assert()
             .code(0)
             .stdout(format!(
@@ -223,7 +221,7 @@ Fast-forward
             ));
 
         let commit = helper.load_commit("@")?;
-        assert_eq!(commit.message, "C");
+        assert_eq!(commit.message.trim_end(), "C");
 
         helper
             .jit_cmd(&["status", "--porcelain"])
@@ -1496,8 +1494,10 @@ mod multiple_common_ancestors {
 
     #[rstest]
     fn perform_the_first_merge(mut helper: CommandHelper) -> Result<()> {
-        helper.stdin = String::from("merge joiner");
-        helper.jit_cmd(&["merge", "joiner"]).assert().code(0);
+        helper
+            .jit_cmd(&["merge", "joiner", "-m", "merge joiner"])
+            .assert()
+            .code(0);
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "3");
@@ -1516,15 +1516,19 @@ mod multiple_common_ancestors {
 
     #[rstest]
     fn perform_the_second_merge(mut helper: CommandHelper) -> Result<()> {
-        helper.stdin = String::from("merge joiner");
-        helper.jit_cmd(&["merge", "joiner"]).assert().code(0);
+        helper
+            .jit_cmd(&["merge", "joiner", "-m", "merge joiner"])
+            .assert()
+            .code(0);
 
         let mut tree = BTreeMap::new();
         tree.insert("f.txt", Change::content("4"));
         commit_tree(&mut helper, "H", tree)?;
 
-        helper.stdin = String::from("merge topic");
-        helper.jit_cmd(&["merge", "topic"]).assert().code(0);
+        helper
+            .jit_cmd(&["merge", "topic", "-m", "merge topic"])
+            .assert()
+            .code(0);
 
         let mut workspace = HashMap::new();
         workspace.insert("f.txt", "4");
@@ -1575,7 +1579,7 @@ fatal: Exiting because of an unresolved conflict.
 ",
         );
 
-        assert_eq!(helper.load_commit("@")?.message, "B");
+        assert_eq!(helper.load_commit("@")?.message.trim_end(), "B");
 
         Ok(())
     }
@@ -1595,7 +1599,7 @@ fatal: Exiting because of an unresolved conflict.
 ",
             );
 
-        assert_eq!(helper.load_commit("@")?.message, "B");
+        assert_eq!(helper.load_commit("@")?.message.trim_end(), "B");
 
         Ok(())
     }
@@ -1606,12 +1610,19 @@ fatal: Exiting because of an unresolved conflict.
         helper.jit_cmd(&["commit"]).assert().code(0);
 
         let commit = helper.load_commit("@")?;
-        assert_eq!(commit.message, "M");
+        assert_eq!(commit.message.trim_end(), "M");
 
         let parents: Vec<_> = commit
             .parents
             .iter()
-            .map(|oid| helper.load_commit(oid).unwrap().message)
+            .map(|oid| {
+                helper
+                    .load_commit(oid)
+                    .unwrap()
+                    .message
+                    .trim_end()
+                    .to_owned()
+            })
             .collect();
         assert_eq!(parents, vec!["B", "C"]);
 
@@ -1624,12 +1635,19 @@ fatal: Exiting because of an unresolved conflict.
         helper.jit_cmd(&["merge", "--continue"]).assert().code(0);
 
         let commit = helper.load_commit("@")?;
-        assert_eq!(commit.message, "M");
+        assert_eq!(commit.message.trim_end(), "M");
 
         let parents: Vec<_> = commit
             .parents
             .iter()
-            .map(|oid| helper.load_commit(oid).unwrap().message)
+            .map(|oid| {
+                helper
+                    .load_commit(oid)
+                    .unwrap()
+                    .message
+                    .trim_end()
+                    .to_owned()
+            })
             .collect();
         assert_eq!(parents, vec!["B", "C"]);
 

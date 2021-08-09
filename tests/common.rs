@@ -159,9 +159,8 @@ impl CommandHelper {
             String::from("GIT_AUTHOR_EMAIL"),
             String::from("author@example.com"),
         );
-        self.stdin = message.to_string();
 
-        self.jit_cmd(&["commit"]);
+        self.jit_cmd(&["commit", "-m", message]);
     }
 
     pub fn assert_index(&mut self, expected: Vec<(u32, &str)>) -> Result<()> {

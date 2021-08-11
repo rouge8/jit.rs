@@ -48,6 +48,7 @@ impl Editor {
             return Ok(());
         }
         self.file.write_all(string.as_bytes())?;
+        self.file.write_all(b"\n")?;
 
         Ok(())
     }

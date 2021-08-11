@@ -1,9 +1,11 @@
+use crate::commands::commit::COMMIT_NOTES;
 use crate::commands::CommandContext;
 use crate::database::author::Author;
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::tree::Tree;
 use crate::database::Database;
+use crate::editor::Editor;
 use crate::errors::{Error, Result};
 use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommit;
@@ -15,6 +17,12 @@ pub const CONFLICT_MESSAGE: &str = "\
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
 hint: as appropriate to mark resolution and make a commit.
 fatal: Exiting because of an unresolved conflict.";
+
+const MERGE_NOTES: &str = "\
+It looks like you may be committing a merge.
+If this is not correct, please remove the file
+\t.git/MERGE_HEAD
+and try again.\n";
 
 pub struct CommitWriter<'a> {
     ctx: &'a CommandContext<'a>,
@@ -118,10 +126,25 @@ impl<'a> CommitWriter<'a> {
             self.ctx.repo.refs.read_head()?.unwrap(),
             self.pending_commit.merge_oid()?,
         ];
-        self.write_commit(parents, Some(&self.pending_commit.merge_message()?))?;
+        let message = self.compose_merge_message(Some(MERGE_NOTES))?;
+        self.write_commit(parents, message.as_deref())?;
 
         self.pending_commit.clear()?;
         Err(Error::Exit(0))
+    }
+
+    fn compose_merge_message(&self, notes: Option<&str>) -> Result<Option<String>> {
+        self.ctx
+            .edit_file(&self.commit_message_path(), |editor: &mut Editor| {
+                editor.write(&self.pending_commit.merge_message()?)?;
+                if let Some(notes) = notes {
+                    editor.note(notes)?;
+                }
+                editor.write("")?;
+                editor.note(COMMIT_NOTES)?;
+
+                Ok(())
+            })
     }
 
     pub fn commit_message_path(&self) -> PathBuf {

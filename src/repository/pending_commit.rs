@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 
 pub struct PendingCommit {
     head_path: PathBuf,
-    message_path: PathBuf,
+    pub message_path: PathBuf,
 }
 
 impl PendingCommit {
@@ -18,17 +18,12 @@ impl PendingCommit {
         }
     }
 
-    pub fn start(&self, oid: &str, message: &str) -> Result<()> {
+    pub fn start(&self, oid: &str) -> Result<()> {
         OpenOptions::new()
             .write(true)
             .create_new(true)
             .open(&self.head_path)?
             .write_all(oid.as_bytes())?;
-        OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&self.message_path)?
-            .write_all(message.as_bytes())?;
 
         Ok(())
     }

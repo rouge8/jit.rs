@@ -4,7 +4,8 @@ use crate::editor::Editor;
 use crate::errors::Result;
 use std::path::PathBuf;
 
-const COMMIT_NOTES: &str = "Please enter the commit message for yhour changes. Lines starting
+pub const COMMIT_NOTES: &str = "\
+Please enter the commit message for yhour changes. Lines starting
 with # will be ignored, and an empty message aborts the commit.\n";
 
 pub struct Commit<'a> {

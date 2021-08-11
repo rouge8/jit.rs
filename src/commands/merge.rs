@@ -2,12 +2,21 @@ use crate::commands::shared::commit_writer::{CommitWriter, CONFLICT_MESSAGE};
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
+use crate::editor::Editor;
 use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
 use crate::refs::ORIG_HEAD;
+use crate::repository::pending_commit::PendingCommit;
 use crate::revision::HEAD;
 use std::path::PathBuf;
+
+const COMMIT_NOTES: &str = "\
+Please enter a commit message to explain why this merge is necessary,
+especially if it merges an updated upstream into a topic branch.
+
+Lines starting with '#' will be ignored, and an empty message aborts
+the commit.\n";
 
 enum Mode {
     Run,
@@ -20,18 +29,21 @@ pub struct Merge<'a> {
     args: Vec<String>,
     message: Option<String>,
     file: Option<PathBuf>,
+    edit: bool,
     mode: Mode,
 }
 
 impl<'a> Merge<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Result<Self> {
-        let (args, mode, message, file) = match &ctx.opt.cmd {
+        let (args, mode, message, file, edit) = match &ctx.opt.cmd {
             Command::Merge {
                 args,
                 abort,
                 r#continue,
                 message,
                 file,
+                edit,
+                no_edit,
             } => {
                 let mode = if *abort {
                     Mode::Abort
@@ -45,6 +57,7 @@ impl<'a> Merge<'a> {
                     mode,
                     message.as_ref().map(|m| m.to_owned()),
                     file.as_ref().map(|f| f.to_owned()),
+                    *edit || !*no_edit && message.is_none() && file.is_none(),
                 )
             }
             _ => unreachable!(),
@@ -55,6 +68,7 @@ impl<'a> Merge<'a> {
             args: args.to_owned(),
             message,
             file,
+            edit,
             mode,
         })
     }
@@ -81,19 +95,14 @@ impl<'a> Merge<'a> {
             self.handle_fast_forward(&inputs)?;
         }
 
-        pending_commit.start(
-            &inputs.right_oid,
-            &self
-                .commit_writer()
-                .read_message(self.message.as_deref(), self.file.as_deref())?,
-        )?;
-        self.resolve_merge(&inputs)?;
-        self.commit_merge(&inputs)?;
+        pending_commit.start(&inputs.right_oid)?;
+        self.resolve_merge(&inputs, &pending_commit)?;
+        self.commit_merge(&inputs, &pending_commit)?;
 
         Ok(())
     }
 
-    fn resolve_merge(&mut self, inputs: &Inputs) -> Result<()> {
+    fn resolve_merge(&mut self, inputs: &Inputs, pending_commit: &PendingCommit) -> Result<()> {
         self.ctx.repo.index.load_for_update()?;
 
         let mut merge = Resolve::new(&mut self.ctx.repo, inputs);
@@ -105,28 +114,86 @@ impl<'a> Merge<'a> {
 
         self.ctx.repo.index.write_updates()?;
         if self.ctx.repo.index.has_conflict() {
-            let mut stdout = self.ctx.stdout.borrow_mut();
-            writeln!(
-                stdout,
-                "Automatic merge failed; fix conflicts and then commit the result."
-            )?;
-            return Err(Error::Exit(1));
+            self.fail_on_conflict(inputs, pending_commit)?;
         }
 
         Ok(())
     }
 
-    fn commit_merge(&self, inputs: &Inputs) -> Result<()> {
+    fn fail_on_conflict(&self, inputs: &Inputs, pending_commit: &PendingCommit) -> Result<()> {
+        let commit_writer = self.commit_writer();
+
+        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
+        let message = if message.is_empty() {
+            self.default_commit_message(inputs)
+        } else {
+            message
+        };
+
+        self.ctx
+            .edit_file(&pending_commit.message_path, |editor: &mut Editor| {
+                editor.write(&message)?;
+                editor.write("")?;
+                editor.note("Conflicts:")?;
+                for name in self.ctx.repo.index.conflict_paths() {
+                    editor.note(&format!("\t{}", name))?;
+                }
+                editor.close();
+
+                Ok(())
+            })?;
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+        writeln!(
+            stdout,
+            "Automatic merge failed; fix conflicts and then commit the result."
+        )?;
+        Err(Error::Exit(1))
+    }
+
+    fn commit_merge(&self, inputs: &Inputs, pending_commit: &PendingCommit) -> Result<()> {
         let commit_writer = self.commit_writer();
 
         let parents = vec![inputs.left_oid.clone(), inputs.right_oid.clone()];
-        let message = &commit_writer.pending_commit.merge_message()?;
+        let message = self.compose_message(inputs, pending_commit)?;
 
-        commit_writer.write_commit(parents, Some(message))?;
+        commit_writer.write_commit(parents, message.as_deref())?;
 
         commit_writer.pending_commit.clear()?;
 
         Ok(())
+    }
+
+    fn compose_message(
+        &self,
+        inputs: &Inputs,
+        pending_commit: &PendingCommit,
+    ) -> Result<Option<String>> {
+        let commit_writer = self.commit_writer();
+
+        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
+        let message = if message.is_empty() {
+            self.default_commit_message(inputs)
+        } else {
+            message
+        };
+
+        self.ctx
+            .edit_file(&pending_commit.message_path, |editor: &mut Editor| {
+                editor.write(&message)?;
+                editor.write("")?;
+                editor.note(COMMIT_NOTES)?;
+
+                if !self.edit {
+                    editor.close();
+                }
+
+                Ok(())
+            })
+    }
+
+    fn default_commit_message(&self, inputs: &Inputs) -> String {
+        format!("Merge commit '{}'", inputs.right_name.clone())
     }
 
     fn handle_merged_ancestor(&self) -> Result<()> {

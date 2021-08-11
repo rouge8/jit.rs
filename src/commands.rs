@@ -120,6 +120,11 @@ pub enum Command {
         message: Option<String>,
         #[structopt(short = "-F", long)]
         file: Option<PathBuf>,
+        #[structopt(short, long)]
+        #[structopt(long)]
+        edit: bool,
+        #[structopt(long, overrides_with = "edit")]
+        no_edit: bool,
     },
     Reset {
         #[structopt(parse(from_os_str))]

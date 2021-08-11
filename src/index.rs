@@ -5,7 +5,7 @@ use crate::util::{basename, is_executable, parent_directories, path_to_string};
 use hex::ToHex;
 use sha1::{Digest, Sha1};
 use std::cmp::min;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
@@ -160,6 +160,17 @@ impl Index {
 
     pub fn has_conflict(&self) -> bool {
         self.entries.values().any(|entry| entry.stage() > 0)
+    }
+
+    pub fn conflict_paths(&self) -> BTreeSet<String> {
+        let mut paths = BTreeSet::new();
+        for entry in self.entries.values() {
+            if entry.stage() != 0 {
+                paths.insert(entry.path.clone());
+            }
+        }
+
+        paths
     }
 
     /// Arguments:

@@ -1,25 +1,41 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
+use crate::editor::Editor;
 use crate::errors::Result;
 use std::path::PathBuf;
+
+const COMMIT_NOTES: &str = "Please enter the commit message for yhour changes. Lines starting
+with # will be ignored, and an empty message aborts the commit.\n";
 
 pub struct Commit<'a> {
     ctx: CommandContext<'a>,
     message: Option<String>,
     file: Option<PathBuf>,
+    edit: bool,
 }
 
 impl<'a> Commit<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (message, file) = match &ctx.opt.cmd {
-            Command::Commit { message, file } => (
+        let (message, file, edit) = match &ctx.opt.cmd {
+            Command::Commit {
+                message,
+                file,
+                edit,
+                no_edit,
+            } => (
                 message.as_ref().map(|m| m.to_owned()),
                 file.as_ref().map(|f| f.to_owned()),
+                *edit || !*no_edit && message.is_none() && file.is_none(),
             ),
             _ => unreachable!(),
         };
 
-        Self { ctx, message, file }
+        Self {
+            ctx,
+            message,
+            file,
+            edit,
+        }
     }
 
     pub fn run(&mut self) -> Result<()> {
@@ -35,8 +51,10 @@ impl<'a> Commit<'a> {
         } else {
             vec![]
         };
-        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
-        let commit = commit_writer.write_commit(parents, &message)?;
+        let message = self.compose_message(
+            &commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?,
+        )?;
+        let commit = commit_writer.write_commit(parents, message.as_deref())?;
 
         commit_writer.print_commit(&commit)?;
 
@@ -45,5 +63,22 @@ impl<'a> Commit<'a> {
 
     fn commit_writer(&self) -> CommitWriter {
         CommitWriter::new(&self.ctx)
+    }
+
+    fn compose_message(&self, message: &str) -> Result<Option<String>> {
+        self.ctx.edit_file(
+            &self.commit_writer().commit_message_path(),
+            |editor: &mut Editor| {
+                editor.write(message)?;
+                editor.write("")?;
+                editor.note(COMMIT_NOTES)?;
+
+                if !self.edit {
+                    editor.close();
+                }
+
+                Ok(())
+            },
+        )
     }
 }

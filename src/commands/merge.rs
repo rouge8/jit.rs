@@ -122,7 +122,7 @@ impl<'a> Merge<'a> {
         let parents = vec![inputs.left_oid.clone(), inputs.right_oid.clone()];
         let message = &commit_writer.pending_commit.merge_message()?;
 
-        commit_writer.write_commit(parents, message)?;
+        commit_writer.write_commit(parents, Some(message))?;
 
         commit_writer.pending_commit.clear()?;
 

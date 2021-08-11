@@ -9,7 +9,7 @@ use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommit;
 use chrono::{DateTime, Local};
 use std::fs::read_to_string;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub const CONFLICT_MESSAGE: &str = "\
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
@@ -40,16 +40,21 @@ impl<'a> CommitWriter<'a> {
             String::new()
         };
 
-        if message.is_empty() {
-            let mut stderr = self.ctx.stderr.borrow_mut();
-            writeln!(stderr, "Aborting commit due to empty commit message.")?;
-            return Err(Error::Exit(0));
-        }
-
         Ok(message)
     }
 
-    pub fn write_commit(&self, parents: Vec<String>, message: &str) -> Result<Commit> {
+    pub fn write_commit(&self, parents: Vec<String>, message: Option<&str>) -> Result<Commit> {
+        let message = if let Some(message) = message {
+            message
+        } else {
+            ""
+        };
+        if message.is_empty() {
+            let mut stderr = self.ctx.stderr.borrow_mut();
+            writeln!(stderr, "Aborting commit due to empty commit message.")?;
+            return Err(Error::Exit(1));
+        }
+
         let tree = self.write_tree();
         let name = &self.ctx.env["GIT_AUTHOR_NAME"];
         let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
@@ -113,10 +118,14 @@ impl<'a> CommitWriter<'a> {
             self.ctx.repo.refs.read_head()?.unwrap(),
             self.pending_commit.merge_oid()?,
         ];
-        self.write_commit(parents, &self.pending_commit.merge_message()?)?;
+        self.write_commit(parents, Some(&self.pending_commit.merge_message()?))?;
 
         self.pending_commit.clear()?;
         Err(Error::Exit(0))
+    }
+
+    pub fn commit_message_path(&self) -> PathBuf {
+        self.ctx.repo.git_path.join("COMMIT_EDITMSG")
     }
 
     fn handle_conflicted_index(&self) -> Result<()> {

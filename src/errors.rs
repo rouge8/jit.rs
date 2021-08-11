@@ -32,6 +32,8 @@ pub enum Error {
     RmNotRecursive(String),
     #[error("jit rm: '{0}': Operation not permitted")]
     RmOperationNotPermitted(String),
+    #[error("There was a problem with the editor '{0}'")]
+    ProblemWithEditor(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

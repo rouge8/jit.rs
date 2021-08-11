@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod database;
 pub mod diff;
+pub mod editor;
 pub mod errors;
 pub mod index;
 pub mod lockfile;

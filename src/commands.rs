@@ -1,10 +1,11 @@
+use crate::editor::Editor;
 use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use structopt::StructOpt;
 
 mod add;
@@ -63,6 +64,10 @@ pub enum Command {
         message: Option<String>,
         #[structopt(short = "-F", long)]
         file: Option<PathBuf>,
+        #[structopt(long)]
+        edit: bool,
+        #[structopt(long, overrides_with = "edit")]
+        no_edit: bool,
     },
     Diff {
         args: Vec<String>,
@@ -218,7 +223,7 @@ pub struct CommandContext<'a> {
     stdout: RefCell<Box<dyn Write>>,
     stderr: RefCell<Box<dyn Write>>,
     using_pager: bool,
-    isatty: bool,
+    pub isatty: bool,
 }
 
 impl<'a> CommandContext<'a> {
@@ -257,5 +262,33 @@ impl<'a> CommandContext<'a> {
 
         self.stdout = RefCell::new(Box::new(Pager::new(&self.env)));
         self.using_pager = true;
+    }
+
+    pub fn edit_file<F>(&self, path: &Path, f: F) -> Result<Option<String>>
+    where
+        F: Fn(&mut Editor) -> Result<()>,
+    {
+        Editor::edit(
+            path.to_path_buf(),
+            self.editor_command(),
+            |editor: &mut Editor| {
+                f(editor)?;
+                if !self.isatty {
+                    editor.close();
+                }
+
+                Ok(())
+            },
+        )
+    }
+
+    fn editor_command(&self) -> Option<String> {
+        if let Some(editor) = self.env.get("GIT_EDITOR") {
+            Some(editor.to_owned())
+        } else if let Some(editor) = self.env.get("VISUAL") {
+            Some(editor.to_owned())
+        } else {
+            self.env.get("EDITOR").map(|editor| editor.to_owned())
+        }
     }
 }

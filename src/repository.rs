@@ -33,7 +33,7 @@ enum ChangeKind {
 #[derive(Debug)]
 pub struct Repository {
     pub root_path: PathBuf,
-    git_path: PathBuf,
+    pub git_path: PathBuf,
     pub database: Database,
     pub index: Index,
     pub refs: Refs,

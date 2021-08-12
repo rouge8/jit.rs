@@ -64,18 +64,10 @@ impl<'a> CommitWriter<'a> {
         }
 
         let tree = self.write_tree();
-        let name = &self.ctx.env["GIT_AUTHOR_NAME"];
-        let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
+        let author = self.current_author();
+        let committer = author.clone();
+        let commit = Commit::new(parents, tree.oid(), author, committer, message.to_string());
 
-        let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
-            DateTime::parse_from_rfc2822(author_date_str).expect("could not parse GIT_AUTHOR_DATE")
-        } else {
-            let now = Local::now();
-            now.with_timezone(now.offset())
-        };
-        let author = Author::new(name.clone(), email.clone(), author_date);
-
-        let commit = Commit::new(parents, tree.oid(), author, message.to_string());
         self.ctx.repo.database.store(&commit)?;
         self.ctx.repo.refs.update_head(&commit.oid())?;
 
@@ -97,6 +89,20 @@ impl<'a> CommitWriter<'a> {
         });
 
         root
+    }
+
+    pub fn current_author(&self) -> Author {
+        let name = &self.ctx.env["GIT_AUTHOR_NAME"];
+        let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
+
+        let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
+            DateTime::parse_from_rfc2822(author_date_str).expect("could not parse GIT_AUTHOR_DATE")
+        } else {
+            let now = Local::now();
+            now.with_timezone(now.offset())
+        };
+
+        Author::new(name.clone(), email.clone(), author_date)
     }
 
     pub fn print_commit(&self, commit: &Commit) -> Result<()> {

@@ -175,7 +175,15 @@ mod tests {
                 .iter()
                 .map(|parent| self.commits.get(parent.to_owned()).unwrap().to_owned())
                 .collect();
-            let commit = Commit::new(parents, "0".repeat(40), author, message.to_string());
+            let commit = Commit::new(
+                parents,
+                "0".repeat(40),
+                // author
+                author.clone(),
+                // committer
+                author,
+                message.to_string(),
+            );
 
             self.database.store(&commit)?;
             self.commits.insert(message.to_string(), commit.oid());

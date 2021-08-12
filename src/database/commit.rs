@@ -10,16 +10,24 @@ pub struct Commit {
     pub parents: Vec<String>,
     pub tree: String,
     pub author: Author,
+    pub committer: Author,
     pub message: String,
     oid: Option<String>,
 }
 
 impl Commit {
-    pub fn new(parents: Vec<String>, tree: String, author: Author, message: String) -> Self {
+    pub fn new(
+        parents: Vec<String>,
+        tree: String,
+        author: Author,
+        committer: Author,
+        message: String,
+    ) -> Self {
         Commit {
             parents,
             tree,
             author,
+            committer,
             message,
             oid: None,
         }
@@ -46,6 +54,7 @@ impl Commit {
                     parents,
                     tree: headers["tree"][0].to_string(),
                     author: Author::parse(headers["author"][0]),
+                    committer: Author::parse(headers["committer"][0]),
                     message: data.to_string(),
                     oid: Some(oid.to_string()),
                 });
@@ -61,7 +70,7 @@ impl Commit {
     }
 
     pub fn date(&self) -> DateTime<FixedOffset> {
-        self.author.time
+        self.committer.time
     }
 
     pub fn is_merge(&self) -> bool {
@@ -96,7 +105,7 @@ impl Object for Commit {
         }
         lines.append(&mut vec![
             format!("author {}", &self.author),
-            format!("committer {}", &self.author),
+            format!("committer {}", &self.committer),
             "".to_string(),
             self.message.clone(),
         ]);

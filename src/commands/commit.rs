@@ -142,10 +142,13 @@ impl<'a> Commit<'a> {
         };
         let message = self.compose_message(&message)?;
 
+        let committer = commit_writer.current_author();
+
         let new = DatabaseCommit::new(
             old.parents.clone(),
             tree.oid(),
             old.author,
+            committer,
             message.unwrap_or_else(String::new),
         );
         self.ctx.repo.database.store(&new)?;

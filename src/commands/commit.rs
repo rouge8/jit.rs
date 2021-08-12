@@ -1,7 +1,9 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
+use crate::database::commit::Commit as DatabaseCommit;
+use crate::database::object::Object;
 use crate::editor::Editor;
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use crate::revision::{Revision, COMMIT};
 use std::path::PathBuf;
 
@@ -15,11 +17,12 @@ pub struct Commit<'a> {
     file: Option<PathBuf>,
     edit: bool,
     reuse: Option<String>,
+    amend: bool,
 }
 
 impl<'a> Commit<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (message, file, edit, reuse) = match &ctx.opt.cmd {
+        let (message, file, edit, reuse, amend) = match &ctx.opt.cmd {
             Command::Commit {
                 message,
                 file,
@@ -27,6 +30,7 @@ impl<'a> Commit<'a> {
                 no_edit,
                 reuse_message,
                 reedit_message,
+                amend,
             } => (
                 message.as_ref().map(|m| m.to_owned()),
                 file.as_ref().map(|f| f.to_owned()),
@@ -36,6 +40,7 @@ impl<'a> Commit<'a> {
                 reedit_message
                     .to_owned()
                     .or_else(|| reuse_message.to_owned()),
+                *amend,
             ),
             _ => unreachable!(),
         };
@@ -46,11 +51,16 @@ impl<'a> Commit<'a> {
             file,
             edit,
             reuse,
+            amend,
         }
     }
 
     pub fn run(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
+
+        if self.amend {
+            self.handle_amend()?;
+        }
 
         let commit_writer = self.commit_writer();
         if commit_writer.pending_commit.in_progress() {
@@ -112,5 +122,37 @@ impl<'a> Commit<'a> {
         } else {
             Ok(None)
         }
+    }
+
+    fn handle_amend(&self) -> Result<()> {
+        let old = self
+            .ctx
+            .repo
+            .database
+            .load_commit(&self.ctx.repo.refs.read_head()?.expect("nothing to amend"))?;
+
+        let commit_writer = self.commit_writer();
+        let tree = commit_writer.write_tree();
+
+        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
+        let message = if message.is_empty() {
+            old.message.clone()
+        } else {
+            message
+        };
+        let message = self.compose_message(&message)?;
+
+        let new = DatabaseCommit::new(
+            old.parents.clone(),
+            tree.oid(),
+            old.author,
+            message.unwrap_or_else(String::new),
+        );
+        self.ctx.repo.database.store(&new)?;
+        self.ctx.repo.refs.update_head(&new.oid())?;
+
+        commit_writer.print_commit(&new)?;
+
+        Err(Error::Exit(0))
     }
 }

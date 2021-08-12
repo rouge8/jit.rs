@@ -2,8 +2,11 @@ mod common;
 
 use assert_cmd::assert::OutputAssertExt;
 pub use common::CommandHelper;
+use jit::database::object::Object;
+use jit::database::tree_diff::Differ;
 use jit::errors::Result;
 use jit::rev_list::RevList;
+use jit::util::path_to_string;
 use rstest::{fixture, rstest};
 
 mod committing_to_branches {
@@ -186,6 +189,68 @@ mod reusing_messages {
             revs.map(|commit| commit.message.trim().to_owned())
                 .collect::<Vec<_>>(),
             vec![String::from("first"), String::from("first")]
+        );
+
+        Ok(())
+    }
+}
+
+mod amending_commits {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        for message in ["first", "second", "third"] {
+            helper.write_file("file.txt", message).unwrap();
+            helper.jit_cmd(&["add", "."]);
+            helper.commit(message);
+        }
+
+        helper
+    }
+
+    #[rstest]
+    fn replace_the_last_commits_message(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["commit", "--amend", "--message", "third [amended]"])
+            .assert()
+            .code(0);
+        let revs = RevList::new(&helper.repo, &[String::from("HEAD")])?;
+
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("third [amended]"),
+                String::from("second"),
+                String::from("first")
+            ]
+        );
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn replace_the_last_commits_tree(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("another.txt", "1")?;
+        helper.jit_cmd(&["add", "another.txt"]);
+        helper.jit_cmd(&["commit", "--amend"]).assert().code(0);
+
+        let commit = helper.load_commit("HEAD")?;
+        let diff = helper.repo.database.tree_diff(
+            commit.parent().as_deref(),
+            Some(&commit.oid()),
+            None,
+        )?;
+
+        assert_eq!(
+            diff.keys()
+                .map(|path| path_to_string(path))
+                .collect::<Vec<_>>(),
+            vec![String::from("file.txt"), String::from("another.txt")],
         );
 
         Ok(())

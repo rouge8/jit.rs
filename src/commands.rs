@@ -72,6 +72,8 @@ pub enum Command {
         reuse_message: Option<String>,
         #[structopt(short = "c", long)]
         reedit_message: Option<String>,
+        #[structopt(long)]
+        amend: bool,
     },
     Diff {
         args: Vec<String>,

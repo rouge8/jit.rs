@@ -82,7 +82,7 @@ impl<'a> CommitWriter<'a> {
         Ok(commit)
     }
 
-    fn write_tree(&self) -> Tree {
+    pub fn write_tree(&self) -> Tree {
         let entries = self
             .ctx
             .repo

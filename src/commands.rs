@@ -68,6 +68,10 @@ pub enum Command {
         edit: bool,
         #[structopt(long, overrides_with = "edit")]
         no_edit: bool,
+        #[structopt(short = "C", long)]
+        reuse_message: Option<String>,
+        #[structopt(short = "c", long)]
+        reedit_message: Option<String>,
     },
     Diff {
         args: Vec<String>,

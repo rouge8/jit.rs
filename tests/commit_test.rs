@@ -1,7 +1,9 @@
 mod common;
 
+use assert_cmd::assert::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
+use jit::rev_list::RevList;
 use rstest::{fixture, rstest};
 
 mod committing_to_branches {
@@ -155,5 +157,37 @@ mod committing_to_branches {
 
             Ok(())
         }
+    }
+}
+
+mod reusing_messages {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        helper.write_file("file.txt", "1").unwrap();
+        helper.jit_cmd(&["add", "."]);
+        helper.commit("first");
+
+        helper
+    }
+
+    #[rstest]
+    fn use_the_message_from_another_commit(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("file.txt", "2")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["commit", "-C", "@"]).assert().code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("HEAD")])?;
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![String::from("first"), String::from("first")]
+        );
+
+        Ok(())
     }
 }

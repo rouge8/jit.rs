@@ -2,6 +2,7 @@ use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
 use crate::editor::Editor;
 use crate::errors::Result;
+use crate::revision::{Revision, COMMIT};
 use std::path::PathBuf;
 
 pub const COMMIT_NOTES: &str = "\
@@ -13,20 +14,28 @@ pub struct Commit<'a> {
     message: Option<String>,
     file: Option<PathBuf>,
     edit: bool,
+    reuse: Option<String>,
 }
 
 impl<'a> Commit<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (message, file, edit) = match &ctx.opt.cmd {
+        let (message, file, edit, reuse) = match &ctx.opt.cmd {
             Command::Commit {
                 message,
                 file,
                 edit,
                 no_edit,
+                reuse_message,
+                reedit_message,
             } => (
                 message.as_ref().map(|m| m.to_owned()),
                 file.as_ref().map(|f| f.to_owned()),
-                *edit || !*no_edit && message.is_none() && file.is_none(),
+                *edit
+                    || !*no_edit && message.is_none() && file.is_none()
+                    || reedit_message.is_some(),
+                reedit_message
+                    .to_owned()
+                    .or_else(|| reuse_message.to_owned()),
             ),
             _ => unreachable!(),
         };
@@ -36,6 +45,7 @@ impl<'a> Commit<'a> {
             message,
             file,
             edit,
+            reuse,
         }
     }
 
@@ -52,9 +62,15 @@ impl<'a> Commit<'a> {
         } else {
             vec![]
         };
-        let message = self.compose_message(
-            &commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?,
-        )?;
+
+        let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
+        let message = if message.is_empty() {
+            self.reused_message()?.unwrap_or_else(String::new)
+        } else {
+            message
+        };
+        let message = self.compose_message(&message)?;
+
         let commit = commit_writer.write_commit(parents, message.as_deref())?;
 
         commit_writer.print_commit(&commit)?;
@@ -81,5 +97,20 @@ impl<'a> Commit<'a> {
                 Ok(())
             },
         )
+    }
+
+    fn reused_message(&self) -> Result<Option<String>> {
+        if let Some(reuse) = &self.reuse {
+            let mut revision = Revision::new(&self.ctx.repo, reuse);
+            let commit = self
+                .ctx
+                .repo
+                .database
+                .load_commit(&revision.resolve(Some(COMMIT))?)?;
+
+            Ok(Some(commit.message))
+        } else {
+            Ok(None)
+        }
     }
 }

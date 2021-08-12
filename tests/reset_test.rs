@@ -6,30 +6,6 @@ use jit::errors::Result;
 use rstest::{fixture, rstest};
 use std::collections::HashMap;
 
-fn assert_index(helper: &mut CommandHelper, contents: &HashMap<&str, &str>) -> Result<()> {
-    let mut files = HashMap::new();
-
-    helper.repo.index.load()?;
-
-    for entry in helper.repo.index.entries.values() {
-        let blob = helper.repo.database.load_blob(&entry.oid)?;
-        files.insert(
-            entry.path.clone(),
-            std::str::from_utf8(&blob.data)
-                .expect("Invalid UTF-8")
-                .to_string(),
-        );
-    }
-
-    let contents: HashMap<_, _> = contents
-        .iter()
-        .map(|(key, val)| (key.to_string(), val.to_string()))
-        .collect();
-    assert_eq!(files, contents);
-
-    Ok(())
-}
-
 mod with_no_head_commit {
     use super::*;
 
@@ -62,7 +38,7 @@ mod with_no_head_commit {
         helper.jit_cmd(&["reset"]).assert().code(0);
 
         let index = HashMap::new();
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
         assert_unchanged_workspace(&helper)?;
 
         Ok(())
@@ -75,7 +51,7 @@ mod with_no_head_commit {
         let mut index = HashMap::new();
         index.insert("outer/b.txt", "2");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_workspace(&helper)?;
 
@@ -88,7 +64,7 @@ mod with_no_head_commit {
 
         let mut index = HashMap::new();
         index.insert("a.txt", "1");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_workspace(&helper)?;
 
@@ -152,7 +128,7 @@ mod with_a_head_commit {
         index.insert("outer/b.txt", "4");
         index.insert("outer/d.txt", "5");
         index.insert("outer/inner/c.txt", "6");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_head(&helper)?;
         assert_unchanged_workspace(&helper)?;
@@ -168,7 +144,7 @@ mod with_a_head_commit {
         index.insert("outer/b.txt", "4");
         index.insert("outer/d.txt", "5");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_head(&helper)?;
         assert_unchanged_workspace(&helper)?;
@@ -183,7 +159,7 @@ mod with_a_head_commit {
         let mut index = HashMap::new();
         index.insert("outer/b.txt", "4");
         index.insert("outer/inner/c.txt", "6");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_head(&helper)?;
         assert_unchanged_workspace(&helper)?;
@@ -202,7 +178,7 @@ mod with_a_head_commit {
         index.insert("outer/b.txt", "2");
         index.insert("outer/d.txt", "5");
         index.insert("outer/inner/c.txt", "6");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_head(&helper)?;
         assert_unchanged_workspace(&helper)?;
@@ -218,7 +194,7 @@ mod with_a_head_commit {
         index.insert("a.txt", "1");
         index.insert("outer/b.txt", "4");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_unchanged_head(&helper)?;
         assert_unchanged_workspace(&helper)?;
@@ -234,7 +210,7 @@ mod with_a_head_commit {
         index.insert("a.txt", "1");
         index.insert("outer/b.txt", "2");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_eq!(
             helper.repo.refs.read_head()?,
@@ -258,7 +234,7 @@ mod with_a_head_commit {
         index.insert("outer/b.txt", "4");
         index.insert("outer/d.txt", "5");
         index.insert("outer/inner/c.txt", "6");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         assert_eq!(
             helper.repo.refs.read_head()?,
@@ -287,7 +263,7 @@ mod with_a_head_commit {
         index.insert("a.txt", "1");
         index.insert("outer/b.txt", "4");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         helper
             .jit_cmd(&["status", "--porcelain"])
@@ -307,7 +283,7 @@ mod with_a_head_commit {
         index.insert("a.txt", "1");
         index.insert("outer/b.txt", "2");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         helper
             .jit_cmd(&["reset", "--hard", "ORIG_HEAD"])
@@ -318,7 +294,7 @@ mod with_a_head_commit {
         index.insert("a.txt", "1");
         index.insert("outer/b.txt", "4");
         index.insert("outer/inner/c.txt", "3");
-        assert_index(&mut helper, &index)?;
+        helper.assert_index(&index)?;
 
         Ok(())
     }

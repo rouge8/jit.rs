@@ -163,22 +163,6 @@ impl CommandHelper {
         self.jit_cmd(&["commit", "-m", message]);
     }
 
-    pub fn assert_index(&mut self, expected: Vec<(u32, &str)>) -> Result<()> {
-        self.repo.index.load()?;
-
-        let actual: Vec<(u32, &str)> = self
-            .repo
-            .index
-            .entries
-            .values()
-            .map(|entry| (entry.mode, entry.path.as_str()))
-            .collect();
-
-        assert_eq!(actual, expected);
-
-        Ok(())
-    }
-
     pub fn assert_status(&mut self, expected: &'static str) {
         self.jit_cmd(&["status", "--porcelain"])
             .assert()
@@ -193,6 +177,30 @@ impl CommandHelper {
         self.jit_cmd(&["diff", "--cached"])
             .assert()
             .stdout(expected);
+    }
+
+    pub fn assert_index(&mut self, contents: &HashMap<&str, &str>) -> Result<()> {
+        let mut files = HashMap::new();
+
+        self.repo.index.load()?;
+
+        for entry in self.repo.index.entries.values() {
+            let blob = self.repo.database.load_blob(&entry.oid)?;
+            files.insert(
+                entry.path.clone(),
+                std::str::from_utf8(&blob.data)
+                    .expect("Invalid UTF-8")
+                    .to_string(),
+            );
+        }
+
+        let contents: HashMap<_, _> = contents
+            .iter()
+            .map(|(key, val)| (key.to_string(), val.to_string()))
+            .collect();
+        assert_eq!(files, contents);
+
+        Ok(())
     }
 
     pub fn assert_workspace(&self, contents: &HashMap<&str, &str>) -> Result<()> {

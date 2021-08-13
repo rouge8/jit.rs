@@ -3,6 +3,19 @@ use crate::merge::bases::Bases;
 use crate::repository::Repository;
 use crate::revision::{Revision, COMMIT};
 
+pub trait MergeInputs {
+    fn left_name(&self) -> String;
+
+    fn right_name(&self) -> String;
+
+    fn left_oid(&self) -> String;
+
+    fn right_oid(&self) -> String;
+
+    fn base_oids(&self) -> Vec<String>;
+}
+
+#[derive(Debug)]
 pub struct Inputs {
     pub left_name: String,
     pub right_name: String,
@@ -38,5 +51,76 @@ impl Inputs {
 
     fn resolve_rev(repo: &Repository, rev: &str) -> Result<String> {
         Revision::new(repo, rev).resolve(Some(COMMIT))
+    }
+}
+
+impl MergeInputs for Inputs {
+    fn left_name(&self) -> String {
+        self.left_name.clone()
+    }
+
+    fn right_name(&self) -> String {
+        self.right_name.clone()
+    }
+
+    fn left_oid(&self) -> String {
+        self.left_oid.clone()
+    }
+
+    fn right_oid(&self) -> String {
+        self.right_oid.clone()
+    }
+
+    fn base_oids(&self) -> Vec<String> {
+        self.base_oids.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct CherryPick {
+    pub left_name: String,
+    pub right_name: String,
+    pub left_oid: String,
+    pub right_oid: String,
+    pub base_oids: Vec<String>,
+}
+
+impl CherryPick {
+    pub fn new(
+        left_name: String,
+        right_name: String,
+        left_oid: String,
+        right_oid: String,
+        base_oids: Vec<String>,
+    ) -> Self {
+        Self {
+            left_name,
+            right_name,
+            left_oid,
+            right_oid,
+            base_oids,
+        }
+    }
+}
+
+impl MergeInputs for CherryPick {
+    fn left_name(&self) -> String {
+        self.left_name.clone()
+    }
+
+    fn right_name(&self) -> String {
+        self.right_name.clone()
+    }
+
+    fn left_oid(&self) -> String {
+        self.left_oid.clone()
+    }
+
+    fn right_oid(&self) -> String {
+        self.right_oid.clone()
+    }
+
+    fn base_oids(&self) -> Vec<String> {
+        self.base_oids.clone()
     }
 }

@@ -4,15 +4,18 @@ use crate::database::object::Object;
 use crate::database::tree_diff::{Differ, TreeDiffChanges};
 use crate::errors::Result;
 use crate::merge::diff3;
-use crate::merge::inputs::Inputs;
+use crate::merge::inputs::MergeInputs;
 use crate::repository::Repository;
 use crate::util::{parent_directories, path_to_string};
 use std::collections::HashMap;
 use std::path::Path;
 
-pub struct Resolve<'a> {
+pub struct Resolve<'a, T>
+where
+    T: MergeInputs,
+{
     repo: &'a mut Repository,
-    inputs: &'a Inputs,
+    inputs: &'a T,
     left_diff: TreeDiffChanges,
     right_diff: TreeDiffChanges,
     clean_diff: TreeDiffChanges,
@@ -21,8 +24,11 @@ pub struct Resolve<'a> {
     pub on_progress: fn(String),
 }
 
-impl<'a> Resolve<'a> {
-    pub fn new(repo: &'a mut Repository, inputs: &'a Inputs) -> Self {
+impl<'a, T> Resolve<'a, T>
+where
+    T: MergeInputs,
+{
+    pub fn new(repo: &'a mut Repository, inputs: &'a T) -> Self {
         Self {
             repo,
             inputs,
@@ -48,15 +54,16 @@ impl<'a> Resolve<'a> {
     }
 
     fn prepare_tree_diffs(&mut self) -> Result<()> {
-        let base_oid = self.inputs.base_oids.first().map(String::as_str);
+        let base_oids = self.inputs.base_oids();
+        let base_oid = base_oids.first().map(String::as_str);
         self.left_diff =
             self.repo
                 .database
-                .tree_diff(base_oid, Some(&self.inputs.left_oid), None)?;
+                .tree_diff(base_oid, Some(&self.inputs.left_oid()), None)?;
         self.right_diff =
             self.repo
                 .database
-                .tree_diff(base_oid, Some(&self.inputs.right_oid), None)?;
+                .tree_diff(base_oid, Some(&self.inputs.right_oid()), None)?;
         self.clean_diff = TreeDiffChanges::new();
         self.conflicts = HashMap::new();
         self.untracked = HashMap::new();
@@ -65,7 +72,7 @@ impl<'a> Resolve<'a> {
         let left_diff = self.left_diff.clone();
         for (path, (old_item, new_item)) in right_diff {
             if new_item.is_some() {
-                self.file_dir_conflict(&path, &left_diff, &self.inputs.left_name);
+                self.file_dir_conflict(&path, &left_diff, &self.inputs.left_name());
             }
             self.same_path_conflict(&path, old_item, new_item)?;
         }
@@ -73,7 +80,7 @@ impl<'a> Resolve<'a> {
         let right_diff = self.right_diff.clone();
         for (path, (_, new_item)) in left_diff {
             if new_item.is_some() {
-                self.file_dir_conflict(&path, &right_diff, &self.inputs.right_name);
+                self.file_dir_conflict(&path, &right_diff, &self.inputs.right_name());
             }
         }
 
@@ -166,7 +173,10 @@ impl<'a> Resolve<'a> {
         let blob_right = &blobs[2];
         let merge = diff3::merge(blob_base, blob_left, blob_right);
 
-        let data = merge.to_string(Some(&self.inputs.left_name), Some(&self.inputs.right_name));
+        let data = merge.to_string(
+            Some(&self.inputs.left_name()),
+            Some(&self.inputs.right_name()),
+        );
         let blob = Blob::new(data.as_bytes().to_vec());
         self.repo.database.store(&blob)?;
 
@@ -186,12 +196,12 @@ impl<'a> Resolve<'a> {
         }
     }
 
-    fn merge3<T: Eq>(
+    fn merge3<R: Eq>(
         &self,
-        base: Option<T>,
-        left: Option<T>,
-        right: Option<T>,
-    ) -> Option<(bool, T)> {
+        base: Option<R>,
+        left: Option<R>,
+        right: Option<R>,
+    ) -> Option<(bool, R)> {
         if left.is_none() {
             return Some((false, right.unwrap()));
         }
@@ -219,12 +229,12 @@ impl<'a> Resolve<'a> {
                 continue;
             }
 
-            if name == self.inputs.left_name {
+            if name == self.inputs.left_name() {
                 self.conflicts.insert(
                     path_to_string(&parent),
                     vec![old_item.to_owned(), new_item.to_owned(), None],
                 );
-            } else if name == self.inputs.right_name {
+            } else if name == self.inputs.right_name() {
                 self.conflicts.insert(
                     path_to_string(&parent),
                     vec![old_item.to_owned(), None, new_item.to_owned()],
@@ -317,10 +327,7 @@ impl<'a> Resolve<'a> {
     }
 
     fn log_branch_names(&self, path: &str) -> (String, String) {
-        let (a, b) = (
-            self.inputs.left_name.clone(),
-            self.inputs.right_name.clone(),
-        );
+        let (a, b) = (self.inputs.left_name(), self.inputs.right_name());
 
         if self.conflicts[path][1].is_some() {
             (b, a)

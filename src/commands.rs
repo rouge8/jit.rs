@@ -11,6 +11,7 @@ use structopt::StructOpt;
 mod add;
 mod branch;
 mod checkout;
+mod cherry_pick;
 mod commit;
 mod diff;
 mod init;
@@ -24,6 +25,7 @@ mod status;
 use add::Add;
 use branch::Branch;
 use checkout::Checkout;
+use cherry_pick::CherryPick;
 use commit::Commit;
 use diff::Diff;
 use init::Init;
@@ -58,6 +60,9 @@ pub enum Command {
     },
     Checkout {
         tree_ish: String,
+    },
+    CherryPick {
+        revision: String,
     },
     Commit {
         #[structopt(short, long)]
@@ -189,6 +194,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Checkout { .. } => {
             let mut cmd = Checkout::new(ctx);
+            cmd.run()
+        }
+        Command::CherryPick { .. } => {
+            let mut cmd = CherryPick::new(ctx);
             cmd.run()
         }
         Command::Commit { .. } => {

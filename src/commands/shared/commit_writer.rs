@@ -8,7 +8,7 @@ use crate::database::Database;
 use crate::editor::Editor;
 use crate::errors::{Error, Result};
 use crate::refs::HEAD;
-use crate::repository::pending_commit::PendingCommit;
+use crate::repository::pending_commit::{PendingCommit, PendingCommitType};
 use chrono::{DateTime, Local};
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
@@ -125,18 +125,28 @@ impl<'a> CommitWriter<'a> {
         Ok(())
     }
 
-    pub fn resume_merge(&self) -> Result<()> {
+    pub fn resume_merge(&self, r#type: PendingCommitType) -> Result<()> {
         self.handle_conflicted_index()?;
 
+        match r#type {
+            PendingCommitType::Merge => self.write_merge_commit()?,
+            PendingCommitType::CherryPick => unreachable!(),
+        }
+
+        Err(Error::Exit(0))
+    }
+
+    fn write_merge_commit(&self) -> Result<()> {
         let parents = vec![
             self.ctx.repo.refs.read_head()?.unwrap(),
-            self.pending_commit.merge_oid()?,
+            self.pending_commit.merge_oid(PendingCommitType::Merge)?,
         ];
         let message = self.compose_merge_message(Some(MERGE_NOTES))?;
         self.write_commit(parents, message.as_deref())?;
 
-        self.pending_commit.clear()?;
-        Err(Error::Exit(0))
+        self.pending_commit.clear(PendingCommitType::Merge)?;
+
+        Ok(())
     }
 
     fn compose_merge_message(&self, notes: Option<&str>) -> Result<Option<String>> {

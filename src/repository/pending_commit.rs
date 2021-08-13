@@ -1,48 +1,76 @@
 use crate::errors::{Error, Result};
+use lazy_static::lazy_static;
+use std::collections::HashMap;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum PendingCommitType {
+    Merge,
+    CherryPick,
+}
+
+lazy_static! {
+    static ref HEAD_FILES: HashMap<PendingCommitType, &'static str> = {
+        let mut m = HashMap::new();
+        m.insert(PendingCommitType::Merge, "MERGE_HEAD");
+        m.insert(PendingCommitType::CherryPick, "CHERRY_PICK_HEAD");
+        m
+    };
+}
+
+#[derive(Debug)]
 pub struct PendingCommit {
-    head_path: PathBuf,
+    pathname: PathBuf,
     pub message_path: PathBuf,
 }
 
 impl PendingCommit {
     pub fn new(pathname: &Path) -> Self {
         Self {
-            head_path: pathname.join("MERGE_HEAD"),
+            pathname: pathname.to_owned(),
             message_path: pathname.join("MERGE_MSG"),
         }
     }
 
-    pub fn start(&self, oid: &str) -> Result<()> {
+    pub fn start(&self, oid: &str, r#type: PendingCommitType) -> Result<()> {
+        let path = self.pathname.join(HEAD_FILES[&r#type]);
         OpenOptions::new()
             .write(true)
             .create_new(true)
-            .open(&self.head_path)?
+            .open(&path)?
             .write_all(oid.as_bytes())?;
 
         Ok(())
     }
 
     pub fn in_progress(&self) -> bool {
-        self.message_path.exists()
+        self.merge_type() != None
     }
 
-    pub fn merge_oid(&self) -> Result<String> {
-        match fs::read_to_string(&self.head_path) {
+    pub fn merge_type(&self) -> Option<PendingCommitType> {
+        for (r#type, name) in &*HEAD_FILES {
+            let path = self.pathname.join(name);
+
+            if path.exists() {
+                return Some(*r#type);
+            }
+        }
+
+        None
+    }
+
+    pub fn merge_oid(&self, r#type: PendingCommitType) -> Result<String> {
+        let head_path = self.pathname.join(HEAD_FILES[&r#type]);
+
+        match fs::read_to_string(&head_path) {
             Ok(oid) => Ok(oid.trim().to_string()),
             Err(err) => {
                 if err.kind() == io::ErrorKind::NotFound {
-                    let name = self
-                        .head_path
-                        .file_name()
-                        .unwrap()
-                        .to_string_lossy()
-                        .to_string();
+                    let name = head_path.file_name().unwrap().to_string_lossy().to_string();
 
                     Err(Error::NoMergeInProgress(name))
                 } else {
@@ -58,27 +86,21 @@ impl PendingCommit {
         Ok(message)
     }
 
-    pub fn clear(&self) -> Result<()> {
-        match fs::remove_file(&self.head_path) {
+    pub fn clear(&self, r#type: PendingCommitType) -> Result<()> {
+        let head_path = self.pathname.join(HEAD_FILES[&r#type]);
+
+        match fs::remove_file(&head_path) {
             Ok(()) => (),
-            Err(err) => return self.handle_no_merge_to_abort(err),
+            Err(err) => return self.handle_no_merge_to_abort(&head_path, err),
         }
-        match fs::remove_file(&self.message_path) {
-            Ok(()) => (),
-            Err(err) => return self.handle_no_merge_to_abort(err),
-        }
+        fs::remove_file(&self.message_path)?;
 
         Ok(())
     }
 
-    fn handle_no_merge_to_abort(&self, err: io::Error) -> Result<()> {
+    fn handle_no_merge_to_abort(&self, head_path: &Path, err: io::Error) -> Result<()> {
         if err.kind() == io::ErrorKind::NotFound {
-            let name = self
-                .head_path
-                .file_name()
-                .unwrap()
-                .to_string_lossy()
-                .to_string();
+            let name = head_path.file_name().unwrap().to_string_lossy().to_string();
             Err(Error::NoMergeToAbort(name))
         } else {
             Err(Error::Io(err))

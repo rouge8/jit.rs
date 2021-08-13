@@ -63,8 +63,10 @@ impl<'a> Commit<'a> {
         }
 
         let commit_writer = self.commit_writer();
-        if commit_writer.pending_commit.in_progress() {
-            commit_writer.resume_merge()?;
+
+        let merge_type = commit_writer.pending_commit.merge_type();
+        if let Some(merge_type) = merge_type {
+            commit_writer.resume_merge(merge_type)?;
         }
 
         let parents = if let Some(parent) = self.ctx.repo.refs.read_head()? {

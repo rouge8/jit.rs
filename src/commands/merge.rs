@@ -7,7 +7,7 @@ use crate::errors::{Error, Result};
 use crate::merge::inputs::Inputs;
 use crate::merge::resolve::Resolve;
 use crate::refs::ORIG_HEAD;
-use crate::repository::pending_commit::PendingCommit;
+use crate::repository::pending_commit::{PendingCommit, PendingCommitType};
 use crate::revision::HEAD;
 use std::path::PathBuf;
 
@@ -95,7 +95,7 @@ impl<'a> Merge<'a> {
             self.handle_fast_forward(&inputs)?;
         }
 
-        pending_commit.start(&inputs.right_oid)?;
+        pending_commit.start(&inputs.right_oid, PendingCommitType::Merge)?;
         self.resolve_merge(&inputs, &pending_commit)?;
         self.commit_merge(&inputs, &pending_commit)?;
 
@@ -159,7 +159,9 @@ impl<'a> Merge<'a> {
 
         commit_writer.write_commit(parents, message.as_deref())?;
 
-        commit_writer.pending_commit.clear()?;
+        commit_writer
+            .pending_commit
+            .clear(PendingCommitType::Merge)?;
 
         Ok(())
     }
@@ -228,7 +230,12 @@ impl<'a> Merge<'a> {
     }
 
     fn handle_abort(&mut self) -> Result<()> {
-        match self.ctx.repo.pending_commit().clear() {
+        match self
+            .ctx
+            .repo
+            .pending_commit()
+            .clear(PendingCommitType::Merge)
+        {
             Ok(()) => (),
             Err(err) => {
                 let mut stderr = self.ctx.stderr.borrow_mut();
@@ -250,7 +257,7 @@ impl<'a> Merge<'a> {
     fn handle_continue(&mut self) -> Result<()> {
         self.ctx.repo.index.load()?;
 
-        match self.commit_writer().resume_merge() {
+        match self.commit_writer().resume_merge(PendingCommitType::Merge) {
             Ok(()) => Ok(()),
             Err(err) => match err {
                 Error::NoMergeInProgress(..) => {

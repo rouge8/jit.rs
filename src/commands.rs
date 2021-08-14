@@ -62,7 +62,9 @@ pub enum Command {
         tree_ish: String,
     },
     CherryPick {
-        revision: String,
+        args: Vec<String>,
+        #[structopt(long)]
+        r#continue: bool,
     },
     Commit {
         #[structopt(short, long)]

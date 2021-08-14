@@ -24,6 +24,12 @@ If this is not correct, please remove the file
 \t.git/MERGE_HEAD
 and try again.\n";
 
+const CHERRY_PICK_NOTES: &str = "\
+It looks like you may be committing a cherry-pick.
+If this is not correct, please remove the file
+\t.git/CHERRY_PICK_HEAD
+and try again.\n";
+
 pub struct CommitWriter<'a> {
     ctx: &'a CommandContext<'a>,
     pub pending_commit: PendingCommit,
@@ -126,17 +132,17 @@ impl<'a> CommitWriter<'a> {
     }
 
     pub fn resume_merge(&self, r#type: PendingCommitType) -> Result<()> {
-        self.handle_conflicted_index()?;
-
         match r#type {
             PendingCommitType::Merge => self.write_merge_commit()?,
-            PendingCommitType::CherryPick => unreachable!(),
+            PendingCommitType::CherryPick => self.write_cherry_pick_commit()?,
         }
 
         Err(Error::Exit(0))
     }
 
     fn write_merge_commit(&self) -> Result<()> {
+        self.handle_conflicted_index()?;
+
         let parents = vec![
             self.ctx.repo.refs.read_head()?.unwrap(),
             self.pending_commit.merge_oid(PendingCommitType::Merge)?,
@@ -145,6 +151,32 @@ impl<'a> CommitWriter<'a> {
         self.write_commit(parents, message.as_deref())?;
 
         self.pending_commit.clear(PendingCommitType::Merge)?;
+
+        Ok(())
+    }
+
+    pub fn write_cherry_pick_commit(&self) -> Result<()> {
+        self.handle_conflicted_index()?;
+
+        let parents = vec![self.ctx.repo.refs.read_head()?.unwrap()];
+        let message = self.compose_merge_message(Some(CHERRY_PICK_NOTES))?;
+
+        let pick_oid = self
+            .pending_commit
+            .merge_oid(PendingCommitType::CherryPick)?;
+        let commit = self.ctx.repo.database.load_commit(&pick_oid)?;
+
+        let picked = Commit::new(
+            parents,
+            self.write_tree().oid(),
+            commit.author,
+            self.current_author(),
+            message.unwrap(),
+        );
+
+        self.ctx.repo.database.store(&picked)?;
+        self.ctx.repo.refs.update_head(&picked.oid())?;
+        self.pending_commit.clear(PendingCommitType::CherryPick)?;
 
         Ok(())
     }

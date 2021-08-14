@@ -2,6 +2,8 @@ mod common;
 
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
+use jit::database::object::Object;
+use jit::database::Database;
 use jit::errors::Result;
 use jit::rev_list::RevList;
 use rstest::{fixture, rstest};
@@ -82,6 +84,112 @@ mod with_two_branches {
         helper.assert_index(&tree)?;
 
         helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_apply_a_content_conflict(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "topic^^"]).assert().code(1);
+
+        let short = Database::short_oid(&helper.resolve_revision("topic^^")?);
+
+        let conflict = format!(
+            "\
+<<<<<<< HEAD
+four=======
+six>>>>>>> {}... six
+",
+            short
+        );
+        let conflict = conflict.as_str();
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", conflict);
+        helper.assert_workspace(&workspace)?;
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("UU f.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn fail_to_apply_a_modify_delete_conflict(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "topic"]).assert().code(1);
+
+        let mut workspace = HashMap::new();
+        workspace.insert("f.txt", "four");
+        workspace.insert("g.txt", "eight");
+        helper.assert_workspace(&workspace)?;
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("DU g.txt\n");
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn continue_a_conflicted_cherry_pick(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "topic"]);
+        helper.jit_cmd(&["add", "g.txt"]);
+
+        helper
+            .jit_cmd(&["cherry-pick", "--continue"])
+            .assert()
+            .code(0);
+
+        let commits: Vec<_> = RevList::new(&helper.repo, &[String::from("@~3..")])?.collect();
+        assert_eq!(commits[0].parents, vec![commits[1].oid()]);
+
+        assert_eq!(
+            commits
+                .iter()
+                .map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("eight"),
+                String::from("four"),
+                String::from("three")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "four");
+        tree.insert("g.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn commit_after_a_conflicted_cherry_pick(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "topic"]);
+        helper.jit_cmd(&["add", "g.txt"]);
+
+        helper.jit_cmd(&["commit"]).assert().code(0);
+
+        let commits: Vec<_> = RevList::new(&helper.repo, &[String::from("@~3..")])?.collect();
+        assert_eq!(commits[0].parents, vec![commits[1].oid()]);
+
+        assert_eq!(
+            commits
+                .iter()
+                .map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("eight"),
+                String::from("four"),
+                String::from("three")
+            ]
+        );
 
         Ok(())
     }

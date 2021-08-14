@@ -24,6 +24,17 @@ enum Flag {
     Treesame,
 }
 
+#[derive(Debug)]
+pub struct RevListOptions {
+    pub walk: bool,
+}
+
+impl Default for RevListOptions {
+    fn default() -> Self {
+        Self { walk: true }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RevList<'a> {
     repo: &'a Repository,
@@ -35,10 +46,11 @@ pub struct RevList<'a> {
     diffs: RefCell<HashMap<(Option<String>, String), TreeDiffChanges>>,
     output: VecDeque<Commit>,
     filter: PathFilter,
+    walk: bool,
 }
 
 impl<'a> RevList<'a> {
-    pub fn new(repo: &'a Repository, revs: &[String]) -> Result<Self> {
+    pub fn new(repo: &'a Repository, revs: &[String], options: RevListOptions) -> Result<Self> {
         let mut rev_list = Self {
             repo,
             commits: HashMap::new(),
@@ -50,6 +62,7 @@ impl<'a> RevList<'a> {
             output: VecDeque::new(),
             // A temporary `PathFilter` that will be replaced later in this function
             filter: PathFilter::new(None, None),
+            walk: options.walk,
         };
 
         for rev in revs {
@@ -75,8 +88,10 @@ impl<'a> RevList<'a> {
         } else if let Some(r#match) = RANGE.captures(rev) {
             self.set_start_point(&r#match[1], false)?;
             self.set_start_point(&r#match[2], true)?;
+            self.walk = true;
         } else if let Some(r#match) = EXCLUDE.captures(rev) {
             self.set_start_point(&r#match[1], false)?;
+            self.walk = true;
         } else {
             self.set_start_point(rev, true)?;
         }
@@ -109,9 +124,12 @@ impl<'a> RevList<'a> {
 
         // We're seeing this commit for the first time
         if !self.mark(&commit.oid(), Flag::Seen) {
-            let index = self.queue.iter().position(|c| c.date() < commit.date());
-
-            if let Some(index) = index {
+            if self.walk {
+                let index = self
+                    .queue
+                    .iter()
+                    .position(|c| c.date() < commit.date())
+                    .unwrap_or_else(|| self.queue.len());
                 self.queue.insert(index, commit.to_owned());
             } else {
                 self.queue.push_back(commit.to_owned());
@@ -161,7 +179,7 @@ impl<'a> RevList<'a> {
     }
 
     fn add_parents(&mut self, commit: &Commit) -> Result<()> {
-        if self.mark(&commit.oid(), Flag::Added) {
+        if !self.walk || self.mark(&commit.oid(), Flag::Added) {
             return Ok(());
         }
 

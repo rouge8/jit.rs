@@ -119,8 +119,8 @@ impl<'a> Log<'a> {
         // iterating over because iteration requires a mutable borrow. We work around this by
         // creating two identical `RevList`s and iterating over one and passing the other.
         // Inefficient? Yes, but I don't have any better ideas.
-        let rev_list = RevList::new(&self.ctx.repo, &self.args)?;
-        for commit in RevList::new(&self.ctx.repo, &self.args)? {
+        let rev_list = RevList::new(&self.ctx.repo, &self.args, Default::default())?;
+        for commit in RevList::new(&self.ctx.repo, &self.args, Default::default())? {
             self.show_commit(&commit, &rev_list)?;
         }
 

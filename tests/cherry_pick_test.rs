@@ -65,7 +65,7 @@ mod with_two_branches {
     fn apply_a_commit_on_top_of_the_current_head(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["cherry-pick", "topic~3"]).assert().code(0);
 
-        let revs = RevList::new(&helper.repo, &[String::from("@~3..")])?;
+        let revs = RevList::new(&helper.repo, &[String::from("@~3..")], Default::default())?;
 
         assert_eq!(
             revs.map(|commit| commit.message.trim().to_owned())
@@ -143,7 +143,8 @@ six>>>>>>> {}... six
             .assert()
             .code(0);
 
-        let commits: Vec<_> = RevList::new(&helper.repo, &[String::from("@~3..")])?.collect();
+        let commits: Vec<_> =
+            RevList::new(&helper.repo, &[String::from("@~3..")], Default::default())?.collect();
         assert_eq!(commits[0].parents, vec![commits[1].oid()]);
 
         assert_eq!(
@@ -176,7 +177,8 @@ six>>>>>>> {}... six
 
         helper.jit_cmd(&["commit"]).assert().code(0);
 
-        let commits: Vec<_> = RevList::new(&helper.repo, &[String::from("@~3..")])?.collect();
+        let commits: Vec<_> =
+            RevList::new(&helper.repo, &[String::from("@~3..")], Default::default())?.collect();
         assert_eq!(commits[0].parents, vec![commits[1].oid()]);
 
         assert_eq!(
@@ -192,5 +194,49 @@ six>>>>>>> {}... six
         );
 
         Ok(())
+    }
+
+    #[rstest]
+    fn apply_multiple_non_conflicting_commits(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["cherry-pick", "topic~3", "topic^", "topic"])
+            .assert()
+            .code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("@~4..")], Default::default())?;
+
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("eight"),
+                String::from("seven"),
+                String::from("five"),
+                String::from("four")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "four");
+        tree.insert("g.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn stop_when_a_list_of_commits_includes_a_conflict(mut helper: CommandHelper) {
+        helper
+            .jit_cmd(&["cherry-pick", "topic^", "topic~3"])
+            .assert()
+            .code(1);
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("DU g.txt\n");
     }
 }

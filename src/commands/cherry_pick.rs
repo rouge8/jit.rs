@@ -9,7 +9,7 @@ use crate::merge::inputs;
 use crate::merge::resolve::Resolve;
 use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
-use crate::revision::{Revision, COMMIT};
+use crate::rev_list::{RevList, RevListOptions};
 
 const CONFLICT_NOTES: &str = "\
 after resolving the conflicts, mark the corrected paths
@@ -49,14 +49,12 @@ impl<'a> CherryPick<'a> {
             self.handle_continue()?;
         }
 
-        let mut revision = Revision::new(&self.ctx.repo, &self.args[0]);
-        let commit = self
-            .ctx
-            .repo
-            .database
-            .load_commit(&revision.resolve(Some(COMMIT))?)?;
-
-        self.pick(&commit)?;
+        let args: Vec<_> = self.args.iter().map(|s| s.to_owned()).rev().collect();
+        let commits: Vec<_> =
+            RevList::new(&self.ctx.repo, &args, RevListOptions { walk: false })?.collect();
+        for commit in commits.iter().rev() {
+            self.pick(commit)?;
+        }
 
         Ok(())
     }

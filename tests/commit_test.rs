@@ -184,7 +184,7 @@ mod reusing_messages {
         helper.jit_cmd(&["add", "."]);
         helper.jit_cmd(&["commit", "-C", "@"]).assert().code(0);
 
-        let revs = RevList::new(&helper.repo, &[String::from("HEAD")])?;
+        let revs = RevList::new(&helper.repo, &[String::from("HEAD")], Default::default())?;
         assert_eq!(
             revs.map(|commit| commit.message.trim().to_owned())
                 .collect::<Vec<_>>(),
@@ -218,7 +218,7 @@ mod amending_commits {
             .jit_cmd(&["commit", "--amend", "--message", "third [amended]"])
             .assert()
             .code(0);
-        let revs = RevList::new(&helper.repo, &[String::from("HEAD")])?;
+        let revs = RevList::new(&helper.repo, &[String::from("HEAD")], Default::default())?;
 
         assert_eq!(
             revs.map(|commit| commit.message.trim().to_owned())

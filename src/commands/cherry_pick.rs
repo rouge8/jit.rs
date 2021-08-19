@@ -20,6 +20,8 @@ and commit the result with 'jit commit'";
 enum Mode {
     Run,
     Continue,
+    Abort,
+    Quit,
 }
 
 pub struct CherryPick<'a> {
@@ -31,10 +33,19 @@ pub struct CherryPick<'a> {
 impl<'a> CherryPick<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
         let (args, mode) = match &ctx.opt.cmd {
-            Command::CherryPick { args, r#continue } => (
+            Command::CherryPick {
+                args,
+                r#continue,
+                abort,
+                quit,
+            } => (
                 args.to_owned(),
                 if *r#continue {
                     Mode::Continue
+                } else if *abort {
+                    Mode::Abort
+                } else if *quit {
+                    Mode::Quit
                 } else {
                     Mode::Run
                 },
@@ -48,13 +59,16 @@ impl<'a> CherryPick<'a> {
     pub fn run(&mut self) -> Result<()> {
         let mut sequencer = Sequencer::new(&self.ctx.repo);
 
-        if matches!(self.mode, Mode::Continue) {
-            self.handle_continue(&mut sequencer)?;
+        match self.mode {
+            Mode::Continue => self.handle_continue(&mut sequencer)?,
+            Mode::Abort => self.handle_abort(&mut sequencer)?,
+            Mode::Quit => self.handle_quit(&mut sequencer)?,
+            Mode::Run => {
+                sequencer.start()?;
+                self.store_commit_sequence(&mut sequencer)?;
+                self.resume_sequencer(&mut sequencer)?;
+            }
         }
-
-        sequencer.start()?;
-        self.store_commit_sequence(&mut sequencer)?;
-        self.resume_sequencer(&mut sequencer)?;
 
         Ok(())
     }
@@ -184,7 +198,7 @@ impl<'a> CherryPick<'a> {
         }
 
         sequencer.load()?;
-        sequencer.drop_command();
+        sequencer.drop_command()?;
         self.resume_sequencer(sequencer)?;
 
         Ok(())
@@ -193,11 +207,43 @@ impl<'a> CherryPick<'a> {
     fn resume_sequencer(&mut self, sequencer: &mut Sequencer) -> Result<()> {
         while let Some(commit) = sequencer.next_command() {
             self.pick(sequencer, &commit)?;
-            sequencer.drop_command();
+            sequencer.drop_command()?;
         }
 
         sequencer.quit()?;
         Err(Error::Exit(0))
+    }
+
+    fn handle_abort(&mut self, sequencer: &mut Sequencer) -> Result<()> {
+        let pending_commit = self.commit_writer().pending_commit;
+        if pending_commit.in_progress() {
+            pending_commit.clear(PendingCommitType::CherryPick)?;
+        }
+        // sequencer.abort() calls repo.hard_reset() which updates the in-memory index on
+        // `sequencer.repo`, not `self.ctx.repo`.
+        sequencer.repo.index.load_for_update()?;
+
+        match sequencer.abort() {
+            Ok(()) => (),
+            Err(err) => {
+                let mut stderr = self.ctx.stderr.borrow_mut();
+                writeln!(stderr, "warning: {}", err)?;
+            }
+        }
+
+        sequencer.repo.index.write_updates()?;
+
+        Err(Error::Exit(0))
+    }
+
+    fn handle_quit(&mut self, sequencer: &mut Sequencer) -> Result<()> {
+        let pending_commit = self.commit_writer().pending_commit;
+        if pending_commit.in_progress() {
+            pending_commit.clear(PendingCommitType::CherryPick)?;
+        }
+        sequencer.quit()?;
+
+        Ok(())
     }
 
     fn commit_writer(&self) -> CommitWriter {

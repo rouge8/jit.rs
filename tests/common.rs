@@ -160,7 +160,7 @@ impl CommandHelper {
             String::from("author@example.com"),
         );
 
-        self.jit_cmd(&["commit", "-m", message]);
+        self.jit_cmd(&["commit", "-m", message]).assert().code(0);
     }
 
     pub fn assert_status(&mut self, expected: &'static str) {

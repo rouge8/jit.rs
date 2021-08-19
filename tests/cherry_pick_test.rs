@@ -356,4 +356,53 @@ fatal: Exiting because of an unresolved conflict.
 
         Ok(())
     }
+
+    #[rstest]
+    fn aborting_in_a_conflicted_state(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "..topic"]);
+        helper
+            .jit_cmd(&["cherry-pick", "--abort"])
+            .assert()
+            .code(0)
+            .stderr("");
+
+        // reset to the old HEAD
+        assert_eq!(helper.load_commit("HEAD")?.message.trim(), "four");
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("");
+
+        // remove the merge state
+        assert!(!helper.repo.pending_commit().in_progress());
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn aborting_in_a_committed_state(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "..topic"]);
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["commit"]);
+
+        helper
+            .jit_cmd(&["cherry-pick", "--abort"])
+            .assert()
+            .code(0)
+            .stderr("warning: You seem to have moved HEAD. Not rewinding, check your HEAD!\n");
+
+        // don't reset HEAD
+        assert_eq!(helper.load_commit("HEAD")?.message.trim(), "six");
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("");
+
+        // remove the merge state
+        assert!(!helper.repo.pending_commit().in_progress());
+
+        Ok(())
+    }
 }

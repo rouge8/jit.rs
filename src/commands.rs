@@ -65,6 +65,10 @@ pub enum Command {
         args: Vec<String>,
         #[structopt(long)]
         r#continue: bool,
+        #[structopt(long)]
+        abort: bool,
+        #[structopt(long)]
+        quit: bool,
     },
     Commit {
         #[structopt(short, long)]

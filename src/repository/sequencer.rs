@@ -1,14 +1,15 @@
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::Database;
-use crate::errors::Result;
+use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
+use crate::refs::ORIG_HEAD;
 use crate::repository::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 lazy_static! {
     static ref LOAD_LINE: Regex = Regex::new(r"^pick (\S+) (.*)$").unwrap();
@@ -16,8 +17,10 @@ lazy_static! {
 
 #[derive(Debug)]
 pub struct Sequencer {
-    repo: Repository,
+    pub repo: Repository,
     pathname: PathBuf,
+    abort_path: PathBuf,
+    head_path: PathBuf,
     todo_path: PathBuf,
     todo_file: Option<Lockfile>,
     commands: Vec<Commit>,
@@ -26,11 +29,15 @@ pub struct Sequencer {
 impl Sequencer {
     pub fn new(repo: &Repository) -> Self {
         let pathname = repo.git_path.join("sequencer");
+        let abort_path = pathname.join("abort-safety");
+        let head_path = pathname.join("head");
         let todo_path = pathname.join("todo");
 
         Self {
             repo: Repository::new(repo.git_path.clone()),
             pathname,
+            abort_path,
+            head_path,
             todo_path,
             todo_file: None,
             commands: Vec::new(),
@@ -39,6 +46,11 @@ impl Sequencer {
 
     pub fn start(&mut self) -> Result<()> {
         fs::create_dir(&self.pathname)?;
+
+        let head_oid = self.repo.refs.read_head()?.unwrap();
+        self.write_file(&self.head_path, &head_oid)?;
+        self.write_file(&self.abort_path, &head_oid)?;
+
         self.open_todo_file()?;
 
         Ok(())
@@ -52,8 +64,11 @@ impl Sequencer {
         self.commands.first().map(|commit| commit.to_owned())
     }
 
-    pub fn drop_command(&mut self) {
+    pub fn drop_command(&mut self) -> Result<()> {
         self.commands.remove(0);
+        self.write_file(&self.abort_path, &self.repo.refs.read_head()?.unwrap())?;
+
+        Ok(())
     }
 
     pub fn load(&mut self) -> Result<()> {
@@ -86,8 +101,35 @@ impl Sequencer {
         Ok(())
     }
 
+    pub fn abort(&mut self) -> Result<()> {
+        let head_oid = fs::read_to_string(&self.head_path)?.trim().to_owned();
+        let expected = fs::read_to_string(&self.abort_path)?.trim().to_owned();
+        let actual = self.repo.refs.read_head()?.unwrap();
+
+        self.quit()?;
+
+        if actual != expected {
+            return Err(Error::UnsafeRewind);
+        }
+
+        self.repo.hard_reset(&head_oid)?;
+        let orig_head = self.repo.refs.update_head(&head_oid)?.unwrap();
+        self.repo.refs.update_ref(ORIG_HEAD, &orig_head)?;
+
+        Ok(())
+    }
+
     pub fn quit(&self) -> Result<()> {
         fs::remove_dir_all(&self.pathname)?;
+
+        Ok(())
+    }
+
+    fn write_file(&self, path: &Path, content: &str) -> Result<()> {
+        let mut lockfile = Lockfile::new(path.to_owned());
+        lockfile.hold_for_update()?;
+        writeln!(lockfile, "{}", content)?;
+        lockfile.commit()?;
 
         Ok(())
     }

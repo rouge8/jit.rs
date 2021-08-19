@@ -34,6 +34,8 @@ pub enum Error {
     RmOperationNotPermitted(String),
     #[error("There was a problem with the editor '{0}'")]
     ProblemWithEditor(String),
+    #[error("You seem to have moved HEAD. Not rewinding, check your HEAD!")]
+    UnsafeRewind,
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

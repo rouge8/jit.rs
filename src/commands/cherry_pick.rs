@@ -9,6 +9,7 @@ use crate::merge::inputs;
 use crate::merge::resolve::Resolve;
 use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
+use crate::repository::sequencer::Sequencer;
 use crate::rev_list::{RevList, RevListOptions};
 
 const CONFLICT_NOTES: &str = "\
@@ -45,21 +46,31 @@ impl<'a> CherryPick<'a> {
     }
 
     pub fn run(&mut self) -> Result<()> {
+        let mut sequencer = Sequencer::new(&self.ctx.repo);
+
         if matches!(self.mode, Mode::Continue) {
-            self.handle_continue()?;
+            self.handle_continue(&mut sequencer)?;
         }
 
+        sequencer.start()?;
+        self.store_commit_sequence(&mut sequencer)?;
+        self.resume_sequencer(&mut sequencer)?;
+
+        Ok(())
+    }
+
+    fn store_commit_sequence(&self, sequencer: &mut Sequencer) -> Result<()> {
         let args: Vec<_> = self.args.iter().map(|s| s.to_owned()).rev().collect();
         let commits: Vec<_> =
             RevList::new(&self.ctx.repo, &args, RevListOptions { walk: false })?.collect();
         for commit in commits.iter().rev() {
-            self.pick(commit)?;
+            sequencer.pick(commit);
         }
 
         Ok(())
     }
 
-    fn pick(&mut self, commit: &Commit) -> Result<()> {
+    fn pick(&mut self, sequencer: &mut Sequencer, commit: &Commit) -> Result<()> {
         let inputs = self.pick_merge_inputs(commit)?;
 
         self.resolve_merge(&inputs)?;
@@ -67,7 +78,7 @@ impl<'a> CherryPick<'a> {
         let commit_writer = self.commit_writer();
 
         if self.ctx.repo.index.has_conflict() {
-            self.fail_on_conflict(&commit_writer, &inputs, &commit.message)?;
+            self.fail_on_conflict(&commit_writer, sequencer, &inputs, &commit.message)?;
         }
 
         let picked = Commit::new(
@@ -112,9 +123,12 @@ impl<'a> CherryPick<'a> {
     fn fail_on_conflict(
         &self,
         commit_writer: &CommitWriter,
+        sequencer: &mut Sequencer,
         inputs: &inputs::CherryPick,
         message: &str,
     ) -> Result<()> {
+        sequencer.dump()?;
+
         commit_writer
             .pending_commit
             .start(&inputs.right_oid, PendingCommitType::CherryPick)?;
@@ -151,21 +165,39 @@ impl<'a> CherryPick<'a> {
         Ok(())
     }
 
-    fn handle_continue(&mut self) -> Result<()> {
+    fn handle_continue(&mut self, sequencer: &mut Sequencer) -> Result<()> {
         self.ctx.repo.index.load()?;
 
-        match self.commit_writer().write_cherry_pick_commit() {
-            Ok(()) => Err(Error::Exit(0)),
-            Err(err) => match err {
-                Error::NoMergeInProgress(..) => {
-                    let mut stderr = self.ctx.stderr.borrow_mut();
-                    writeln!(stderr, "fatal: {}", err)?;
+        if self.commit_writer().pending_commit.in_progress() {
+            match self.commit_writer().write_cherry_pick_commit() {
+                Ok(()) => (),
+                Err(err) => match err {
+                    Error::NoMergeInProgress(..) => {
+                        let mut stderr = self.ctx.stderr.borrow_mut();
+                        writeln!(stderr, "fatal: {}", err)?;
 
-                    Err(Error::Exit(128))
-                }
-                _ => Err(err),
-            },
+                        return Err(Error::Exit(128));
+                    }
+                    _ => return Err(err),
+                },
+            }
         }
+
+        sequencer.load()?;
+        sequencer.drop_command();
+        self.resume_sequencer(sequencer)?;
+
+        Ok(())
+    }
+
+    fn resume_sequencer(&mut self, sequencer: &mut Sequencer) -> Result<()> {
+        while let Some(commit) = sequencer.next_command() {
+            self.pick(sequencer, &commit)?;
+            sequencer.drop_command();
+        }
+
+        sequencer.quit()?;
+        Err(Error::Exit(0))
     }
 
     fn commit_writer(&self) -> CommitWriter {

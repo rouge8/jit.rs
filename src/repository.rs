@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 mod hard_reset;
 pub mod migration;
 pub mod pending_commit;
+pub mod sequencer;
 pub mod status;
 
 use hard_reset::HardReset;

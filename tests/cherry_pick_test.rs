@@ -239,4 +239,121 @@ six>>>>>>> {}... six
             .assert()
             .stdout("DU g.txt\n");
     }
+
+    #[rstest]
+    fn stop_when_a_range_of_commits_includes_a_conflict(mut helper: CommandHelper) {
+        helper.jit_cmd(&["cherry-pick", "..topic"]).assert().code(1);
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("UU f.txt\n");
+    }
+
+    #[rstest]
+    fn refuse_to_commit_in_a_conflicted_state(mut helper: CommandHelper) {
+        helper.jit_cmd(&["cherry-pick", "..topic"]).assert().code(1);
+
+        helper.jit_cmd(&["commit"]).assert().code(128).stderr(
+            "\
+error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+",
+        );
+    }
+
+    #[rstest]
+    fn refuse_to_continue_in_a_conflicted_state(mut helper: CommandHelper) {
+        helper.jit_cmd(&["cherry-pick", "..topic"]).assert().code(1);
+
+        helper
+            .jit_cmd(&["cherry-pick", "--continue"])
+            .assert()
+            .code(128)
+            .stderr(
+                "\
+error: Committing is not possible because you have unmerged files.
+hint: Fix them up in the work tree, and then use 'jit add/rm <file>'
+hint: as appropriate to mark resolution and make a commit.
+fatal: Exiting because of an unresolved conflict.
+",
+            );
+    }
+
+    #[rstest]
+    fn can_continue_after_resolving_the_conflicts(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "..topic"]);
+
+        helper.write_file("f.txt", "six")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+
+        helper
+            .jit_cmd(&["cherry-pick", "--continue"])
+            .assert()
+            .code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("@~5..")], Default::default())?;
+
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("eight"),
+                String::from("seven"),
+                String::from("six"),
+                String::from("five"),
+                String::from("four")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "six");
+        tree.insert("g.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn can_continue_after_commiting_the_resolved_tree(mut helper: CommandHelper) -> Result<()> {
+        helper.jit_cmd(&["cherry-pick", "..topic"]);
+
+        helper.write_file("f.txt", "six")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper.jit_cmd(&["commit"]);
+
+        helper
+            .jit_cmd(&["cherry-pick", "--continue"])
+            .assert()
+            .code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("@~5..")], Default::default())?;
+
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("eight"),
+                String::from("seven"),
+                String::from("six"),
+                String::from("five"),
+                String::from("four")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "six");
+        tree.insert("g.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
 }

@@ -57,9 +57,11 @@ impl<'a> CherryPick<'a> {
             Mode::Run => {
                 sequencer.start()?;
                 self.store_commit_sequence(&mut sequencer)?;
-                resume_sequencer(&mut sequencer, &mut |sequencer, commit| {
-                    self.pick(sequencer, commit)
-                })?;
+                resume_sequencer(
+                    &mut sequencer,
+                    &mut |sequencer, commit| self.pick(sequencer, commit),
+                    &mut |_sequencer, _commit| unimplemented!(),
+                )?;
             }
         }
 
@@ -146,9 +148,11 @@ impl<'a> CherryPick<'a> {
 
         sequencer.load()?;
         sequencer.drop_command()?;
-        resume_sequencer(sequencer, &mut |sequencer, commit| {
-            self.pick(sequencer, commit)
-        })?;
+        resume_sequencer(
+            sequencer,
+            &mut |sequencer, commit| self.pick(sequencer, commit),
+            &mut |_sequencer, _commit| unimplemented!(),
+        )?;
 
         Ok(())
     }

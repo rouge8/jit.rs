@@ -7,12 +7,42 @@ use crate::refs::ORIG_HEAD;
 use crate::repository::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::fmt;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 lazy_static! {
-    static ref LOAD_LINE: Regex = Regex::new(r"^pick (\S+) (.*)$").unwrap();
+    static ref LOAD_LINE: Regex = Regex::new(r"^(\S+) (\S+) (.*)$").unwrap();
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Action {
+    Pick,
+    Revert,
+}
+
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let action = match self {
+            Action::Pick => "pick",
+            Action::Revert => "revert",
+        };
+        write!(f, "{}", action)
+    }
+}
+
+impl FromStr for Action {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "pick" => Ok(Action::Pick),
+            "revert" => Ok(Action::Revert),
+            _ => unimplemented!(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -23,7 +53,7 @@ pub struct Sequencer {
     head_path: PathBuf,
     todo_path: PathBuf,
     todo_file: Option<Lockfile>,
-    commands: Vec<Commit>,
+    commands: Vec<(Action, Commit)>,
 }
 
 impl Sequencer {
@@ -57,11 +87,17 @@ impl Sequencer {
     }
 
     pub fn pick(&mut self, commit: &Commit) {
-        self.commands.push(commit.to_owned());
+        self.commands.push((Action::Pick, commit.to_owned()));
     }
 
-    pub fn next_command(&self) -> Option<Commit> {
-        self.commands.first().map(|commit| commit.to_owned())
+    pub fn revert(&mut self, commit: &Commit) {
+        self.commands.push((Action::Revert, commit.to_owned()));
+    }
+
+    pub fn next_command(&self) -> Option<(Action, Commit)> {
+        self.commands
+            .first()
+            .map(|(action, commit)| (action.to_owned(), commit.to_owned()))
     }
 
     pub fn drop_command(&mut self) -> Result<()> {
@@ -79,10 +115,14 @@ impl Sequencer {
         }
 
         for line in fs::read_to_string(&self.todo_path)?.lines() {
-            let oid = &LOAD_LINE.captures(line).unwrap()[1];
+            let captures = &LOAD_LINE.captures(line).unwrap();
+            let action = &captures[1];
+            let oid = &captures[2];
             let oids = self.repo.database.prefix_match(oid)?;
-            self.commands
-                .push(self.repo.database.load_commit(&oids[0])?);
+            self.commands.push((
+                Action::from_str(action)?,
+                self.repo.database.load_commit(&oids[0])?,
+            ));
         }
 
         Ok(())
@@ -90,9 +130,9 @@ impl Sequencer {
 
     pub fn dump(&mut self) -> Result<()> {
         if let Some(todo_file) = &mut self.todo_file {
-            for commit in &self.commands {
+            for (action, commit) in &self.commands {
                 let short = Database::short_oid(&commit.oid());
-                writeln!(todo_file, "pick {} {}", short, commit.title_line())?;
+                writeln!(todo_file, "{} {} {}", action, short, commit.title_line())?;
             }
 
             todo_file.commit()?;

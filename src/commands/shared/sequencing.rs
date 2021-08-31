@@ -7,7 +7,7 @@ use crate::errors::{Error, Result};
 use crate::merge::inputs;
 use crate::merge::resolve::Resolve;
 use crate::repository::pending_commit::PendingCommitType;
-use crate::repository::sequencer::Sequencer;
+use crate::repository::sequencer::{Action, Sequencer};
 use crate::repository::Repository;
 
 const CONFLICT_NOTES: &str = "\
@@ -83,9 +83,13 @@ pub fn finish_commit(
 pub fn resume_sequencer(
     sequencer: &mut Sequencer,
     pick: &mut dyn FnMut(&mut Sequencer, &Commit) -> Result<()>,
+    revert: &mut dyn FnMut(&mut Sequencer, &Commit) -> Result<()>,
 ) -> Result<()> {
-    while let Some(commit) = sequencer.next_command() {
-        pick(sequencer, &commit)?;
+    while let Some((action, commit)) = sequencer.next_command() {
+        match action {
+            Action::Pick => pick(sequencer, &commit)?,
+            Action::Revert => revert(sequencer, &commit)?,
+        }
         sequencer.drop_command()?;
     }
 

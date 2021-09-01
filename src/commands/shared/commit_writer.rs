@@ -135,6 +135,7 @@ impl<'a> CommitWriter<'a> {
         match r#type {
             PendingCommitType::Merge => self.write_merge_commit()?,
             PendingCommitType::CherryPick => self.write_cherry_pick_commit()?,
+            PendingCommitType::Revert => self.write_revert_commit()?,
         }
 
         Err(Error::Exit(0))
@@ -177,6 +178,18 @@ impl<'a> CommitWriter<'a> {
         self.ctx.repo.database.store(&picked)?;
         self.ctx.repo.refs.update_head(&picked.oid())?;
         self.pending_commit.clear(PendingCommitType::CherryPick)?;
+
+        Ok(())
+    }
+
+    pub fn write_revert_commit(&self) -> Result<()> {
+        self.handle_conflicted_index()?;
+
+        let parents = vec![self.ctx.repo.refs.read_head()?.unwrap()];
+        let message = self.compose_merge_message(None)?;
+        self.write_commit(parents, message.as_deref())?;
+
+        self.pending_commit.clear(PendingCommitType::Revert)?;
 
         Ok(())
     }

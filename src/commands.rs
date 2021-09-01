@@ -18,6 +18,7 @@ mod init;
 mod log;
 mod merge;
 mod reset;
+mod revert;
 mod rm;
 mod shared;
 mod status;
@@ -32,6 +33,7 @@ use init::Init;
 use log::{Log, LogDecoration, LogFormat};
 use merge::Merge;
 use reset::Reset;
+use revert::Revert;
 use rm::Rm;
 use status::Status;
 
@@ -153,6 +155,15 @@ pub enum Command {
         #[structopt(long)]
         hard: bool,
     },
+    Revert {
+        args: Vec<String>,
+        #[structopt(long)]
+        r#continue: bool,
+        #[structopt(long)]
+        abort: bool,
+        #[structopt(long)]
+        quit: bool,
+    },
     Rm {
         #[structopt(parse(from_os_str))]
         files: Vec<PathBuf>,
@@ -228,6 +239,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Reset { .. } => {
             let mut cmd = Reset::new(ctx)?;
+            cmd.run()
+        }
+        Command::Revert { .. } => {
+            let mut cmd = Revert::new(ctx);
             cmd.run()
         }
         Command::Rm { .. } => {

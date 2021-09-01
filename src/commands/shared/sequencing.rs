@@ -101,10 +101,11 @@ pub fn handle_abort(
     ctx: &CommandContext,
     commit_writer: &CommitWriter,
     sequencer: &mut Sequencer,
+    merge_type: PendingCommitType,
 ) -> Result<()> {
     let pending_commit = &commit_writer.pending_commit;
     if pending_commit.in_progress() {
-        pending_commit.clear(PendingCommitType::CherryPick)?;
+        pending_commit.clear(merge_type)?;
     }
     // sequencer.abort() calls repo.hard_reset() which updates the in-memory index on
     // `sequencer.repo`, not `self.ctx.repo`.
@@ -123,10 +124,14 @@ pub fn handle_abort(
     Err(Error::Exit(0))
 }
 
-pub fn handle_quit(commit_writer: &CommitWriter, sequencer: &mut Sequencer) -> Result<()> {
+pub fn handle_quit(
+    commit_writer: &CommitWriter,
+    sequencer: &mut Sequencer,
+    merge_type: PendingCommitType,
+) -> Result<()> {
     let pending_commit = &commit_writer.pending_commit;
     if pending_commit.in_progress() {
-        pending_commit.clear(PendingCommitType::CherryPick)?;
+        pending_commit.clear(merge_type)?;
     }
     sequencer.quit()?;
 

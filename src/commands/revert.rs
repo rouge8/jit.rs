@@ -1,3 +1,4 @@
+use crate::commands::commit::COMMIT_NOTES;
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::shared::sequencing::{
     fail_on_conflict, finish_commit, handle_abort, handle_quit, resolve_merge, resume_sequencer,
@@ -14,16 +15,16 @@ use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::sequencer::Sequencer;
 use crate::rev_list::{RevList, RevListOptions};
 
-pub struct CherryPick<'a> {
+pub struct Revert<'a> {
     ctx: CommandContext<'a>,
     args: Vec<String>,
     mode: Mode,
 }
 
-impl<'a> CherryPick<'a> {
+impl<'a> Revert<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
         let (args, mode) = match &ctx.opt.cmd {
-            Command::CherryPick {
+            Command::Revert {
                 args,
                 r#continue,
                 abort,
@@ -56,20 +57,16 @@ impl<'a> CherryPick<'a> {
                 &self.ctx,
                 &commit_writer,
                 &mut sequencer,
-                PendingCommitType::CherryPick,
+                PendingCommitType::Revert,
             )?,
-            Mode::Quit => handle_quit(
-                &commit_writer,
-                &mut sequencer,
-                PendingCommitType::CherryPick,
-            )?,
+            Mode::Quit => handle_quit(&commit_writer, &mut sequencer, PendingCommitType::Revert)?,
             Mode::Run => {
                 sequencer.start()?;
                 self.store_commit_sequence(&mut sequencer)?;
                 resume_sequencer(
                     &mut sequencer,
-                    &mut |sequencer, commit| self.pick(sequencer, commit),
                     &mut |_sequencer, _commit| unimplemented!(),
+                    &mut |sequencer, commit| self.revert(sequencer, commit),
                 )?;
             }
         }
@@ -78,18 +75,19 @@ impl<'a> CherryPick<'a> {
     }
 
     fn store_commit_sequence(&self, sequencer: &mut Sequencer) -> Result<()> {
-        let args: Vec<_> = self.args.iter().map(|s| s.to_owned()).rev().collect();
+        let args: Vec<_> = self.args.iter().map(|s| s.to_owned()).collect();
         let commits: Vec<_> =
             RevList::new(&self.ctx.repo, &args, RevListOptions { walk: false })?.collect();
-        for commit in commits.iter().rev() {
-            sequencer.pick(commit);
+        for commit in commits.iter() {
+            sequencer.revert(commit);
         }
 
         Ok(())
     }
 
-    fn pick(&mut self, sequencer: &mut Sequencer, commit: &Commit) -> Result<()> {
-        let inputs = self.pick_merge_inputs(commit)?;
+    fn revert(&mut self, sequencer: &mut Sequencer, commit: &Commit) -> Result<()> {
+        let inputs = self.revert_merge_inputs(commit)?;
+        let message = self.revert_commit_message(commit);
 
         resolve_merge(&mut self.ctx.repo, &inputs)?;
 
@@ -101,17 +99,19 @@ impl<'a> CherryPick<'a> {
                 &commit_writer,
                 sequencer,
                 &inputs,
-                PendingCommitType::CherryPick,
-                &commit.message,
+                PendingCommitType::Revert,
+                &message,
             )?;
         }
 
+        let author = commit_writer.current_author();
+        let message = self.edit_revert_message(&message)?.unwrap();
         let picked = Commit::new(
             vec![inputs.left_oid],
             commit_writer.write_tree().oid(),
-            commit.author.clone(),
-            commit_writer.current_author(),
-            commit.message.clone(),
+            author.clone(),
+            author,
+            message,
         );
 
         finish_commit(&self.ctx.repo, &commit_writer, &picked)?;
@@ -119,29 +119,52 @@ impl<'a> CherryPick<'a> {
         Ok(())
     }
 
-    fn pick_merge_inputs(&self, commit: &Commit) -> Result<inputs::CherryPick> {
+    fn revert_merge_inputs(&self, commit: &Commit) -> Result<inputs::CherryPick> {
         let short = Database::short_oid(&commit.oid());
 
         let left_name = HEAD.to_owned();
         let left_oid = self.ctx.repo.refs.read_head()?.unwrap();
 
-        let right_name = format!("{}... {}", short, commit.title_line().trim());
-        let right_oid = commit.oid();
+        let right_name = format!("parent of {}... {}", short, commit.title_line().trim());
+        let right_oid = commit.parent().unwrap();
 
         Ok(inputs::CherryPick::new(
             left_name,
             right_name,
             left_oid,
             right_oid,
-            vec![commit.parent().unwrap()],
+            vec![commit.oid()],
         ))
+    }
+
+    fn revert_commit_message(&self, commit: &Commit) -> String {
+        format!(
+            "\
+Revert \"{}\"
+
+This reverts commit {}.
+",
+            commit.title_line().trim(),
+            commit.oid()
+        )
+    }
+
+    fn edit_revert_message(&self, message: &str) -> Result<Option<String>> {
+        self.ctx
+            .edit_file(&self.commit_writer().commit_message_path(), |editor| {
+                editor.write(message)?;
+                editor.write("")?;
+                editor.note(COMMIT_NOTES)?;
+
+                Ok(())
+            })
     }
 
     fn handle_continue(&mut self, sequencer: &mut Sequencer) -> Result<()> {
         self.ctx.repo.index.load()?;
 
         if self.commit_writer().pending_commit.in_progress() {
-            match self.commit_writer().write_cherry_pick_commit() {
+            match self.commit_writer().write_revert_commit() {
                 Ok(()) => (),
                 Err(err) => match err {
                     Error::NoMergeInProgress(..) => {
@@ -159,8 +182,8 @@ impl<'a> CherryPick<'a> {
         sequencer.drop_command()?;
         resume_sequencer(
             sequencer,
-            &mut |sequencer, commit| self.pick(sequencer, commit),
             &mut |_sequencer, _commit| unimplemented!(),
+            &mut |sequencer, commit| self.revert(sequencer, commit),
         )?;
 
         Ok(())

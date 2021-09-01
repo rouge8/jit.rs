@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 pub enum PendingCommitType {
     Merge,
     CherryPick,
+    Revert,
 }
 
 lazy_static! {
@@ -18,6 +19,7 @@ lazy_static! {
         let mut m = HashMap::new();
         m.insert(PendingCommitType::Merge, "MERGE_HEAD");
         m.insert(PendingCommitType::CherryPick, "CHERRY_PICK_HEAD");
+        m.insert(PendingCommitType::Revert, "REVERT_HEAD");
         m
     };
 }

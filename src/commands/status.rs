@@ -1,10 +1,13 @@
 use crate::commands::{Command, CommandContext};
+use crate::database::Database;
 use crate::errors::Result;
 use crate::refs::HEAD;
+use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::status::Status as RepositoryStatus;
 use crate::repository::ChangeType;
 use colored::Colorize;
 use lazy_static::lazy_static;
+use std::cell::RefMut;
 use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
@@ -107,6 +110,7 @@ impl<'a> Status<'a> {
 
     fn print_long_format(&self) -> Result<()> {
         self.print_branch_status()?;
+        self.print_pending_commit_status()?;
 
         self.print_changeset(
             "Changes to be committed",
@@ -143,6 +147,72 @@ impl<'a> Status<'a> {
                 self.ctx.repo.refs.short_name(&current)
             )?;
         }
+
+        Ok(())
+    }
+
+    fn print_pending_commit_status(&self) -> Result<()> {
+        match self.ctx.repo.pending_commit().merge_type() {
+            Some(PendingCommitType::Merge) => {
+                let mut stdout = self.ctx.stdout.borrow_mut();
+
+                if self.status.conflicts.is_empty() {
+                    writeln!(stdout, "All conflicts fixed but you are still merging.")?;
+                    self.hint(&mut stdout, "use 'jit commit' to conclude merge")?;
+                } else {
+                    writeln!(stdout, "You have unmerged paths.")?;
+                    self.hint(&mut stdout, "fix conflicts and run 'jit commit'")?;
+                    self.hint(&mut stdout, "use 'jit merge --abort' to abort the merge")?;
+                }
+                writeln!(stdout)?;
+            }
+            Some(PendingCommitType::CherryPick) => {
+                self.print_pending_type(PendingCommitType::CherryPick)?
+            }
+            Some(PendingCommitType::Revert) => {
+                self.print_pending_type(PendingCommitType::Revert)?
+            }
+            None => (),
+        }
+
+        Ok(())
+    }
+
+    fn print_pending_type(&self, merge_type: PendingCommitType) -> Result<()> {
+        let oid = self.ctx.repo.pending_commit().merge_oid(merge_type)?;
+        let short = Database::short_oid(&oid);
+        let op = match merge_type {
+            PendingCommitType::CherryPick => "cherry-pick",
+            PendingCommitType::Revert => "revert",
+            _ => unreachable!(),
+        };
+
+        let mut stdout = self.ctx.stdout.borrow_mut();
+
+        writeln!(stdout, "You are currently {}ing commit {}.", op, short)?;
+
+        if self.status.conflicts.is_empty() {
+            self.hint(
+                &mut stdout,
+                &format!("all conflicts fixed: run 'jit {} --continue'", op),
+            )?;
+        } else {
+            self.hint(
+                &mut stdout,
+                &format!("fix conflicts and run 'jit {} --continue'", op),
+            )?;
+        }
+        self.hint(
+            &mut stdout,
+            &format!("use 'jit {} --abort' to cancel the {} operation", op, op),
+        )?;
+        writeln!(stdout)?;
+
+        Ok(())
+    }
+
+    fn hint(&self, stdout: &mut RefMut<Box<dyn Write>>, message: &str) -> Result<()> {
+        writeln!(stdout, "  ({})", message)?;
 
         Ok(())
     }

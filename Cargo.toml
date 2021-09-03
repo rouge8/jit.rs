@@ -30,6 +30,7 @@ uuid = { version = "0.8", features = ["v4"] }
 assert_cmd = "2.0.0"
 filetime = "0.2.14"
 is_executable = "1.0.1"
+matches = "0.1.9"
 rand = "0.8.4"
 rstest = "0.11.0"
 tempfile = "3.2.0"

@@ -36,6 +36,10 @@ pub enum Error {
     ProblemWithEditor(String),
     #[error("You seem to have moved HEAD. Not rewinding, check your HEAD!")]
     UnsafeRewind,
+    #[error("bad config line {0} in file {1}")]
+    ConfigParseError(usize, PathBuf),
+    #[error("cannot overwrite multiple values with a single value")]
+    ConfigConflict,
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

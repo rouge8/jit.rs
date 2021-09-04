@@ -211,6 +211,33 @@ impl Config {
         self.add_variable(Some(section), key, var, value);
     }
 
+    pub fn remove_section(&mut self, key: &[String]) -> bool {
+        let key = Section::normalize(key);
+
+        matches!(self.lines.remove(&key), Some(_))
+    }
+
+    pub fn subsections(&self, name: &str) -> Vec<String> {
+        let name = &Section::normalize(&[name.to_owned()])[0];
+        let mut sections = Vec::new();
+
+        for key in self.lines.keys() {
+            assert_eq!(key.len(), 2);
+            let (main, sub) = (&key[0], &key[1]);
+
+            if main == name && !sub.is_empty() {
+                sections.push(sub.to_owned());
+            }
+        }
+
+        sections
+    }
+
+    pub fn has_section(&self, key: &[String]) -> bool {
+        let key = Section::normalize(key);
+        self.lines.contains_key(&key)
+    }
+
     fn line_count(&self) -> usize {
         self.lines.values().map(|lines| lines.len()).sum::<usize>() + self.lines.len()
     }
@@ -534,6 +561,33 @@ mod tests {
 
             assert_eq!(config.get_all(key), vec![val]);
         }
+
+        #[rstest]
+        fn subsections(mut config: Config) -> Result<()> {
+            config.set(
+                &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("url"),
+                ],
+                VariableValue::String(String::from("ssh://example.com/repo")),
+            )?;
+            config.set(
+                &[
+                    String::from("remote"),
+                    String::from("github"),
+                    String::from("url"),
+                ],
+                VariableValue::String(String::from("ssh://git@github.com/user/repo")),
+            )?;
+
+            assert_eq!(
+                config.subsections("remote"),
+                vec![String::from("origin"), String::from("github")]
+            );
+
+            Ok(())
+        }
     }
 
     mod file_storage {
@@ -654,6 +708,62 @@ mod tests {
                 "\
 [merge]
 \tConflictStyle = none
+",
+            )?;
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn remove_a_section(mut config: Config) -> Result<()> {
+            config.set(
+                &[String::from("core"), String::from("editor")],
+                VariableValue::String(String::from("ed")),
+            )?;
+            config.set(
+                &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("url"),
+                ],
+                VariableValue::String(String::from("ssh://example.com/repo")),
+            )?;
+            config.remove_section(&[String::from("core")]);
+            config.save()?;
+
+            assert_file(
+                &config,
+                "\
+[remote \"origin\"]
+\turl = ssh://example.com/repo
+",
+            )?;
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn remove_a_subsection(mut config: Config) -> Result<()> {
+            config.set(
+                &[String::from("core"), String::from("editor")],
+                VariableValue::String(String::from("ed")),
+            )?;
+            config.set(
+                &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("url"),
+                ],
+                VariableValue::String(String::from("ssh://example.com/repo")),
+            )?;
+            config.remove_section(&[String::from("remote"), String::from("origin")]);
+            config.save()?;
+
+            assert_file(
+                &config,
+                "\
+[core]
+\teditor = ed
 ",
             )?;
 

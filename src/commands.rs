@@ -1,3 +1,4 @@
+use crate::config::VariableValue;
 use crate::editor::Editor;
 use crate::errors::Result;
 use crate::pager::Pager;
@@ -326,6 +327,15 @@ impl<'a> CommandContext<'a> {
     fn editor_command(&self) -> Option<String> {
         if let Some(editor) = self.env.get("GIT_EDITOR") {
             Some(editor.to_owned())
+        } else if let Some(editor) = self
+            .repo
+            .config
+            .get(&[String::from("core"), String::from("editor")])
+        {
+            match editor {
+                VariableValue::String(editor) => Some(editor),
+                _ => unimplemented!(),
+            }
         } else if let Some(editor) = self.env.get("VISUAL") {
             Some(editor.to_owned())
         } else {

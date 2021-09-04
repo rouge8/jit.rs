@@ -8,6 +8,8 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 
+pub mod stack;
+
 lazy_static! {
     static ref SECTION_LINE: Regex =
         // TODO: Handle difference between Ruby's \Z and Rust's \z
@@ -51,7 +53,7 @@ impl Variable {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-enum VariableValue {
+pub enum VariableValue {
     Bool(bool),
     Int(i32),
     String(String),
@@ -122,7 +124,7 @@ impl Line {
 }
 
 #[derive(Debug)]
-struct Config {
+pub struct Config {
     path: PathBuf,
     lockfile: Lockfile,
     lines: IndexMap<Vec<String>, Vec<Line>>,

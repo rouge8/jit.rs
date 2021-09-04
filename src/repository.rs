@@ -1,3 +1,4 @@
+use crate::config::stack::Stack as ConfigStack;
 use crate::database::{blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database};
 use crate::errors::Result;
 use crate::index::{Entry as IndexEntry, Index};
@@ -39,6 +40,7 @@ pub struct Repository {
     pub index: Index,
     pub refs: Refs,
     pub workspace: Workspace,
+    pub config: ConfigStack,
 }
 
 impl Repository {
@@ -52,6 +54,7 @@ impl Repository {
             index: Index::new(git_path.join("index")),
             refs: Refs::new(git_path.clone()),
             workspace: Workspace::new(git_path.parent().unwrap().to_path_buf()),
+            config: ConfigStack::new(&git_path),
         }
     }
 

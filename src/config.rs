@@ -33,7 +33,7 @@ lazy_static! {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Variable {
+pub struct Variable {
     name: String,
     value: VariableValue,
 }
@@ -70,7 +70,7 @@ impl fmt::Display for VariableValue {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Section {
+pub struct Section {
     name: Vec<String>,
 }
 
@@ -101,7 +101,7 @@ impl Section {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-struct Line {
+pub struct Line {
     text: String,
     section: Section,
     variable: Option<Variable>,
@@ -196,7 +196,11 @@ impl Config {
             1 => {
                 self.update_variable(&mut lines[0], var, value);
             }
-            _ => return Err(Error::ConfigConflict),
+            _ => {
+                return Err(Error::ConfigConflict(String::from(
+                    "cannot overwrite multiple values with a single value",
+                )))
+            }
         }
 
         Ok(())
@@ -209,6 +213,42 @@ impl Config {
 
         self.remove_all(&section, &lines);
         self.add_variable(Some(section), key, var, value);
+    }
+
+    pub fn unset(&mut self, key: &[String]) -> Result<()> {
+        self.unset_all(key, |lines| {
+            if lines.len() > 1 {
+                Err(Error::ConfigConflict(String::from(
+                    "key has multiple values",
+                )))
+            } else {
+                Ok(())
+            }
+        })?;
+
+        Ok(())
+    }
+
+    pub fn unset_all<F>(&mut self, key: &[String], f: F) -> Result<()>
+    where
+        F: Fn(&[Line]) -> Result<()>,
+    {
+        let (key, var) = self.split_key(key);
+        let (section, lines) = self.find_lines(&key, &var);
+
+        if let Some(section) = section {
+            f(&lines)?;
+
+            self.remove_all(&section, &lines);
+            let lines = self.lines_for(&section);
+            if lines.len() == 1 {
+                self.remove_section(&key);
+            }
+
+            Ok(())
+        } else {
+            Ok(())
+        }
     }
 
     pub fn remove_section(&mut self, key: &[String]) -> bool {
@@ -506,63 +546,6 @@ mod tests {
         }
 
         #[rstest]
-        fn add_multiple_values_for_a_key(mut config: Config) {
-            let key = &[
-                String::from("remote"),
-                String::from("origin"),
-                String::from("fetch"),
-            ];
-
-            config.add(key, VariableValue::String(String::from("master")));
-            config.add(key, VariableValue::String(String::from("topic")));
-
-            assert_eq!(
-                config.get(key),
-                Some(VariableValue::String(String::from("topic")))
-            );
-            assert_eq!(
-                config.get_all(key),
-                vec![
-                    VariableValue::String(String::from("master")),
-                    VariableValue::String(String::from("topic")),
-                ]
-            );
-        }
-
-        #[rstest]
-        fn refuse_to_set_a_value_for_a_multi_valued_key(mut config: Config) {
-            let key = &[
-                String::from("remote"),
-                String::from("origin"),
-                String::from("fetch"),
-            ];
-
-            config.add(key, VariableValue::String(String::from("master")));
-            config.add(key, VariableValue::String(String::from("topic")));
-
-            assert_matches!(
-                config.set(key, VariableValue::String(String::from("new-value"))),
-                Err(Error::ConfigConflict)
-            );
-        }
-
-        #[rstest]
-        fn replace_all_the_values_for_a_multi_valued_key(mut config: Config) {
-            let key = &[
-                String::from("remote"),
-                String::from("origin"),
-                String::from("fetch"),
-            ];
-            let val = VariableValue::String(String::from("new-value"));
-
-            config.add(key, VariableValue::String(String::from("master")));
-            config.add(key, VariableValue::String(String::from("topic")));
-            config.replace_all(key, val.clone());
-
-            assert_eq!(config.get_all(key), vec![val]);
-        }
-
-        #[rstest]
         fn subsections(mut config: Config) -> Result<()> {
             config.set(
                 &[
@@ -587,6 +570,103 @@ mod tests {
             );
 
             Ok(())
+        }
+
+        mod with_multi_valued_keys {
+            use super::*;
+
+            #[fixture]
+            fn config() -> Config {
+                let path = NamedTempFile::new().unwrap().into_temp_path();
+
+                let mut config = Config::new(&path);
+                config.open().unwrap();
+
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+
+                config.add(key, VariableValue::String(String::from("master")));
+                config.add(key, VariableValue::String(String::from("topic")));
+
+                config
+            }
+
+            #[rstest]
+            fn add_multiple_values_for_a_key(config: Config) {
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+
+                assert_eq!(
+                    config.get(key),
+                    Some(VariableValue::String(String::from("topic")))
+                );
+                assert_eq!(
+                    config.get_all(key),
+                    vec![
+                        VariableValue::String(String::from("master")),
+                        VariableValue::String(String::from("topic")),
+                    ]
+                );
+            }
+
+            #[rstest]
+            fn refuse_to_set_a_value(mut config: Config) {
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+
+                assert_matches!(
+                    config.set(key, VariableValue::String(String::from("new-value"))),
+                    Err(Error::ConfigConflict(_))
+                );
+            }
+
+            #[rstest]
+            fn replace_all_the_values(mut config: Config) {
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+                let val = VariableValue::String(String::from("new-value"));
+
+                config.replace_all(key, val.clone());
+
+                assert_eq!(config.get_all(key), vec![val]);
+            }
+
+            #[rstest]
+            fn refuse_to_unset_a_value(mut config: Config) {
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+
+                assert_matches!(config.unset(key), Err(Error::ConfigConflict(_)));
+            }
+
+            #[rstest]
+            fn unset_all_the_values(mut config: Config) -> Result<()> {
+                let key = &[
+                    String::from("remote"),
+                    String::from("origin"),
+                    String::from("fetch"),
+                ];
+
+                config.unset_all(key, |_lines| Ok(()))?;
+                assert_eq!(config.get_all(key), vec![]);
+
+                Ok(())
+            }
         }
     }
 
@@ -766,6 +846,20 @@ mod tests {
 \teditor = ed
 ",
             )?;
+
+            Ok(())
+        }
+
+        #[rstest]
+        fn unset_a_variable(mut config: Config) -> Result<()> {
+            config.set(
+                &[String::from("merge"), String::from("conflictstyle")],
+                VariableValue::String(String::from("diff3")),
+            )?;
+            config.unset(&[String::from("merge"), String::from("ConflictStyle")])?;
+            config.save()?;
+
+            assert_file(&config, "")?;
 
             Ok(())
         }

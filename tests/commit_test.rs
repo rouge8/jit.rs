@@ -163,6 +163,42 @@ mod committing_to_branches {
     }
 }
 
+mod configuring_an_author {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        helper
+            .write_file(
+                ".git/config",
+                "\
+[user]
+\tname = A. N. User
+\temail = user@example.com
+",
+            )
+            .unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn use_the_author_information_from_the_config(mut helper: CommandHelper) -> Result<()> {
+        helper.write_file("file.txt", "1")?;
+        helper.jit_cmd(&["add", "."]);
+        helper.jit_cmd(&["commit", "-m", "first"]).assert().code(0);
+
+        let head = helper.load_commit("@")?;
+        assert_eq!(head.author.name, "A. N. User");
+        assert_eq!(head.author.email, "user@example.com");
+
+        Ok(())
+    }
+}
+
 mod reusing_messages {
     use super::*;
 

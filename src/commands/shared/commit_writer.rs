@@ -98,8 +98,29 @@ impl<'a> CommitWriter<'a> {
     }
 
     pub fn current_author(&self) -> Author {
-        let name = &self.ctx.env["GIT_AUTHOR_NAME"];
-        let email = &self.ctx.env["GIT_AUTHOR_EMAIL"];
+        let config_name = self
+            .ctx
+            .repo
+            .config
+            .get(&[String::from("user"), String::from("name")]);
+        let config_email = self
+            .ctx
+            .repo
+            .config
+            .get(&[String::from("user"), String::from("email")]);
+
+        let name = self
+            .ctx
+            .env
+            .get("GIT_AUTHOR_NAME")
+            .map(|name| name.to_owned())
+            .unwrap_or_else(|| format!("{}", config_name.unwrap()));
+        let email = self
+            .ctx
+            .env
+            .get("GIT_AUTHOR_EMAIL")
+            .map(|email| email.to_owned())
+            .unwrap_or_else(|| format!("{}", config_email.unwrap()));
 
         let author_date = if let Some(author_date_str) = self.ctx.env.get("GIT_AUTHOR_DATE") {
             DateTime::parse_from_rfc2822(author_date_str).expect("could not parse GIT_AUTHOR_DATE")
@@ -108,7 +129,7 @@ impl<'a> CommitWriter<'a> {
             now.with_timezone(now.offset())
         };
 
-        Author::new(name.clone(), email.clone(), author_date)
+        Author::new(name, email, author_date)
     }
 
     pub fn print_commit(&self, commit: &Commit) -> Result<()> {

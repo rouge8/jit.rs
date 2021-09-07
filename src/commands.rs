@@ -72,6 +72,8 @@ pub enum Command {
         abort: bool,
         #[structopt(long)]
         quit: bool,
+        #[structopt(short, long)]
+        mainline: Option<u32>,
     },
     Commit {
         #[structopt(short, long)]
@@ -164,6 +166,8 @@ pub enum Command {
         abort: bool,
         #[structopt(long)]
         quit: bool,
+        #[structopt(short, long)]
+        mainline: Option<u32>,
     },
     Rm {
         #[structopt(parse(from_os_str))]

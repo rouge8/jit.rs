@@ -406,3 +406,177 @@ fatal: Exiting because of an unresolved conflict.
         Ok(())
     }
 }
+
+///   f---f---f---f [main]
+///        \
+///         g---h---o---o [topic]
+///          \     /   /
+///           j---j---f [side]
+mod with_merges {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        // Commit to `main`
+        for message in ["one", "two", "three", "four"] {
+            let mut tree = HashMap::new();
+            tree.insert("f.txt", message);
+            commit_tree(&mut helper, message, &tree).unwrap();
+        }
+
+        // Commit to `topic`
+        helper.jit_cmd(&["branch", "topic", "@~2"]);
+        helper.jit_cmd(&["checkout", "topic"]);
+
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "five");
+        commit_tree(&mut helper, "five", &tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("h.txt", "six");
+        commit_tree(&mut helper, "six", &tree).unwrap();
+
+        // Commit to `side`
+        helper.jit_cmd(&["branch", "side", "@^"]);
+        helper.jit_cmd(&["checkout", "side"]);
+
+        let mut tree = HashMap::new();
+        tree.insert("j.txt", "seven");
+        commit_tree(&mut helper, "seven", &tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("j.txt", "eight");
+        commit_tree(&mut helper, "eight", &tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "nine");
+        commit_tree(&mut helper, "nine", &tree).unwrap();
+
+        // Merge `side` into `topic`
+        helper.jit_cmd(&["checkout", "topic"]);
+        helper.jit_cmd(&["merge", "side^", "-m", "merge side^"]);
+        helper.jit_cmd(&["merge", "side", "-m", "merge side"]);
+
+        // Back to `main`
+        helper.jit_cmd(&["checkout", "main"]);
+
+        helper
+    }
+
+    #[rstest]
+    fn refuse_to_cherry_pick_a_merge_without_specifying_a_parent(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        let oid = helper.resolve_revision("topic")?;
+
+        helper
+            .jit_cmd(&["cherry-pick", "topic"])
+            .assert()
+            .code(1)
+            .stderr(format!(
+                "error: commit {} is a merge but no -m option was given\n",
+                oid
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn refuse_to_cherry_pick_a_non_merge_commit_with_mainline(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        let oid = helper.resolve_revision("side")?;
+
+        helper
+            .jit_cmd(&["cherry-pick", "-m", "1", "side"])
+            .assert()
+            .code(1)
+            .stderr(format!(
+                "error: mainline was specified but commit {} is not a merge\n",
+                oid
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn cherry_pick_a_merge_based_on_its_first_parent(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["cherry-pick", "-m", "1", "topic^"])
+            .assert()
+            .code(0);
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "four");
+        tree.insert("j.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn cherry_pick_a_merge_based_on_its_second_parent(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["cherry-pick", "-m", "2", "topic^"])
+            .assert()
+            .code(0);
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "four");
+        tree.insert("h.txt", "six");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn resume_cherry_picking_merges_after_a_conflict(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["cherry-pick", "-m", "1", "topic", "topic^"])
+            .assert()
+            .code(1);
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("UU f.txt\n");
+
+        helper.write_file("f.txt", "resolved")?;
+        helper.jit_cmd(&["add", "f.txt"]);
+        helper
+            .jit_cmd(&["cherry-pick", "--continue"])
+            .assert()
+            .code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("@~3..")], Default::default())?;
+
+        assert_eq!(
+            revs.map(|commit| commit.message.trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("merge side^"),
+                String::from("merge side"),
+                String::from("four")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "resolved");
+        tree.insert("j.txt", "eight");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+}

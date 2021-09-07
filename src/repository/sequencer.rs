@@ -1,3 +1,4 @@
+use crate::config::{Config, VariableValue};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::Database;
@@ -7,6 +8,7 @@ use crate::refs::ORIG_HEAD;
 use crate::repository::Repository;
 use lazy_static::lazy_static;
 use regex::Regex;
+use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::io::Write;
@@ -53,6 +55,7 @@ pub struct Sequencer {
     head_path: PathBuf,
     todo_path: PathBuf,
     todo_file: Option<Lockfile>,
+    config: Config,
     commands: Vec<(Action, Commit)>,
 }
 
@@ -62,6 +65,7 @@ impl Sequencer {
         let abort_path = pathname.join("abort-safety");
         let head_path = pathname.join("head");
         let todo_path = pathname.join("todo");
+        let config_path = pathname.join("opts");
 
         Self {
             repo: Repository::new(repo.git_path.clone()),
@@ -70,20 +74,37 @@ impl Sequencer {
             head_path,
             todo_path,
             todo_file: None,
+            config: Config::new(&config_path),
             commands: Vec::new(),
         }
     }
 
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&mut self, options: &HashMap<&str, VariableValue>) -> Result<()> {
         fs::create_dir(&self.pathname)?;
 
         let head_oid = self.repo.refs.read_head()?.unwrap();
         self.write_file(&self.head_path, &head_oid)?;
         self.write_file(&self.abort_path, &head_oid)?;
 
+        self.config.open_for_update()?;
+        for (key, value) in options {
+            self.config.set(
+                &[String::from("options"), key.to_string()],
+                value.to_owned(),
+            )?;
+        }
+        self.config.save()?;
+
         self.open_todo_file()?;
 
         Ok(())
+    }
+
+    pub fn get_option(&mut self, name: &str) -> Result<Option<VariableValue>> {
+        self.config.open()?;
+        Ok(self
+            .config
+            .get(&[String::from("options"), name.to_string()]))
     }
 
     pub fn pick(&mut self, commit: &Commit) {

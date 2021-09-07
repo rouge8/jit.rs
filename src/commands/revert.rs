@@ -2,9 +2,10 @@ use crate::commands::commit::COMMIT_NOTES;
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::shared::sequencing::{
     fail_on_conflict, finish_commit, handle_abort, handle_quit, resolve_merge, resume_sequencer,
-    Mode,
+    select_parent, Mode,
 };
 use crate::commands::{Command, CommandContext};
+use crate::config::VariableValue;
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::Database;
@@ -14,21 +15,24 @@ use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::sequencer::Sequencer;
 use crate::rev_list::{RevList, RevListOptions};
+use std::collections::HashMap;
 
 pub struct Revert<'a> {
     ctx: CommandContext<'a>,
     args: Vec<String>,
     mode: Mode,
+    mainline: Option<u32>,
 }
 
 impl<'a> Revert<'a> {
     pub fn new(ctx: CommandContext<'a>) -> Self {
-        let (args, mode) = match &ctx.opt.cmd {
+        let (args, mode, mainline) = match &ctx.opt.cmd {
             Command::Revert {
                 args,
                 r#continue,
                 abort,
                 quit,
+                mainline,
             } => (
                 args.to_owned(),
                 if *r#continue {
@@ -40,16 +44,26 @@ impl<'a> Revert<'a> {
                 } else {
                     Mode::Run
                 },
+                mainline.to_owned(),
             ),
             _ => unreachable!(),
         };
 
-        Self { ctx, args, mode }
+        Self {
+            ctx,
+            args,
+            mode,
+            mainline,
+        }
     }
 
     pub fn run(&mut self) -> Result<()> {
         let mut sequencer = Sequencer::new(&self.ctx.repo);
         let commit_writer = self.commit_writer();
+        let mut options = HashMap::new();
+        if let Some(mainline) = self.mainline {
+            options.insert("mainline", VariableValue::Int(mainline as i32));
+        }
 
         match self.mode {
             Mode::Continue => self.handle_continue(&mut sequencer)?,
@@ -61,7 +75,7 @@ impl<'a> Revert<'a> {
             )?,
             Mode::Quit => handle_quit(&commit_writer, &mut sequencer, PendingCommitType::Revert)?,
             Mode::Run => {
-                sequencer.start()?;
+                sequencer.start(&options)?;
                 self.store_commit_sequence(&mut sequencer)?;
                 resume_sequencer(
                     &mut sequencer,
@@ -86,7 +100,7 @@ impl<'a> Revert<'a> {
     }
 
     fn revert(&mut self, sequencer: &mut Sequencer, commit: &Commit) -> Result<()> {
-        let inputs = self.revert_merge_inputs(commit)?;
+        let inputs = self.revert_merge_inputs(sequencer, commit)?;
         let message = self.revert_commit_message(commit);
 
         resolve_merge(&mut self.ctx.repo, &inputs)?;
@@ -119,14 +133,18 @@ impl<'a> Revert<'a> {
         Ok(())
     }
 
-    fn revert_merge_inputs(&self, commit: &Commit) -> Result<inputs::CherryPick> {
+    fn revert_merge_inputs(
+        &self,
+        sequencer: &mut Sequencer,
+        commit: &Commit,
+    ) -> Result<inputs::CherryPick> {
         let short = Database::short_oid(&commit.oid());
 
         let left_name = HEAD.to_owned();
         let left_oid = self.ctx.repo.refs.read_head()?.unwrap();
 
         let right_name = format!("parent of {}... {}", short, commit.title_line().trim());
-        let right_oid = commit.parent().unwrap();
+        let right_oid = select_parent(&self.ctx, sequencer, commit)?;
 
         Ok(inputs::CherryPick::new(
             left_name,

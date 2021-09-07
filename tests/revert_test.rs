@@ -395,3 +395,159 @@ fatal: Exiting because of an unresolved conflict.
         Ok(())
     }
 }
+
+///   f---f---f---o---o---h [main]
+///        \     /   /
+///         g---g---h [topic]
+mod with_merges {
+    use super::*;
+
+    #[fixture]
+    fn helper() -> CommandHelper {
+        let mut helper = CommandHelper::new();
+        helper.init();
+
+        // Commit to `main`
+        for message in ["one", "two", "three"] {
+            let mut tree = HashMap::new();
+            tree.insert("f.txt", message);
+            commit_tree(&mut helper, message, &tree).unwrap();
+        }
+
+        // Commit to `topic`
+        helper.jit_cmd(&["branch", "topic", "@^"]);
+        helper.jit_cmd(&["checkout", "topic"]);
+
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "four");
+        commit_tree(&mut helper, "four", &tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("g.txt", "five");
+        commit_tree(&mut helper, "five", &tree).unwrap();
+
+        let mut tree = HashMap::new();
+        tree.insert("h.txt", "six");
+        commit_tree(&mut helper, "six", &tree).unwrap();
+
+        // Merge `topic` into `main`
+        helper.jit_cmd(&["checkout", "main"]);
+
+        helper.jit_cmd(&["merge", "topic^", "-m", "merge topic^"]);
+        helper.jit_cmd(&["merge", "topic", "-m", "merge topic"]);
+
+        // One last commit on `main`
+        let mut tree = HashMap::new();
+        tree.insert("h.txt", "seven");
+        commit_tree(&mut helper, "seven", &tree).unwrap();
+
+        helper
+    }
+
+    #[rstest]
+    fn refuse_to_revert_a_merge_without_specifying_a_parent(
+        mut helper: CommandHelper,
+    ) -> Result<()> {
+        let oid = helper.resolve_revision("@^")?;
+
+        helper
+            .jit_cmd(&["revert", "@^"])
+            .assert()
+            .code(1)
+            .stderr(format!(
+                "error: commit {} is a merge but no -m option was given\n",
+                oid
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn refuse_to_revert_a_non_merge_commit_with_mainline(mut helper: CommandHelper) -> Result<()> {
+        let oid = helper.resolve_revision("@")?;
+
+        helper
+            .jit_cmd(&["revert", "-m", "1", "@"])
+            .assert()
+            .code(1)
+            .stderr(format!(
+                "error: mainline was specified but commit {} is not a merge\n",
+                oid
+            ));
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn revert_a_merge_based_on_its_first_parent(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["revert", "-m", "1", "@~2"])
+            .assert()
+            .code(0);
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "three");
+        tree.insert("h.txt", "seven");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn revert_a_merge_based_on_its_second_parent(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["revert", "-m", "2", "@~2"])
+            .assert()
+            .code(0);
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "two");
+        tree.insert("g.txt", "five");
+        tree.insert("h.txt", "seven");
+
+        helper.assert_index(&tree)?;
+
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+
+    #[rstest]
+    fn resume_reverting_merges_after_a_conflict(mut helper: CommandHelper) -> Result<()> {
+        helper
+            .jit_cmd(&["revert", "-m", "1", "@^", "@^^"])
+            .assert()
+            .code(1);
+
+        helper
+            .jit_cmd(&["status", "--porcelain"])
+            .assert()
+            .stdout("UD h.txt\n");
+
+        helper.jit_cmd(&["rm", "-f", "h.txt"]);
+        helper.jit_cmd(&["revert", "--continue"]).assert().code(0);
+
+        let revs = RevList::new(&helper.repo, &[String::from("@~3..")], Default::default())?;
+
+        assert_eq!(
+            revs.map(|commit| commit.title_line().trim().to_owned())
+                .collect::<Vec<_>>(),
+            vec![
+                String::from("Revert \"merge topic^\""),
+                String::from("Revert \"merge topic\""),
+                String::from("seven")
+            ]
+        );
+
+        let mut tree = HashMap::new();
+        tree.insert("f.txt", "three");
+
+        helper.assert_index(&tree)?;
+        helper.assert_workspace(&tree)?;
+
+        Ok(())
+    }
+}

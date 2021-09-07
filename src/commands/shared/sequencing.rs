@@ -1,5 +1,6 @@
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::CommandContext;
+use crate::config::VariableValue;
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::editor::Editor;
@@ -95,6 +96,47 @@ pub fn resume_sequencer(
 
     sequencer.quit()?;
     Err(Error::Exit(0))
+}
+
+#[allow(clippy::collapsible_else_if)]
+pub fn select_parent(
+    ctx: &CommandContext,
+    sequencer: &mut Sequencer,
+    commit: &Commit,
+) -> Result<String> {
+    let mainline = match sequencer.get_option("mainline")? {
+        Some(VariableValue::Int(mainline)) => Some(mainline as usize),
+        None => None,
+        _ => unimplemented!(),
+    };
+
+    if commit.is_merge() {
+        if let Some(mainline) = mainline {
+            Ok(commit.parents[mainline - 1].clone())
+        } else {
+            let mut stderr = ctx.stderr.borrow_mut();
+            writeln!(
+                stderr,
+                "error: commit {} is a merge but no -m option was given",
+                commit.oid()
+            )?;
+
+            Err(Error::Exit(1))
+        }
+    } else {
+        if let Some(_mainline) = mainline {
+            let mut stderr = ctx.stderr.borrow_mut();
+            writeln!(
+                stderr,
+                "error: mainline was specified but commit {} is not a merge",
+                commit.oid()
+            )?;
+
+            Err(Error::Exit(1))
+        } else {
+            Ok(commit.parent().unwrap())
+        }
+    }
 }
 
 pub fn handle_abort(

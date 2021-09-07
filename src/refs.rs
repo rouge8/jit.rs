@@ -17,6 +17,9 @@ pub const ORIG_HEAD: &str = "ORIG_HEAD";
 
 lazy_static! {
     static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
+    static ref REFS_DIR: PathBuf = PathBuf::from("refs");
+    static ref HEADS_DIR: PathBuf = REFS_DIR.join("heads");
+    static ref REMOTES_DIR: PathBuf = REFS_DIR.join("heads");
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -39,17 +42,20 @@ pub struct Refs {
     pathname: PathBuf,
     refs_path: PathBuf,
     heads_path: PathBuf,
+    remotes_path: PathBuf,
 }
 
 impl Refs {
     pub fn new(pathname: PathBuf) -> Self {
-        let refs_path = pathname.join("refs");
-        let heads_path = refs_path.join("heads");
+        let refs_path = pathname.join(&*REFS_DIR);
+        let heads_path = pathname.join(&*HEADS_DIR);
+        let remotes_path = pathname.join(&*REMOTES_DIR);
 
         Refs {
             pathname,
             refs_path,
             heads_path,
+            remotes_path,
         }
     }
 
@@ -136,17 +142,24 @@ impl Refs {
             Ref::SymRef { path } => {
                 let path = self.pathname.join(&path);
 
-                let dirs = [self.heads_path.clone(), self.pathname.clone()];
-                let prefix = dirs
-                    .iter()
-                    .find(|dir| {
-                        parent_directories(&path)
-                            .iter()
-                            .any(|parent| &parent == dir)
-                    })
-                    .unwrap();
+                let dirs = [
+                    self.remotes_path.clone(),
+                    self.heads_path.clone(),
+                    self.pathname.clone(),
+                ];
+                let prefix = dirs.iter().find(|dir| {
+                    parent_directories(&path)
+                        .iter()
+                        .any(|parent| &parent == dir)
+                });
 
-                path_to_string(path.strip_prefix(&prefix).unwrap())
+                let path = if let Some(prefix) = prefix {
+                    path.strip_prefix(&prefix).unwrap().to_owned()
+                } else {
+                    path
+                };
+
+                path_to_string(&path)
             }
             Ref::Ref { .. } => unreachable!(),
         }
@@ -197,6 +210,7 @@ impl Refs {
             self.pathname.clone(),
             self.refs_path.clone(),
             self.heads_path.clone(),
+            self.remotes_path.clone(),
         ];
 
         for prefix in &prefixes {

@@ -14,6 +14,7 @@ mod branch;
 mod checkout;
 mod cherry_pick;
 mod commit;
+mod config;
 mod diff;
 mod init;
 mod log;
@@ -29,6 +30,7 @@ use branch::Branch;
 use checkout::Checkout;
 use cherry_pick::CherryPick;
 use commit::Commit;
+use config::ConfigCommand as Config;
 use diff::Diff;
 use init::Init;
 use log::{Log, LogDecoration, LogFormat};
@@ -90,6 +92,29 @@ pub enum Command {
         reedit_message: Option<String>,
         #[structopt(long)]
         amend: bool,
+    },
+    Config {
+        args: Vec<String>,
+        #[structopt(long)]
+        local: bool,
+        #[structopt(long)]
+        global: bool,
+        #[structopt(long)]
+        system: bool,
+        #[structopt(short, long)]
+        file: Option<PathBuf>,
+        #[structopt(long)]
+        add: Option<String>,
+        #[structopt(long)]
+        replace_all: Option<String>,
+        #[structopt(long)]
+        get_all: Option<String>,
+        #[structopt(long)]
+        unset: Option<String>,
+        #[structopt(long)]
+        unset_all: Option<String>,
+        #[structopt(long)]
+        remove_section: Option<String>,
     },
     Diff {
         args: Vec<String>,
@@ -224,6 +249,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Commit { .. } => {
             let mut cmd = Commit::new(ctx);
+            cmd.run()
+        }
+        Command::Config { .. } => {
+            let mut cmd = Config::new(ctx);
             cmd.run()
         }
         Command::Diff { .. } => {

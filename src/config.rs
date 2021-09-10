@@ -30,6 +30,16 @@ lazy_static! {
 
     // TODO: Handle difference between Ruby's \Z and Rust's \z
     static ref INTEGER: Regex = Regex::new(r#"\A-?[1-9][0-9]*\z"#).unwrap();
+
+    static ref VALID_SECTION: Regex = RegexBuilder::new(r"^[a-z0-9-]+$")
+        .case_insensitive(true)
+        .build()
+        .unwrap();
+
+    static ref VALID_VARIABLE: Regex = RegexBuilder::new(r"^[a-z][a-z0-9-]*$")
+        .case_insensitive(true)
+        .build()
+        .unwrap();
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -131,6 +141,13 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn is_valid_key(key: &[&str]) -> bool {
+        let section = key.first().map_or_else(String::new, |key| key.to_string());
+        let variable = key.last().map_or_else(String::new, |key| key.to_string());
+
+        VALID_SECTION.is_match(&section) && VALID_VARIABLE.is_match(&variable)
+    }
+
     pub fn new(path: &Path) -> Self {
         Self {
             path: path.to_owned(),

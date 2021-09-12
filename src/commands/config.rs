@@ -181,7 +181,8 @@ impl<'a> ConfigCommand<'a> {
         F: Fn(ConfigOrStack) -> Vec<VariableValue>,
     {
         let values = if let Some(file) = &self.file {
-            let mut config = self.ctx.repo.config.file(file.clone()).borrow_mut();
+            let config = self.ctx.repo.config.file(file.clone());
+            let mut config = config.borrow_mut();
 
             config.open()?;
             f(ConfigOrStack::Config(&config))
@@ -213,7 +214,8 @@ impl<'a> ConfigCommand<'a> {
             ConfigFile::Local
         };
 
-        let mut config = self.ctx.repo.config.file(file).borrow_mut();
+        let config = self.ctx.repo.config.file(file);
+        let mut config = config.borrow_mut();
         config.open_for_update()?;
         match f(&mut config) {
             Ok(()) => (),

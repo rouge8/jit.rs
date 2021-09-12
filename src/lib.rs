@@ -10,6 +10,7 @@ pub mod merge;
 pub mod pager;
 pub mod path_filter;
 pub mod refs;
+pub mod remotes;
 pub mod repository;
 pub mod rev_list;
 pub mod revision;

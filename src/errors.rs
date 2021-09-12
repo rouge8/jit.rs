@@ -40,6 +40,8 @@ pub enum Error {
     ConfigParseError(usize, PathBuf),
     #[error("{0}")]
     ConfigConflict(String),
+    #[error("{0}")]
+    InvalidRemote(String),
     #[error("'{0}' is not a jit command.")]
     UnknownCommand(String),
     #[error("Exit {0}")]

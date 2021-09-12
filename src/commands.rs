@@ -19,6 +19,7 @@ mod diff;
 mod init;
 mod log;
 mod merge;
+mod remote;
 mod reset;
 mod revert;
 mod rm;
@@ -35,6 +36,7 @@ use diff::Diff;
 use init::Init;
 use log::{Log, LogDecoration, LogFormat};
 use merge::Merge;
+use remote::Remote;
 use reset::Reset;
 use revert::Revert;
 use rm::Rm;
@@ -173,6 +175,13 @@ pub enum Command {
         #[structopt(long, overrides_with = "edit")]
         no_edit: bool,
     },
+    Remote {
+        args: Vec<String>,
+        #[structopt(short, long)]
+        verbose: bool,
+        #[structopt(short)]
+        tracked: Vec<String>,
+    },
     Reset {
         #[structopt(parse(from_os_str))]
         files: Vec<PathBuf>,
@@ -269,6 +278,10 @@ pub fn execute<O: Write + 'static, E: Write + 'static>(
         }
         Command::Merge { .. } => {
             let mut cmd = Merge::new(ctx)?;
+            cmd.run()
+        }
+        Command::Remote { .. } => {
+            let mut cmd = Remote::new(ctx);
             cmd.run()
         }
         Command::Reset { .. } => {

@@ -3,6 +3,7 @@ use crate::errors::Result;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ConfigFile {
@@ -14,7 +15,7 @@ pub enum ConfigFile {
 
 #[derive(Debug)]
 pub struct Stack {
-    configs: HashMap<ConfigFile, RefCell<Config>>,
+    configs: HashMap<ConfigFile, Rc<RefCell<Config>>>,
 }
 
 impl Stack {
@@ -22,35 +23,35 @@ impl Stack {
         let mut configs = HashMap::new();
         configs.insert(
             ConfigFile::Local,
-            RefCell::new(Config::new(&git_path.join("config"))),
+            Rc::new(RefCell::new(Config::new(&git_path.join("config")))),
         );
         configs.insert(
             ConfigFile::Global,
-            RefCell::new(Config::new(
+            Rc::new(RefCell::new(Config::new(
                 &dirs::home_dir()
                     .unwrap_or_else(|| PathBuf::from("/"))
                     .join(".gitconfig"),
-            )),
+            ))),
         );
         configs.insert(
             ConfigFile::System,
-            RefCell::new(Config::new(&PathBuf::from("/etc/gitconfig"))),
+            Rc::new(RefCell::new(Config::new(&PathBuf::from("/etc/gitconfig")))),
         );
 
         Self { configs }
     }
 
-    pub fn file(&mut self, name: ConfigFile) -> &RefCell<Config> {
+    pub fn file(&mut self, name: ConfigFile) -> Rc<RefCell<Config>> {
         match name {
-            ConfigFile::Local => &self.configs[&ConfigFile::Local],
-            ConfigFile::Global => &self.configs[&ConfigFile::Global],
-            ConfigFile::System => &self.configs[&ConfigFile::System],
+            ConfigFile::Local => Rc::clone(&self.configs[&ConfigFile::Local]),
+            ConfigFile::Global => Rc::clone(&self.configs[&ConfigFile::Global]),
+            ConfigFile::System => Rc::clone(&self.configs[&ConfigFile::System]),
             ConfigFile::File(path) => {
                 self.configs.insert(
                     ConfigFile::File(path.clone()),
-                    RefCell::new(Config::new(&path)),
+                    Rc::new(RefCell::new(Config::new(&path))),
                 );
-                &self.configs[&ConfigFile::File(path)]
+                Rc::clone(&self.configs[&ConfigFile::File(path)])
             }
         }
     }

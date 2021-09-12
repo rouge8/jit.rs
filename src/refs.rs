@@ -18,8 +18,8 @@ pub const ORIG_HEAD: &str = "ORIG_HEAD";
 lazy_static! {
     static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
     static ref REFS_DIR: PathBuf = PathBuf::from("refs");
-    static ref HEADS_DIR: PathBuf = REFS_DIR.join("heads");
-    static ref REMOTES_DIR: PathBuf = REFS_DIR.join("heads");
+    pub static ref HEADS_DIR: PathBuf = REFS_DIR.join("heads");
+    pub static ref REMOTES_DIR: PathBuf = REFS_DIR.join("remotes");
 }
 
 #[derive(Debug, PartialEq, Eq)]

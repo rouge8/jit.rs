@@ -1,8 +1,9 @@
-use crate::config::stack::Stack as ConfigStack;
+use crate::config::stack::{ConfigFile, Stack as ConfigStack};
 use crate::database::{blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database};
 use crate::errors::Result;
 use crate::index::{Entry as IndexEntry, Index};
 use crate::refs::Refs;
+use crate::remotes::Remotes;
 use crate::repository::pending_commit::PendingCommit;
 use crate::workspace::Workspace;
 use std::fs;
@@ -41,11 +42,14 @@ pub struct Repository {
     pub refs: Refs,
     pub workspace: Workspace,
     pub config: ConfigStack,
+    pub remotes: Remotes,
 }
 
 impl Repository {
     pub fn new(git_path: PathBuf) -> Self {
         let root_path = git_path.parent().unwrap().to_path_buf();
+        let mut config = ConfigStack::new(&git_path);
+        let remotes = Remotes::new(config.file(ConfigFile::Local));
 
         Repository {
             root_path,
@@ -54,7 +58,8 @@ impl Repository {
             index: Index::new(git_path.join("index")),
             refs: Refs::new(git_path.clone()),
             workspace: Workspace::new(git_path.parent().unwrap().to_path_buf()),
-            config: ConfigStack::new(&git_path),
+            config,
+            remotes,
         }
     }
 

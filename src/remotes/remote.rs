@@ -26,6 +26,14 @@ impl Remote {
         ])
     }
 
+    pub fn fetch_specs(&self) -> Option<VariableValue> {
+        self.config.borrow().get(&[
+            String::from("remote"),
+            self.name.to_string(),
+            String::from("fetch"),
+        ])
+    }
+
     pub fn push_url(&self) -> Option<VariableValue> {
         if let Some(push_url) = self.config.borrow().get(&[
             String::from("remote"),
@@ -36,5 +44,13 @@ impl Remote {
         } else {
             self.fetch_url()
         }
+    }
+
+    pub fn uploader(&self) -> Option<VariableValue> {
+        self.config.borrow().get(&[
+            String::from("remote"),
+            self.name.to_string(),
+            String::from("uploadpack"),
+        ])
     }
 }

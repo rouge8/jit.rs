@@ -12,7 +12,7 @@ anyhow = "1.0.40"
 atty = "0.2.14"
 chrono = "0.4.19"
 colored = "2.0.0"
-dirs = "3.0.2"
+dirs = "4.0.0"
 flate2 = "1.0.20"
 hex = { version = "0.4.3", features = ["alloc"] }
 indexmap = "1.7.0"

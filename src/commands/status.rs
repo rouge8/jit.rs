@@ -19,40 +19,32 @@ pub struct Status<'a> {
 }
 
 lazy_static! {
-    static ref SHORT_STATUS: HashMap<ChangeType, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert(ChangeType::Added, "A");
-        m.insert(ChangeType::Deleted, "D");
-        m.insert(ChangeType::Modified, "M");
-        m
-    };
-    static ref LONG_STATUS: HashMap<ChangeType, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert(ChangeType::Added, "new file:");
-        m.insert(ChangeType::Deleted, "deleted:");
-        m.insert(ChangeType::Modified, "modified:");
-        m
-    };
-    static ref CONFLICT_SHORT_STATUS: HashMap<Vec<u16>, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert(vec![1, 2, 3], "UU");
-        m.insert(vec![1, 2], "UD");
-        m.insert(vec![1, 3], "DU");
-        m.insert(vec![2, 3], "AA");
-        m.insert(vec![2], "AU");
-        m.insert(vec![3], "UA");
-        m
-    };
-    static ref CONFLICT_LONG_STATUS: HashMap<Vec<u16>, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert(vec![1, 2, 3], "both modified:");
-        m.insert(vec![1, 2], "deleted by them:");
-        m.insert(vec![1, 3], "deleted by us:");
-        m.insert(vec![2, 3], "both added:");
-        m.insert(vec![2], "added by us:");
-        m.insert(vec![3], "added by them:");
-        m
-    };
+    static ref SHORT_STATUS: HashMap<ChangeType, &'static str> = HashMap::from([
+        (ChangeType::Added, "A"),
+        (ChangeType::Deleted, "D"),
+        (ChangeType::Modified, "M"),
+    ]);
+    static ref LONG_STATUS: HashMap<ChangeType, &'static str> = HashMap::from([
+        (ChangeType::Added, "new file:"),
+        (ChangeType::Deleted, "deleted:"),
+        (ChangeType::Modified, "modified:"),
+    ]);
+    static ref CONFLICT_SHORT_STATUS: HashMap<Vec<u16>, &'static str> = HashMap::from([
+        (vec![1, 2, 3], "UU"),
+        (vec![1, 2], "UD"),
+        (vec![1, 3], "DU"),
+        (vec![2, 3], "AA"),
+        (vec![2], "AU"),
+        (vec![3], "UA"),
+    ]);
+    static ref CONFLICT_LONG_STATUS: HashMap<Vec<u16>, &'static str> = HashMap::from([
+        (vec![1, 2, 3], "both modified:"),
+        (vec![1, 2], "deleted by them:"),
+        (vec![1, 3], "deleted by us:"),
+        (vec![2, 3], "both added:"),
+        (vec![2], "added by us:"),
+        (vec![3], "added by them:"),
+    ]);
 }
 
 static LABEL_WIDTH: usize = 12;

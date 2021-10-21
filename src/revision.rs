@@ -20,11 +20,7 @@ lazy_static! {
     .unwrap();
     static ref PARENT: Regex = Regex::new(r"^(.+)\^(\d*)$").unwrap();
     static ref ANCESTOR: Regex = Regex::new(r"^(.+)~(\d+)$").unwrap();
-    static ref REF_ALIASES: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("@", HEAD);
-        m
-    };
+    static ref REF_ALIASES: HashMap<&'static str, &'static str> = HashMap::from([("@", HEAD)]);
 }
 
 pub const COMMIT: &str = "commit";

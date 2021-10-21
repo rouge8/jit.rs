@@ -7,12 +7,8 @@ use std::process::{Child, Command, Stdio};
 const PAGER_CMD: &str = "less";
 
 lazy_static! {
-    static ref PAGER_ENV: HashMap<&'static str, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert("LESS", "FRX");
-        m.insert("LV", "-c");
-        m
-    };
+    static ref PAGER_ENV: HashMap<&'static str, &'static str> =
+        HashMap::from([("LESS", "FRX"), ("LV", "-c"),]);
 }
 
 pub struct Pager {

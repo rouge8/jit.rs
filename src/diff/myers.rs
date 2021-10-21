@@ -82,8 +82,7 @@ impl Myers {
         let m = self.b.len() as isize;
         let max = n + m;
 
-        let mut v = BTreeMap::new();
-        v.insert(1_isize, 0);
+        let mut v = BTreeMap::from([(1_isize, 0)]);
         let mut trace = vec![];
 
         for d in 0..=max {

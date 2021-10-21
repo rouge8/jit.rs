@@ -11,38 +11,36 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 lazy_static! {
-    static ref MESSAGES: HashMap<ConflictType, (&'static str, &'static str)> = {
-        let mut m = HashMap::new();
-        m.insert(
+    static ref MESSAGES: HashMap<ConflictType, (&'static str, &'static str)> = HashMap::from([
+        (
             ConflictType::StaleFile,
             (
                 "Your local changes to the following files would be overwritten by checkout:",
                 "Please commit your changes or stash them before you switch branches.",
             ),
-        );
-        m.insert(
+        ),
+        (
             ConflictType::StaleDirectory,
             (
                 "Updating the following directories would lose untracked files in them:",
                 "",
             ),
-        );
-        m.insert(
+        ),
+        (
             ConflictType::UntrackedOverwritten,
             (
                 "The following untracked working tree files would be overwritten by checkout:",
                 "Please move or remove them before you switch branches.",
             ),
-        );
-        m.insert(
+        ),
+        (
             ConflictType::UntrackedRemoved,
             (
                 "The following untracked working tree files would be removed by checkout:",
                 "Please move or remove them before you switch branches.",
             ),
-        );
-        m
-    };
+        ),
+    ]);
 }
 
 pub struct Migration<'a> {
@@ -72,24 +70,18 @@ pub enum ConflictType {
 
 impl<'a> Migration<'a> {
     pub fn new(repo: &'a mut Repository, diff: TreeDiffChanges) -> Self {
-        let changes = {
-            let mut changes = HashMap::new();
-            changes.insert(Action::Create, vec![]);
-            changes.insert(Action::Delete, vec![]);
-            changes.insert(Action::Update, vec![]);
+        let changes = HashMap::from([
+            (Action::Create, vec![]),
+            (Action::Delete, vec![]),
+            (Action::Update, vec![]),
+        ]);
 
-            changes
-        };
-
-        let conflicts = {
-            let mut conflicts = HashMap::new();
-            conflicts.insert(ConflictType::StaleFile, BTreeSet::new());
-            conflicts.insert(ConflictType::StaleDirectory, BTreeSet::new());
-            conflicts.insert(ConflictType::UntrackedOverwritten, BTreeSet::new());
-            conflicts.insert(ConflictType::UntrackedRemoved, BTreeSet::new());
-
-            conflicts
-        };
+        let conflicts = HashMap::from([
+            (ConflictType::StaleFile, BTreeSet::new()),
+            (ConflictType::StaleDirectory, BTreeSet::new()),
+            (ConflictType::UntrackedOverwritten, BTreeSet::new()),
+            (ConflictType::UntrackedRemoved, BTreeSet::new()),
+        ]);
 
         Self {
             repo,

@@ -20,23 +20,24 @@ pub struct Stack {
 
 impl Stack {
     pub fn new(git_path: &Path) -> Self {
-        let mut configs = HashMap::new();
-        configs.insert(
-            ConfigFile::Local,
-            Rc::new(RefCell::new(Config::new(&git_path.join("config")))),
-        );
-        configs.insert(
-            ConfigFile::Global,
-            Rc::new(RefCell::new(Config::new(
-                &dirs::home_dir()
-                    .unwrap_or_else(|| PathBuf::from("/"))
-                    .join(".gitconfig"),
-            ))),
-        );
-        configs.insert(
-            ConfigFile::System,
-            Rc::new(RefCell::new(Config::new(&PathBuf::from("/etc/gitconfig")))),
-        );
+        let configs = HashMap::from([
+            (
+                ConfigFile::Local,
+                Rc::new(RefCell::new(Config::new(&git_path.join("config")))),
+            ),
+            (
+                ConfigFile::Global,
+                Rc::new(RefCell::new(Config::new(
+                    &dirs::home_dir()
+                        .unwrap_or_else(|| PathBuf::from("/"))
+                        .join(".gitconfig"),
+                ))),
+            ),
+            (
+                ConfigFile::System,
+                Rc::new(RefCell::new(Config::new(&PathBuf::from("/etc/gitconfig")))),
+            ),
+        ]);
 
         Self { configs }
     }

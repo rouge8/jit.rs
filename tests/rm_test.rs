@@ -73,8 +73,7 @@ error: the following file has local modifications:
         helper.repo.index.load()?;
         assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -106,8 +105,7 @@ error: the following file has changes staged in the index:
         helper.repo.index.load()?;
         assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -149,8 +147,7 @@ error: the following file has changes staged in the index:
         helper.repo.index.load()?;
         assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
+        let workspace = HashMap::from([("f.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -166,8 +163,7 @@ error: the following file has changes staged in the index:
         helper.repo.index.load()?;
         assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -184,8 +180,7 @@ error: the following file has changes staged in the index:
         helper.repo.index.load()?;
         assert!(!helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -212,8 +207,7 @@ error: the following file has staged content different from both the file and th
         helper.repo.index.load()?;
         assert!(helper.repo.index.tracked_file(&PathBuf::from("f.txt")));
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "3");
+        let workspace = HashMap::from([("f.txt", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -244,8 +238,7 @@ error: the following file has changes staged in the index:
 ",
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
+        let workspace = HashMap::from([("f.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -297,8 +290,7 @@ mod with_a_tree {
             vec!["outer/g.txt"]
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("outer/g.txt", "2");
+        let workspace = HashMap::from([("outer/g.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -324,10 +316,11 @@ mod with_a_tree {
             vec!["f.txt", "outer/g.txt", "outer/inner/h.txt"]
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("outer/g.txt", "2");
-        workspace.insert("outer/inner/h.txt", "3");
+        let workspace = HashMap::from([
+            ("f.txt", "1"),
+            ("outer/g.txt", "2"),
+            ("outer/inner/h.txt", "3"),
+        ]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -356,10 +349,11 @@ mod with_a_tree {
             vec!["f.txt", "outer/g.txt", "outer/inner/h.txt"]
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt/nested", "keep me");
-        workspace.insert("outer/g.txt", "2");
-        workspace.insert("outer/inner/h.txt", "3");
+        let workspace = HashMap::from([
+            ("f.txt/nested", "keep me"),
+            ("outer/g.txt", "2"),
+            ("outer/inner/h.txt", "3"),
+        ]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -381,8 +375,7 @@ mod with_a_tree {
             vec!["f.txt"]
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
+        let workspace = HashMap::from([("f.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -405,9 +398,7 @@ mod with_a_tree {
             vec!["f.txt"]
         );
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("outer/inner/j.txt", "4");
+        let workspace = HashMap::from([("f.txt", "1"), ("outer/inner/j.txt", "4")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())

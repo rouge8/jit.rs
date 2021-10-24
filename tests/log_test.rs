@@ -289,18 +289,13 @@ mod with_commits_changing_different_files {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut tree_first = HashMap::new();
-        tree_first.insert("a/1.txt", "1");
-        tree_first.insert("b/c/2.txt", "2");
+        let tree_first = HashMap::from([("a/1.txt", "1"), ("b/c/2.txt", "2")]);
         commit_tree(&mut helper, "first", tree_first).unwrap();
 
-        let mut tree_second = HashMap::new();
-        tree_second.insert("a/1.txt", "10");
-        tree_second.insert("b/3.txt", "3");
+        let tree_second = HashMap::from([("a/1.txt", "10"), ("b/3.txt", "3")]);
         commit_tree(&mut helper, "second", tree_second).unwrap();
 
-        let mut tree_third = HashMap::new();
-        tree_third.insert("b/c/2.txt", "4");
+        let tree_third = HashMap::from([("b/c/2.txt", "4")]);
         commit_tree(&mut helper, "third", tree_third).unwrap();
 
         helper
@@ -585,13 +580,9 @@ mod with_a_graph_of_commits {
         helper
             .env
             .insert(String::from("GIT_AUTHOR_DATE"), time.to_rfc2822());
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "0");
-        tree.insert("g.txt", "0");
+        let tree = HashMap::from([("f.txt", "0"), ("g.txt", "0")]);
         commit_tree(&mut helper, "A", tree).unwrap();
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "B");
-        tree.insert("h.txt", "one\ntwo\nthree\n");
+        let tree = HashMap::from([("f.txt", "B"), ("h.txt", "one\ntwo\nthree\n")]);
         commit_tree(&mut helper, "B", tree).unwrap();
 
         helper.env.insert(
@@ -599,10 +590,8 @@ mod with_a_graph_of_commits {
             (time + Duration::seconds(1)).to_rfc2822(),
         );
         for n in ["C", "D"] {
-            let mut tree = HashMap::new();
-            tree.insert("f.txt", n);
             let h = format!("{}\ntwo\nthree\n", n);
-            tree.insert("h.txt", h.as_str());
+            let tree = HashMap::from([("f.txt", n), ("h.txt", h.as_str())]);
             commit_tree(&mut helper, n, tree).unwrap();
         }
 
@@ -614,10 +603,8 @@ mod with_a_graph_of_commits {
             (time + Duration::seconds(2)).to_rfc2822(),
         );
         for n in ["E", "F", "G", "H"] {
-            let mut tree = HashMap::new();
-            tree.insert("g.txt", n);
             let h = format!("one\ntwo\n{}\n", n);
-            tree.insert("h.txt", h.as_str());
+            let tree = HashMap::from([("g.txt", n), ("h.txt", h.as_str())]);
             commit_tree(&mut helper, n, tree).unwrap();
         }
 
@@ -631,8 +618,7 @@ mod with_a_graph_of_commits {
             String::from("GIT_AUTHOR_DATE"),
             (time + Duration::seconds(3)).to_rfc2822(),
         );
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "K");
+        let tree = HashMap::from([("f.txt", "K")]);
         commit_tree(&mut helper, "K", tree).unwrap();
 
         helper
@@ -868,8 +854,7 @@ index 4e5ce14..4139691 100644
                 (time + Duration::seconds(1)).to_rfc2822(),
             );
             for n in ["C", "0"] {
-                let mut tree = HashMap::new();
-                tree.insert("g.txt", n);
+                let tree = HashMap::from([("g.txt", n)]);
                 commit_tree(&mut base_helper, n, tree).unwrap();
             }
 
@@ -882,8 +867,7 @@ index 4e5ce14..4139691 100644
                 String::from("GIT_AUTHOR_DATE"),
                 (time + Duration::seconds(3)).to_rfc2822(),
             );
-            let mut tree = HashMap::new();
-            tree.insert("f.txt", "K");
+            let tree = HashMap::from([("f.txt", "K")]);
             commit_tree(&mut base_helper, "K", tree).unwrap();
 
             base_helper

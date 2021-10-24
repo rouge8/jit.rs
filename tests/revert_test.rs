@@ -29,25 +29,20 @@ fn base_helper() -> CommandHelper {
     helper.init();
 
     for message in ["one", "two", "three", "four"] {
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", message);
+        let tree = HashMap::from([("f.txt", message)]);
         commit_tree(&mut helper, message, &tree).unwrap();
     }
 
-    let mut tree = HashMap::new();
-    tree.insert("g.txt", "five");
+    let tree = HashMap::from([("g.txt", "five")]);
     commit_tree(&mut helper, "five", &tree).unwrap();
 
-    let mut tree = HashMap::new();
-    tree.insert("f.txt", "six");
+    let tree = HashMap::from([("f.txt", "six")]);
     commit_tree(&mut helper, "six", &tree).unwrap();
 
-    let mut tree = HashMap::new();
-    tree.insert("g.txt", "seven");
+    let tree = HashMap::from([("g.txt", "seven")]);
     commit_tree(&mut helper, "seven", &tree).unwrap();
 
-    let mut tree = HashMap::new();
-    tree.insert("g.txt", "eight");
+    let tree = HashMap::from([("g.txt", "eight")]);
     commit_tree(&mut helper, "eight", &tree).unwrap();
 
     helper
@@ -77,9 +72,7 @@ mod with_a_chain_of_commits {
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "four");
-        tree.insert("g.txt", "eight");
+        let tree = HashMap::from([("f.txt", "four"), ("g.txt", "eight")]);
 
         helper.assert_index(&tree)?;
 
@@ -94,8 +87,7 @@ mod with_a_chain_of_commits {
 
         let short = Database::short_oid(&helper.resolve_revision("@~4")?);
 
-        let mut workspace = HashMap::new();
-        workspace.insert("g.txt", "eight");
+        let mut workspace = HashMap::from([("g.txt", "eight")]);
         let conflict = format!(
             "\
 <<<<<<< HEAD
@@ -119,9 +111,7 @@ three>>>>>>> parent of {}... four
     fn fail_to_revert_a_modify_delete_conflict(mut helper: CommandHelper) -> Result<()> {
         helper.jit_cmd(&["revert", "@~3"]).assert().code(1);
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "six");
-        workspace.insert("g.txt", "eight");
+        let workspace = HashMap::from([("f.txt", "six"), ("g.txt", "eight")]);
         helper.assert_workspace(&workspace)?;
 
         helper
@@ -160,9 +150,7 @@ three>>>>>>> parent of {}... four
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "six");
-        tree.insert("g.txt", "eight");
+        let tree = HashMap::from([("f.txt", "six"), ("g.txt", "eight")]);
 
         helper.assert_index(&tree)?;
 
@@ -217,9 +205,7 @@ three>>>>>>> parent of {}... four
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "four");
-        tree.insert("g.txt", "five");
+        let tree = HashMap::from([("f.txt", "four"), ("g.txt", "five")]);
 
         helper.assert_index(&tree)?;
 
@@ -302,8 +288,7 @@ fatal: Exiting because of an unresolved conflict.
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "four");
+        let tree = HashMap::from([("f.txt", "four")]);
 
         helper.assert_index(&tree)?;
         helper.assert_workspace(&tree)?;
@@ -334,8 +319,7 @@ fatal: Exiting because of an unresolved conflict.
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "four");
+        let tree = HashMap::from([("f.txt", "four")]);
 
         helper.assert_index(&tree)?;
         helper.assert_workspace(&tree)?;
@@ -409,8 +393,7 @@ mod with_merges {
 
         // Commit to `main`
         for message in ["one", "two", "three"] {
-            let mut tree = HashMap::new();
-            tree.insert("f.txt", message);
+            let tree = HashMap::from([("f.txt", message)]);
             commit_tree(&mut helper, message, &tree).unwrap();
         }
 
@@ -418,16 +401,13 @@ mod with_merges {
         helper.jit_cmd(&["branch", "topic", "@^"]);
         helper.jit_cmd(&["checkout", "topic"]);
 
-        let mut tree = HashMap::new();
-        tree.insert("g.txt", "four");
+        let tree = HashMap::from([("g.txt", "four")]);
         commit_tree(&mut helper, "four", &tree).unwrap();
 
-        let mut tree = HashMap::new();
-        tree.insert("g.txt", "five");
+        let tree = HashMap::from([("g.txt", "five")]);
         commit_tree(&mut helper, "five", &tree).unwrap();
 
-        let mut tree = HashMap::new();
-        tree.insert("h.txt", "six");
+        let tree = HashMap::from([("h.txt", "six")]);
         commit_tree(&mut helper, "six", &tree).unwrap();
 
         // Merge `topic` into `main`
@@ -437,8 +417,7 @@ mod with_merges {
         helper.jit_cmd(&["merge", "topic", "-m", "merge topic"]);
 
         // One last commit on `main`
-        let mut tree = HashMap::new();
-        tree.insert("h.txt", "seven");
+        let tree = HashMap::from([("h.txt", "seven")]);
         commit_tree(&mut helper, "seven", &tree).unwrap();
 
         helper
@@ -485,9 +464,7 @@ mod with_merges {
             .assert()
             .code(0);
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "three");
-        tree.insert("h.txt", "seven");
+        let tree = HashMap::from([("f.txt", "three"), ("h.txt", "seven")]);
 
         helper.assert_index(&tree)?;
 
@@ -503,10 +480,7 @@ mod with_merges {
             .assert()
             .code(0);
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "two");
-        tree.insert("g.txt", "five");
-        tree.insert("h.txt", "seven");
+        let tree = HashMap::from([("f.txt", "two"), ("g.txt", "five"), ("h.txt", "seven")]);
 
         helper.assert_index(&tree)?;
 
@@ -542,8 +516,7 @@ mod with_merges {
             ]
         );
 
-        let mut tree = HashMap::new();
-        tree.insert("f.txt", "three");
+        let tree = HashMap::from([("f.txt", "three")]);
 
         helper.assert_index(&tree)?;
         helper.assert_workspace(&tree)?;

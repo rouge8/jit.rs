@@ -136,16 +136,13 @@ mod merging_an_ancestor {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("1"));
+        let tree = BTreeMap::from([("f.txt", Change::content("1"))]);
         commit_tree(&mut helper, "A", tree).unwrap();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("2"));
+        let tree = BTreeMap::from([("f.txt", Change::content("2"))]);
         commit_tree(&mut helper, "B", tree).unwrap();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("3"));
+        let tree = BTreeMap::from([("f.txt", Change::content("3"))]);
         commit_tree(&mut helper, "C", tree).unwrap();
 
         helper
@@ -182,16 +179,13 @@ mod fast_forward_merge {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("1"));
+        let tree = BTreeMap::from([("f.txt", Change::content("1"))]);
         commit_tree(&mut helper, "A", tree).unwrap();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("2"));
+        let tree = BTreeMap::from([("f.txt", Change::content("2"))]);
         commit_tree(&mut helper, "B", tree).unwrap();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("3"));
+        let tree = BTreeMap::from([("f.txt", Change::content("3"))]);
         commit_tree(&mut helper, "C", tree).unwrap();
 
         helper.jit_cmd(&["branch", "topic", "@^^"]);
@@ -241,15 +235,14 @@ mod unconflicted_merge_with_two_files {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
-        base.insert("g.txt", Change::content("1"));
+        let base = BTreeMap::from([
+            ("f.txt", Change::content("1")),
+            ("g.txt", Change::content("1")),
+        ]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::content("2"));
+        let right = BTreeMap::from([("g.txt", Change::content("2"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -258,9 +251,7 @@ mod unconflicted_merge_with_two_files {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
-        workspace.insert("g.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2"), ("g.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -282,15 +273,14 @@ mod unconflicted_merge_with_a_deleted_file {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
-        base.insert("g.txt", Change::content("1"));
+        let base = BTreeMap::from([
+            ("f.txt", Change::content("1")),
+            ("g.txt", Change::content("1")),
+        ]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::delete());
+        let right = BTreeMap::from([("g.txt", Change::delete())]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -299,8 +289,7 @@ mod unconflicted_merge_with_a_deleted_file {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -322,14 +311,11 @@ mod unconflicted_merge_same_addition_on_both_sides {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt", Change::content("2"));
+        let left = BTreeMap::from([("g.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::content("2"));
+        let right = BTreeMap::from([("g.txt", Change::content("2"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -338,9 +324,7 @@ mod unconflicted_merge_same_addition_on_both_sides {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("g.txt", "2");
+        let workspace = HashMap::from([("f.txt", "1"), ("g.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -362,14 +346,11 @@ mod unconflicted_merge_same_edit_on_both_sides {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("2"));
+        let right = BTreeMap::from([("f.txt", Change::content("2"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -378,8 +359,7 @@ mod unconflicted_merge_same_edit_on_both_sides {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -401,14 +381,11 @@ mod unconflicted_merge_in_file_merge_possible {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1\n2\n3\n"));
+        let base = BTreeMap::from([("f.txt", Change::content("1\n2\n3\n"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("4\n2\n3\n"));
+        let left = BTreeMap::from([("f.txt", Change::content("4\n2\n3\n"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("1\n2\n5\n"));
+        let right = BTreeMap::from([("f.txt", Change::content("1\n2\n5\n"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -417,8 +394,7 @@ mod unconflicted_merge_in_file_merge_possible {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "4\n2\n5\n");
+        let workspace = HashMap::from([("f.txt", "4\n2\n5\n")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -440,14 +416,11 @@ mod unconflicted_merge_edit_and_mode_change {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::executable());
+        let right = BTreeMap::from([("f.txt", Change::executable())]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -456,8 +429,7 @@ mod unconflicted_merge_edit_and_mode_change {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
         helper.assert_executable("f.txt");
 
@@ -480,14 +452,11 @@ mod unconflicted_merge_mode_change_and_edit {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::executable());
+        let left = BTreeMap::from([("f.txt", Change::executable())]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("3"));
+        let right = BTreeMap::from([("f.txt", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -496,8 +465,7 @@ mod unconflicted_merge_mode_change_and_edit {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "3");
+        let workspace = HashMap::from([("f.txt", "3")]);
         helper.assert_workspace(&workspace)?;
         helper.assert_executable("f.txt");
 
@@ -520,15 +488,14 @@ mod unconflicted_merge_same_deletion_on_both_sides {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
-        base.insert("g.txt", Change::content("1"));
+        let base = BTreeMap::from([
+            ("f.txt", Change::content("1")),
+            ("g.txt", Change::content("1")),
+        ]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt", Change::delete());
+        let left = BTreeMap::from([("g.txt", Change::delete())]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::delete());
+        let right = BTreeMap::from([("g.txt", Change::delete())]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -537,8 +504,7 @@ mod unconflicted_merge_same_deletion_on_both_sides {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
+        let workspace = HashMap::from([("f.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -560,14 +526,11 @@ mod unconflicted_merge_delete_add_parent {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("nest/f.txt", Change::content("1"));
+        let base = BTreeMap::from([("nest/f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("nest/f.txt", Change::delete());
+        let left = BTreeMap::from([("nest/f.txt", Change::delete())]);
 
-        let mut right = BTreeMap::new();
-        right.insert("nest", Change::content("3"));
+        let right = BTreeMap::from([("nest", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -576,8 +539,7 @@ mod unconflicted_merge_delete_add_parent {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("nest", "3");
+        let workspace = HashMap::from([("nest", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -599,15 +561,14 @@ mod unconflicted_merge_delete_add_child {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("nest/f.txt", Change::content("1"));
+        let base = BTreeMap::from([("nest/f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("nest/f.txt", Change::delete());
+        let left = BTreeMap::from([("nest/f.txt", Change::delete())]);
 
-        let mut right = BTreeMap::new();
-        right.insert("nest", Change::delete());
-        right.insert("nest/f.txt/g.txt", Change::content("3"));
+        let right = BTreeMap::from([
+            ("nest", Change::delete()),
+            ("nest/f.txt/g.txt", Change::content("3")),
+        ]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -616,8 +577,7 @@ mod unconflicted_merge_delete_add_child {
 
     #[rstest]
     fn put_the_combined_changes_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("nest/f.txt/g.txt", "3");
+        let workspace = HashMap::from([("nest/f.txt/g.txt", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -639,14 +599,11 @@ mod conflicted_merge_add_add {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt", Change::content("2\n"));
+        let left = BTreeMap::from([("g.txt", Change::content("2\n"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::content("3\n"));
+        let right = BTreeMap::from([("g.txt", Change::content("3\n"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -666,18 +623,19 @@ Automatic merge failed; fix conflicts and then commit the result.
 
     #[rstest]
     fn put_the_conflicted_file_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert(
-            "g.txt",
-            "\
+        let workspace = HashMap::from([
+            ("f.txt", "1"),
+            (
+                "g.txt",
+                "\
 <<<<<<< HEAD
 2
 =======
 3
 >>>>>>> topic
 ",
-        );
+            ),
+        ]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -770,14 +728,11 @@ mod conflicted_merge_add_add_mode_conflict {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt", Change::content("2"));
+        let left = BTreeMap::from([("g.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::executable_content("2"));
+        let right = BTreeMap::from([("g.txt", Change::executable_content("2"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -797,9 +752,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 
     #[rstest]
     fn put_the_conflicted_file_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("g.txt", "2");
+        let workspace = HashMap::from([("f.txt", "1"), ("g.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -867,14 +820,11 @@ mod conflicted_merge_file_directory_addition {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt", Change::content("2"));
+        let left = BTreeMap::from([("g.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt/nested.txt", Change::content("3"));
+        let right = BTreeMap::from([("g.txt/nested.txt", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -896,10 +846,11 @@ Automatic merge failed; fix conflicts and then commit the result.
     fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
         helper: CommandHelper,
     ) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("g.txt~HEAD", "2");
-        workspace.insert("g.txt/nested.txt", "3");
+        let workspace = HashMap::from([
+            ("f.txt", "1"),
+            ("g.txt~HEAD", "2"),
+            ("g.txt/nested.txt", "3"),
+        ]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -954,14 +905,11 @@ mod conflicted_merge_directory_file_addition {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("g.txt/nested.txt", Change::content("2"));
+        let left = BTreeMap::from([("g.txt/nested.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("g.txt", Change::content("3"));
+        let right = BTreeMap::from([("g.txt", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -983,10 +931,11 @@ Automatic merge failed; fix conflicts and then commit the result.
     fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
         helper: CommandHelper,
     ) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "1");
-        workspace.insert("g.txt~topic", "3");
-        workspace.insert("g.txt/nested.txt", "2");
+        let workspace = HashMap::from([
+            ("f.txt", "1"),
+            ("g.txt~topic", "3"),
+            ("g.txt/nested.txt", "2"),
+        ]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1040,14 +989,11 @@ mod conflicted_merge_edit_edit {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1\n"));
+        let base = BTreeMap::from([("f.txt", Change::content("1\n"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2\n"));
+        let left = BTreeMap::from([("f.txt", Change::content("2\n"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("3\n"));
+        let right = BTreeMap::from([("f.txt", Change::content("3\n"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -1067,8 +1013,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 
     #[rstest]
     fn put_the_conflicted_file_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert(
+        let workspace = HashMap::from([(
             "f.txt",
             "\
 <<<<<<< HEAD
@@ -1077,7 +1022,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 3
 >>>>>>> topic
 ",
-        );
+        )]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1133,14 +1078,11 @@ mod conflicted_merge_edit_delete {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::delete());
+        let right = BTreeMap::from([("f.txt", Change::delete())]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -1158,8 +1100,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 
     #[rstest]
     fn put_the_left_version_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "2");
+        let workspace = HashMap::from([("f.txt", "2")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1205,14 +1146,11 @@ mod conflicted_merge_delete_edit {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::delete());
+        let left = BTreeMap::from([("f.txt", Change::delete())]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("3"));
+        let right = BTreeMap::from([("f.txt", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -1230,8 +1168,7 @@ Automatic merge failed; fix conflicts and then commit the result.
 
     #[rstest]
     fn put_the_right_version_in_the_workspace(helper: CommandHelper) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "3");
+        let workspace = HashMap::from([("f.txt", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1277,14 +1214,11 @@ mod conflicted_merge_edit_add_parent {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("nest/f.txt", Change::content("1"));
+        let base = BTreeMap::from([("nest/f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("nest/f.txt", Change::content("2"));
+        let left = BTreeMap::from([("nest/f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("nest", Change::content("3"));
+        let right = BTreeMap::from([("nest", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -1304,9 +1238,7 @@ Automatic merge failed; fix conflicts and then commit the result.
     fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
         helper: CommandHelper,
     ) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("nest/f.txt", "2");
-        workspace.insert("nest~topic", "3");
+        let workspace = HashMap::from([("nest/f.txt", "2"), ("nest~topic", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1363,15 +1295,14 @@ mod conflicted_merge_edit_add_child {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("nest/f.txt", Change::content("1"));
+        let base = BTreeMap::from([("nest/f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("nest/f.txt", Change::content("2"));
+        let left = BTreeMap::from([("nest/f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("nest/f.txt", Change::delete());
-        right.insert("nest/f.txt/g.txt", Change::content("3"));
+        let right = BTreeMap::from([
+            ("nest/f.txt", Change::delete()),
+            ("nest/f.txt/g.txt", Change::content("3")),
+        ]);
 
         merge3(&mut helper, base, left, right).unwrap();
 
@@ -1391,9 +1322,7 @@ Automatic merge failed; fix conflicts and then commit the result.
     fn put_a_namespaced_copy_of_the_conflicted_file_in_the_workspace(
         helper: CommandHelper,
     ) -> Result<()> {
-        let mut workspace = HashMap::new();
-        workspace.insert("nest/f.txt~HEAD", "2");
-        workspace.insert("nest/f.txt/g.txt", "3");
+        let workspace = HashMap::from([("nest/f.txt~HEAD", "2"), ("nest/f.txt/g.txt", "3")]);
         helper.assert_workspace(&workspace)?;
 
         Ok(())
@@ -1459,32 +1388,25 @@ mod multiple_common_ancestors {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("1"));
+        let tree = BTreeMap::from([("f.txt", Change::content("1"))]);
         commit_tree(&mut helper, "A", tree).unwrap();
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("2"));
+        let tree = BTreeMap::from([("f.txt", Change::content("2"))]);
         commit_tree(&mut helper, "B", tree).unwrap();
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("3"));
+        let tree = BTreeMap::from([("f.txt", Change::content("3"))]);
         commit_tree(&mut helper, "C", tree).unwrap();
 
         helper.jit_cmd(&["branch", "topic", "main^"]);
         helper.jit_cmd(&["checkout", "topic"]);
-        let mut tree = BTreeMap::new();
-        tree.insert("g.txt", Change::content("1"));
+        let tree = BTreeMap::from([("g.txt", Change::content("1"))]);
         commit_tree(&mut helper, "D", tree).unwrap();
-        let mut tree = BTreeMap::new();
-        tree.insert("g.txt", Change::content("2"));
+        let tree = BTreeMap::from([("g.txt", Change::content("2"))]);
         commit_tree(&mut helper, "E", tree).unwrap();
-        let mut tree = BTreeMap::new();
-        tree.insert("g.txt", Change::content("3"));
+        let tree = BTreeMap::from([("g.txt", Change::content("3"))]);
         commit_tree(&mut helper, "F", tree).unwrap();
 
         helper.jit_cmd(&["branch", "joiner", "topic^"]);
         helper.jit_cmd(&["checkout", "joiner"]);
-        let mut tree = BTreeMap::new();
-        tree.insert("h.txt", Change::content("1"));
+        let tree = BTreeMap::from([("h.txt", Change::content("1"))]);
         commit_tree(&mut helper, "G", tree).unwrap();
 
         helper.jit_cmd(&["checkout", "main"]);
@@ -1499,10 +1421,7 @@ mod multiple_common_ancestors {
             .assert()
             .code(0);
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "3");
-        workspace.insert("g.txt", "2");
-        workspace.insert("h.txt", "1");
+        let workspace = HashMap::from([("f.txt", "3"), ("g.txt", "2"), ("h.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         helper
@@ -1521,8 +1440,7 @@ mod multiple_common_ancestors {
             .assert()
             .code(0);
 
-        let mut tree = BTreeMap::new();
-        tree.insert("f.txt", Change::content("4"));
+        let tree = BTreeMap::from([("f.txt", Change::content("4"))]);
         commit_tree(&mut helper, "H", tree)?;
 
         helper
@@ -1530,10 +1448,7 @@ mod multiple_common_ancestors {
             .assert()
             .code(0);
 
-        let mut workspace = HashMap::new();
-        workspace.insert("f.txt", "4");
-        workspace.insert("g.txt", "3");
-        workspace.insert("h.txt", "1");
+        let workspace = HashMap::from([("f.txt", "4"), ("g.txt", "3"), ("h.txt", "1")]);
         helper.assert_workspace(&workspace)?;
 
         helper
@@ -1554,14 +1469,11 @@ mod conflict_resolution {
         let mut helper = CommandHelper::new();
         helper.init();
 
-        let mut base = BTreeMap::new();
-        base.insert("f.txt", Change::content("1"));
+        let base = BTreeMap::from([("f.txt", Change::content("1"))]);
 
-        let mut left = BTreeMap::new();
-        left.insert("f.txt", Change::content("2"));
+        let left = BTreeMap::from([("f.txt", Change::content("2"))]);
 
-        let mut right = BTreeMap::new();
-        right.insert("f.txt", Change::content("3"));
+        let right = BTreeMap::from([("f.txt", Change::content("3"))]);
 
         merge3(&mut helper, base, left, right).unwrap();
 

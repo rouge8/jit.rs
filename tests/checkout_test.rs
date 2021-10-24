@@ -14,14 +14,11 @@ mod with_a_set_of_files {
     use super::*;
 
     lazy_static! {
-        static ref BASE_FILES: HashMap<&'static str, &'static str> = {
-            let mut m = HashMap::new();
-            m.insert("1.txt", "1");
-            m.insert("outer/2.txt", "2");
-            m.insert("outer/inner/3.txt", "3");
-
-            m
-        };
+        static ref BASE_FILES: HashMap<&'static str, &'static str> = HashMap::from([
+            ("1.txt", "1"),
+            ("outer/2.txt", "2"),
+            ("outer/inner/3.txt", "3"),
+        ]);
     }
 
     fn commit_all(helper: &mut CommandHelper) -> Result<()> {
@@ -230,9 +227,7 @@ Aborting\n",
         helper.delete("outer/inner")?;
         helper.jit_cmd(&["checkout", "@^"]);
 
-        let mut expected = HashMap::new();
-        expected.insert("1.txt", "1");
-        expected.insert("outer/2.txt", "hello");
+        let expected = HashMap::from([("1.txt", "1"), ("outer/2.txt", "hello")]);
         helper.assert_workspace(&expected)?;
 
         helper.assert_status(
@@ -327,9 +322,7 @@ A  outer/inner/4.txt\n",
         helper.delete("outer")?;
         helper.jit_cmd(&["checkout", "@^"]);
 
-        let mut expected = HashMap::new();
-        expected.insert("1.txt", "1");
-        expected.insert("outer/inner/3.txt", "3");
+        let expected = HashMap::from([("1.txt", "1"), ("outer/inner/3.txt", "3")]);
         helper.assert_workspace(&expected)?;
 
         helper.assert_status(" D outer/2.txt\n");
@@ -550,9 +543,7 @@ A  outer/inner/4.txt\n",
         helper.delete("outer/inner")?;
         helper.jit_cmd(&["checkout", "@^"]);
 
-        let mut expected = HashMap::new();
-        expected.insert("1.txt", "1");
-        expected.insert("outer/2.txt", "2");
+        let expected = HashMap::from([("1.txt", "1"), ("outer/2.txt", "2")]);
         helper.assert_workspace(&expected)?;
 
         helper.assert_status(" D outer/inner/3.txt\n");
@@ -630,9 +621,7 @@ A  outer/inner/4.txt\n",
         helper.jit_cmd(&["add", "."]);
         helper.jit_cmd(&["checkout", "@^"]);
 
-        let mut expected = HashMap::new();
-        expected.insert("1.txt", "1");
-        expected.insert("outer/2.txt", "2");
+        let expected = HashMap::from([("1.txt", "1"), ("outer/2.txt", "2")]);
         helper.assert_workspace(&expected)?;
 
         helper.assert_status("D  outer/inner/3.txt\n");
@@ -664,10 +653,11 @@ A  outer/inner/4.txt\n",
         helper.jit_cmd(&["add", "."]);
         helper.jit_cmd(&["checkout", "@^"]);
 
-        let mut expected = HashMap::new();
-        expected.insert("1.txt", "1");
-        expected.insert("outer/2.txt", "2");
-        expected.insert("outer/inner", "conflict");
+        let expected = HashMap::from([
+            ("1.txt", "1"),
+            ("outer/2.txt", "2"),
+            ("outer/inner", "conflict"),
+        ]);
         helper.assert_workspace(&expected)?;
 
         helper.assert_status(

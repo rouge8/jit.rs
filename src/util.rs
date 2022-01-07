@@ -98,7 +98,7 @@ pub mod tests {
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use rstest::rstest;
-    use sha1::{Digest, Sha1};
+    use sha1::{digest::Update, Digest, Sha1};
 
     pub fn random_oid() -> String {
         let rand_string: String = thread_rng()

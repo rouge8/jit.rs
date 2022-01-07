@@ -1,6 +1,6 @@
 use crate::database::object::Object;
 use crate::database::ParsedObject;
-use sha1::{Digest, Sha1};
+use sha1::{digest::Update, Digest, Sha1};
 
 #[derive(Debug)]
 pub struct Blob {

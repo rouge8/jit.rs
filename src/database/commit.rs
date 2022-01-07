@@ -2,7 +2,7 @@ use crate::database::author::Author;
 use crate::database::object::Object;
 use crate::database::ParsedObject;
 use chrono::{DateTime, FixedOffset};
-use sha1::{Digest, Sha1};
+use sha1::{digest::Update, Digest, Sha1};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]

@@ -15,7 +15,7 @@ colored = "2.0.0"
 dirs = "4.0.0"
 flate2 = "1.0.20"
 hex = { version = "0.4.3", features = ["alloc"] }
-indexmap = "1.7.0"
+indexmap = "1.8.0"
 itertools = "0.10.0"
 lazy_static = "1.4.0"
 libc = "0.2.99"

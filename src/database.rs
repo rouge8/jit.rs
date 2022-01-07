@@ -323,8 +323,7 @@ mod tests {
             let tree_b_contents = HashMap::from([("alice.txt", "changed"), ("bob.txt", "bob")]);
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = IndexMap::new();
-            expected.insert(
+            let expected = IndexMap::from([(
                 PathBuf::from("alice.txt"),
                 (
                     Some(Entry::new(
@@ -336,7 +335,7 @@ mod tests {
                         0o100644,
                     )),
                 ),
-            );
+            )]);
 
             assert_eq!(
                 database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
@@ -354,8 +353,7 @@ mod tests {
             let tree_b_contents = HashMap::from([("alice.txt", "alice"), ("bob.txt", "bob")]);
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = IndexMap::new();
-            expected.insert(
+            let expected = IndexMap::from([(
                 PathBuf::from("bob.txt"),
                 (
                     None,
@@ -364,7 +362,7 @@ mod tests {
                         0o100644,
                     )),
                 ),
-            );
+            )]);
 
             assert_eq!(
                 database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
@@ -382,8 +380,7 @@ mod tests {
             let tree_b_contents = HashMap::from([("alice.txt", "alice")]);
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = IndexMap::new();
-            expected.insert(
+            let expected = IndexMap::from([(
                 PathBuf::from("bob.txt"),
                 (
                     Some(Entry::new(
@@ -392,7 +389,7 @@ mod tests {
                     )),
                     None,
                 ),
-            );
+            )]);
 
             assert_eq!(
                 database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
@@ -414,8 +411,7 @@ mod tests {
             ]);
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = IndexMap::new();
-            expected.insert(
+            let expected = IndexMap::from([(
                 PathBuf::from("outer/new/4.txt"),
                 (
                     None,
@@ -424,7 +420,7 @@ mod tests {
                         0o100644,
                     )),
                 ),
-            );
+            )]);
 
             assert_eq!(
                 database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,
@@ -446,8 +442,7 @@ mod tests {
             let tree_b_contents = HashMap::from([("1.txt", "1"), ("outer/2.txt", "2")]);
             let tree_b = store_tree(&database, tree_b_contents);
 
-            let mut expected = IndexMap::new();
-            expected.insert(
+            let expected = IndexMap::from([(
                 PathBuf::from("outer/inner/3.txt"),
                 (
                     Some(Entry::new(
@@ -456,7 +451,7 @@ mod tests {
                     )),
                     None,
                 ),
-            );
+            )]);
 
             assert_eq!(
                 database.tree_diff(Some(&tree_a), Some(&tree_b), None)?,

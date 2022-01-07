@@ -86,11 +86,11 @@ impl Lockfile {
 }
 
 impl Read for Lockfile {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
-        lock.read(&mut buf)
+        lock.read(buf)
     }
 }
 
@@ -111,11 +111,11 @@ impl Write for Lockfile {
 }
 
 impl<'a> Read for &'a Lockfile {
-    fn read(&mut self, mut buf: &mut [u8]) -> io::Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.err_on_stale_lock()?;
 
         let mut lock = self.lock.as_ref().unwrap();
-        lock.read(&mut buf)
+        lock.read(buf)
     }
 }
 

@@ -309,7 +309,7 @@ impl<'a> Differ for RevList<'a> {
             .or_insert_with(|| {
                 self.repo
                     .database
-                    .tree_diff(old_oid.as_deref(), new_oid, Some(&self.filter))
+                    .tree_diff(old_oid, new_oid, Some(&self.filter))
                     .unwrap()
             })
             .to_owned())

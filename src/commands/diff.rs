@@ -178,7 +178,7 @@ impl<'a> Diff<'a> {
             writeln!(stdout, "* Unmerged path {}", path)?;
             self.diff_printer.print_diff(
                 &mut stdout,
-                &mut targets[self.stage as usize].as_mut().unwrap(),
+                targets[self.stage as usize].as_mut().unwrap(),
                 &mut self.from_file(path)?,
             )?;
         } else if left.is_some() && right.is_some() {

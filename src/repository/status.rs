@@ -93,9 +93,9 @@ impl Status {
 
     fn check_index_entries(&mut self) -> Result<()> {
         unsafe {
-            for mut entry in (*self.repo).index.entries.values_mut() {
+            for entry in (*self.repo).index.entries.values_mut() {
                 if entry.stage() == 0 {
-                    self.check_index_against_workspace(&mut entry)?;
+                    self.check_index_against_workspace(entry)?;
                     self.check_index_against_head_tree(entry);
                 } else {
                     self.changed.insert(entry.path.clone());

@@ -1,11 +1,11 @@
 use anyhow::Result;
+use clap::Parser;
 use jit::commands;
 use jit::errors::Error;
 use std::collections::HashMap;
 use std::env;
 use std::io;
 use std::process;
-use structopt::StructOpt;
 
 fn main() -> Result<()> {
     let opt = commands::Jit::from_args();

@@ -11,6 +11,7 @@ default-run = "jit"
 anyhow = "1.0.40"
 atty = "0.2.14"
 chrono = "0.4.19"
+clap = { version = "3.1.2", features = ["derive"] }
 colored = "2.0.0"
 dirs = "4.0.0"
 flate2 = "1.0.20"
@@ -23,7 +24,6 @@ nix = "0.23.0"
 regex = "1.5.4"
 sha-1 = "0.10.0"
 shlex = "1.0.0"
-structopt = "0.3.21"
 thiserror = "1.0.25"
 uuid = { version = "0.8", features = ["v4"] }
 

@@ -3,11 +3,11 @@ use crate::editor::Editor;
 use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
+use clap::StructOpt;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
 
 mod add;
 mod branch;
@@ -62,7 +62,7 @@ pub enum Command {
         delete: bool,
         #[structopt(short, long)]
         force: bool,
-        #[structopt(short = "D")]
+        #[structopt(short = 'D')]
         force_delete: bool,
     },
     Checkout {
@@ -82,15 +82,15 @@ pub enum Command {
     Commit {
         #[structopt(short, long)]
         message: Option<String>,
-        #[structopt(short = "-F", long)]
+        #[structopt(short = 'F', long)]
         file: Option<PathBuf>,
         #[structopt(long)]
         edit: bool,
         #[structopt(long, overrides_with = "edit")]
         no_edit: bool,
-        #[structopt(short = "C", long)]
+        #[structopt(short = 'C', long)]
         reuse_message: Option<String>,
-        #[structopt(short = "c", long)]
+        #[structopt(short = 'c', long)]
         reedit_message: Option<String>,
         #[structopt(long)]
         amend: bool,
@@ -126,7 +126,7 @@ pub enum Command {
         staged: bool,
         #[structopt(short, long)]
         patch: bool,
-        #[structopt(short = "s", long)]
+        #[structopt(short = 's', long)]
         no_patch: bool,
         #[structopt(flatten)]
         stage: StageOptions,
@@ -141,20 +141,20 @@ pub enum Command {
         abbrev: bool,
         #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hidden = true)]
         no_abbrev: bool,
-        #[structopt(long, visible_alias = "pretty", default_value = "medium")]
+        #[structopt(arg_enum, long, visible_alias = "pretty", default_value = "medium")]
         format: LogFormat,
         #[structopt(long = "oneline")]
         one_line: bool,
         /// The default option, if using `--decorate` alone is `short`.  If `--decorate` is not
         /// used, the default is `auto`. Otherwise, the value of `--decorate=<format>` is used.
-        #[structopt(long, value_name = "format")]
+        #[structopt(arg_enum, long, value_name = "format")]
         #[allow(clippy::option_option)]
         decorate: Option<Option<LogDecoration>>,
         #[structopt(long)]
         no_decorate: bool,
         #[structopt(short, long)]
         patch: bool,
-        #[structopt(short = "s", long, overrides_with = "patch")]
+        #[structopt(short = 's', long, overrides_with = "patch")]
         _no_patch: bool,
         #[structopt(long = "cc")]
         combined: bool,
@@ -167,7 +167,7 @@ pub enum Command {
         r#continue: bool,
         #[structopt(short, long)]
         message: Option<String>,
-        #[structopt(short = "-F", long)]
+        #[structopt(short = 'F', long)]
         file: Option<PathBuf>,
         #[structopt(short, long)]
         #[structopt(long)]
@@ -221,11 +221,11 @@ pub enum Command {
 
 #[derive(StructOpt, Debug)]
 pub struct StageOptions {
-    #[structopt(short = "1", long, group = "stage")]
+    #[structopt(short = '1', long, group = "stage")]
     pub base: bool,
-    #[structopt(short = "2", long, group = "stage")]
+    #[structopt(short = '2', long, group = "stage")]
     pub ours: bool,
-    #[structopt(short = "3", long, group = "stage")]
+    #[structopt(short = '3', long, group = "stage")]
     pub theirs: bool,
 }
 
@@ -387,5 +387,17 @@ impl<'a> CommandContext<'a> {
         } else {
             self.env.get("EDITOR").map(|editor| editor.to_owned())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_app() {
+        use clap::IntoApp;
+
+        Jit::into_app().debug_assert()
     }
 }

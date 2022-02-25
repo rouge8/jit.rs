@@ -8,28 +8,24 @@ use crate::errors::Result;
 use crate::refs::Ref;
 use crate::rev_list::RevList;
 use crate::util::path_to_string;
+use clap::ArgEnum;
 use colored::Colorize;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
-use structopt::clap::arg_enum;
 
-arg_enum! {
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub enum LogFormat {
-        Medium,
-        OneLine,
-    }
+#[derive(ArgEnum, Debug, Clone, PartialEq, Eq)]
+pub enum LogFormat {
+    Medium,
+    Oneline,
 }
 
-arg_enum! {
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    pub enum LogDecoration {
-        Short,
-        Full,
-        Auto,
-        No,
-    }
+#[derive(ArgEnum, Debug, Clone, PartialEq, Eq)]
+pub enum LogDecoration {
+    Short,
+    Full,
+    Auto,
+    No,
 }
 
 pub struct Log<'a> {
@@ -69,7 +65,7 @@ impl<'a> Log<'a> {
                 combined,
             } => {
                 let format = if *one_line {
-                    LogFormat::OneLine
+                    LogFormat::Oneline
                 } else {
                     format.to_owned()
                 };
@@ -130,7 +126,7 @@ impl<'a> Log<'a> {
     fn show_commit(&self, commit: &Commit, rev_list: &RevList) -> Result<()> {
         match self.format {
             LogFormat::Medium => self.show_commit_medium(commit)?,
-            LogFormat::OneLine => self.show_commit_oneline(commit)?,
+            LogFormat::Oneline => self.show_commit_oneline(commit)?,
         }
 
         self.show_patch(commit, rev_list)?;
@@ -234,7 +230,7 @@ impl<'a> Log<'a> {
     }
 
     fn blank_line(&self) -> Result<()> {
-        if self.format == LogFormat::OneLine {
+        if self.format == LogFormat::Oneline {
             return Ok(());
         }
 

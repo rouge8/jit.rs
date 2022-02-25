@@ -39,7 +39,7 @@ impl Commit {
         let mut headers: HashMap<&str, Vec<&str>> = HashMap::new();
 
         loop {
-            let (line, rest) = data.split_once("\n").unwrap();
+            let (line, rest) = data.split_once('\n').unwrap();
             data = rest;
             let line = line.trim();
 
@@ -60,7 +60,7 @@ impl Commit {
                 });
             }
 
-            let (key, value) = line.split_once(" ").unwrap();
+            let (key, value) = line.split_once(' ').unwrap();
             headers.entry(key).or_insert_with(Vec::new).push(value);
         }
     }

@@ -77,7 +77,7 @@ impl<'a> Commit<'a> {
 
         let message = commit_writer.read_message(self.message.as_deref(), self.file.as_deref())?;
         let message = if message.is_empty() {
-            self.reused_message()?.unwrap_or_else(String::new)
+            self.reused_message()?.unwrap_or_default()
         } else {
             message
         };
@@ -151,7 +151,7 @@ impl<'a> Commit<'a> {
             tree.oid(),
             old.author,
             committer,
-            message.unwrap_or_else(String::new),
+            message.unwrap_or_default(),
         );
         self.ctx.repo.database.store(&new)?;
         self.ctx.repo.refs.update_head(&new.oid())?;

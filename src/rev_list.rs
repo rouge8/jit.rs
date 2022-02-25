@@ -129,7 +129,7 @@ impl<'a> RevList<'a> {
                     .queue
                     .iter()
                     .position(|c| c.date() < commit.date())
-                    .unwrap_or_else(|| self.queue.len());
+                    .unwrap_or(self.queue.len());
                 self.queue.insert(index, commit.to_owned());
             } else {
                 self.queue.push_back(commit.to_owned());

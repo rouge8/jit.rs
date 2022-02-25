@@ -523,8 +523,7 @@ where
     }
 
     fn write_checksum(&mut self) -> Result<()> {
-        self.file
-            .write_all(&self.digest.clone().finalize().to_vec())?;
+        self.file.write_all(&self.digest.clone().finalize())?;
 
         Ok(())
     }

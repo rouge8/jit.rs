@@ -3,7 +3,7 @@ use crate::editor::Editor;
 use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
-use clap::StructOpt;
+use clap::Parser;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::Write;
@@ -42,27 +42,27 @@ use revert::Revert;
 use rm::Rm;
 use status::Status;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct Jit {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub cmd: Command,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum Command {
     Add {
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         files: Vec<PathBuf>,
     },
     Branch {
         args: Vec<String>,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         verbose: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         delete: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         force: bool,
-        #[structopt(short = 'D')]
+        #[clap(short = 'D')]
         force_delete: bool,
     },
     Checkout {
@@ -70,162 +70,162 @@ pub enum Command {
     },
     CherryPick {
         args: Vec<String>,
-        #[structopt(long)]
+        #[clap(long)]
         r#continue: bool,
-        #[structopt(long)]
+        #[clap(long)]
         abort: bool,
-        #[structopt(long)]
+        #[clap(long)]
         quit: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         mainline: Option<u32>,
     },
     Commit {
-        #[structopt(short, long)]
+        #[clap(short, long)]
         message: Option<String>,
-        #[structopt(short = 'F', long)]
+        #[clap(short = 'F', long)]
         file: Option<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         edit: bool,
-        #[structopt(long, overrides_with = "edit")]
+        #[clap(long, overrides_with = "edit")]
         no_edit: bool,
-        #[structopt(short = 'C', long)]
+        #[clap(short = 'C', long)]
         reuse_message: Option<String>,
-        #[structopt(short = 'c', long)]
+        #[clap(short = 'c', long)]
         reedit_message: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         amend: bool,
     },
     Config {
         args: Vec<String>,
-        #[structopt(long)]
+        #[clap(long)]
         local: bool,
-        #[structopt(long)]
+        #[clap(long)]
         global: bool,
-        #[structopt(long)]
+        #[clap(long)]
         system: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         file: Option<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         add: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         replace_all: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         get_all: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         unset: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         unset_all: Option<String>,
-        #[structopt(long)]
+        #[clap(long)]
         remove_section: Option<String>,
     },
     Diff {
         args: Vec<String>,
-        #[structopt(long)]
+        #[clap(long)]
         cached: bool,
-        #[structopt(long)]
+        #[clap(long)]
         staged: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         patch: bool,
-        #[structopt(short = 's', long)]
+        #[clap(short = 's', long)]
         no_patch: bool,
-        #[structopt(flatten)]
+        #[clap(flatten)]
         stage: StageOptions,
     },
     Init {
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         directory: Option<PathBuf>,
     },
     Log {
         args: Vec<String>,
-        #[structopt(long = "abbrev-commit")]
+        #[clap(long = "abbrev-commit")]
         abbrev: bool,
-        #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hide = true)]
+        #[clap(long = "no-abbrev-commit", overrides_with = "abbrev", hide = true)]
         no_abbrev: bool,
-        #[structopt(arg_enum, long, visible_alias = "pretty", default_value = "medium")]
+        #[clap(arg_enum, long, visible_alias = "pretty", default_value = "medium")]
         format: LogFormat,
-        #[structopt(long = "oneline")]
+        #[clap(long = "oneline")]
         one_line: bool,
         /// The default option, if using `--decorate` alone is `short`.  If `--decorate` is not
         /// used, the default is `auto`. Otherwise, the value of `--decorate=<format>` is used.
-        #[structopt(arg_enum, long, value_name = "format")]
+        #[clap(arg_enum, long, value_name = "format")]
         #[allow(clippy::option_option)]
         decorate: Option<Option<LogDecoration>>,
-        #[structopt(long)]
+        #[clap(long)]
         no_decorate: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         patch: bool,
-        #[structopt(short = 's', long, overrides_with = "patch")]
+        #[clap(short = 's', long, overrides_with = "patch")]
         _no_patch: bool,
-        #[structopt(long = "cc")]
+        #[clap(long = "cc")]
         combined: bool,
     },
     Merge {
         args: Vec<String>,
-        #[structopt(long)]
+        #[clap(long)]
         abort: bool,
-        #[structopt(long)]
+        #[clap(long)]
         r#continue: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         message: Option<String>,
-        #[structopt(short = 'F', long)]
+        #[clap(short = 'F', long)]
         file: Option<PathBuf>,
-        #[structopt(short, long)]
-        #[structopt(long)]
+        #[clap(short, long)]
+        #[clap(long)]
         edit: bool,
-        #[structopt(long, overrides_with = "edit")]
+        #[clap(long, overrides_with = "edit")]
         no_edit: bool,
     },
     Remote {
         args: Vec<String>,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         verbose: bool,
-        #[structopt(short)]
+        #[clap(short)]
         tracked: Vec<String>,
     },
     Reset {
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         files: Vec<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         soft: bool,
-        #[structopt(long)]
+        #[clap(long)]
         _mixed: bool,
-        #[structopt(long)]
+        #[clap(long)]
         hard: bool,
     },
     Revert {
         args: Vec<String>,
-        #[structopt(long)]
+        #[clap(long)]
         r#continue: bool,
-        #[structopt(long)]
+        #[clap(long)]
         abort: bool,
-        #[structopt(long)]
+        #[clap(long)]
         quit: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         mainline: Option<u32>,
     },
     Rm {
-        #[structopt(parse(from_os_str))]
+        #[clap(parse(from_os_str))]
         files: Vec<PathBuf>,
-        #[structopt(long)]
+        #[clap(long)]
         cached: bool,
-        #[structopt(short, long)]
+        #[clap(short, long)]
         force: bool,
-        #[structopt(short)]
+        #[clap(short)]
         recursive: bool,
     },
     Status {
-        #[structopt(long)]
+        #[clap(long)]
         porcelain: bool,
     },
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct StageOptions {
-    #[structopt(short = '1', long, group = "stage")]
+    #[clap(short = '1', long, group = "stage")]
     pub base: bool,
-    #[structopt(short = '2', long, group = "stage")]
+    #[clap(short = '2', long, group = "stage")]
     pub ours: bool,
-    #[structopt(short = '3', long, group = "stage")]
+    #[clap(short = '3', long, group = "stage")]
     pub theirs: bool,
 }
 

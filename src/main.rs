@@ -8,7 +8,7 @@ use std::io;
 use std::process;
 
 fn main() -> Result<()> {
-    let opt = commands::Jit::from_args();
+    let opt = commands::Jit::parse();
 
     match commands::execute(
         env::current_dir()?,

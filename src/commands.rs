@@ -139,7 +139,7 @@ pub enum Command {
         args: Vec<String>,
         #[structopt(long = "abbrev-commit")]
         abbrev: bool,
-        #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hidden = true)]
+        #[structopt(long = "no-abbrev-commit", overrides_with = "abbrev", hide = true)]
         no_abbrev: bool,
         #[structopt(arg_enum, long, visible_alias = "pretty", default_value = "medium")]
         format: LogFormat,
@@ -398,6 +398,6 @@ mod tests {
     fn verify_app() {
         use clap::IntoApp;
 
-        Jit::into_app().debug_assert()
+        Jit::command().debug_assert()
     }
 }

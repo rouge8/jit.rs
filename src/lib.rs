@@ -1,3 +1,4 @@
+#![allow(clippy::wrong_self_convention)]
 pub mod commands;
 pub mod config;
 pub mod database;

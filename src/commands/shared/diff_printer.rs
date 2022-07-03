@@ -9,6 +9,7 @@ use crate::util::path_to_string;
 use colored::Colorize;
 use lazy_static::lazy_static;
 use std::cell::RefMut;
+use std::fmt::Write as _;
 use std::io::Write;
 
 lazy_static! {
@@ -165,7 +166,7 @@ impl DiffPrinter {
         let mut oid_range = format!("index {}..{}", self.short(&a.oid), self.short(&b.oid));
         if a.mode == b.mode {
             oid_range.push(' ');
-            oid_range.push_str(&format!("{:o}", a.mode.unwrap()));
+            write!(oid_range, "{:o}", a.mode.unwrap()).unwrap();
         }
 
         writeln!(stdout, "{}", oid_range)?;

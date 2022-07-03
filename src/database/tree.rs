@@ -187,6 +187,9 @@ mod tests {
         let bytes = tree.bytes();
         let serialized = std::str::from_utf8(&bytes).unwrap();
 
-        assert_eq!(serialized, "100644 test.txt\040000 test\0100644 test:txt\0");
+        assert_eq!(
+            serialized,
+            "100644 test.txt\x0040000 test\x00100644 test:txt\x00"
+        );
     }
 }

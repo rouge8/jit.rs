@@ -1,6 +1,7 @@
 use crate::diff::{diff, EditType};
 use crate::util::LinesWithEndings;
 use std::collections::HashMap;
+use std::fmt::Write;
 
 pub fn merge(o: &str, a: &str, b: &str) -> Result {
     let o: Vec<_> = LinesWithEndings::from(o).map(|l| l.to_string()).collect();
@@ -205,7 +206,7 @@ impl Chunk {
                 fn separator(text: &mut String, r#char: &str, name: Option<&str>) {
                     text.push_str(&r#char.repeat(7));
                     if let Some(name) = name {
-                        text.push_str(&format!(" {}", name));
+                        write!(text, " {}", name).unwrap();
                     }
                     text.push('\n');
                 }

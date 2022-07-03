@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::{Regex, RegexBuilder};
 use std::fmt;
+use std::fmt::Write;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
@@ -102,7 +103,7 @@ impl Section {
 
         let mut line = format!("[{}", first);
         if !rest.is_empty() {
-            line.push_str(&format!(" \"{}\"", rest.join(".")));
+            write!(line, " \"{}\"", rest.join(".")).unwrap();
         }
         line.push_str("]\n");
 

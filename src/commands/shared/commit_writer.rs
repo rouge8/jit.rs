@@ -10,6 +10,7 @@ use crate::errors::{Error, Result};
 use crate::refs::HEAD;
 use crate::repository::pending_commit::{PendingCommit, PendingCommitType};
 use chrono::{DateTime, Local};
+use std::fmt::Write;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
@@ -144,7 +145,7 @@ impl<'a> CommitWriter<'a> {
         if commit.parent().is_none() {
             info.push_str(" (root-commit)");
         }
-        info.push_str(&format!(" {}", oid));
+        write!(info, " {}", oid).unwrap();
 
         let mut stdout = self.ctx.stdout.borrow_mut();
         writeln!(stdout, "[{}] {}", info, commit.title_line(),)?;

@@ -210,7 +210,7 @@ impl Database {
         }
 
         let dirname = object_path.parent().unwrap();
-        let temp_path = dirname.join(Uuid::new_v4().to_simple().to_string());
+        let temp_path = dirname.join(Uuid::new_v4().simple().to_string());
 
         // TODO: Only create `dirname` if it doesn't already exist
         fs::create_dir_all(&dirname)?;

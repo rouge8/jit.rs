@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::path::Path;
+
 use crate::database::blob::Blob;
 use crate::database::entry::Entry;
 use crate::database::object::Object;
@@ -7,8 +10,6 @@ use crate::merge::diff3;
 use crate::merge::inputs::MergeInputs;
 use crate::repository::Repository;
 use crate::util::{parent_directories, path_to_string};
-use std::collections::HashMap;
-use std::path::Path;
 
 pub struct Resolve<'a, T>
 where

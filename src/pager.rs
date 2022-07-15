@@ -1,8 +1,9 @@
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::io;
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
+
+use lazy_static::lazy_static;
 
 const PAGER_CMD: &str = "less";
 

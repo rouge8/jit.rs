@@ -1,3 +1,12 @@
+use std::collections::HashMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::{fmt, fs};
+
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use crate::config::{Config, VariableValue};
 use crate::database::commit::Commit;
 use crate::database::object::Object;
@@ -6,14 +15,6 @@ use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::refs::ORIG_HEAD;
 use crate::repository::Repository;
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::collections::HashMap;
-use std::fmt;
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 lazy_static! {
     static ref LOAD_LINE: Regex = Regex::new(r"^(\S+) (\S+) (.*)$").unwrap();

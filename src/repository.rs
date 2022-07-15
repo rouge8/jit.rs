@@ -1,13 +1,17 @@
+use std::fs;
+use std::path::{Path, PathBuf};
+
 use crate::config::stack::{ConfigFile, Stack as ConfigStack};
-use crate::database::{blob::Blob, tree::TreeEntry, tree_diff::TreeDiffChanges, Database};
+use crate::database::blob::Blob;
+use crate::database::tree::TreeEntry;
+use crate::database::tree_diff::TreeDiffChanges;
+use crate::database::Database;
 use crate::errors::Result;
 use crate::index::{Entry as IndexEntry, Index};
 use crate::refs::Refs;
 use crate::remotes::Remotes;
 use crate::repository::pending_commit::PendingCommit;
 use crate::workspace::Workspace;
-use std::fs;
-use std::path::{Path, PathBuf};
 
 mod hard_reset;
 pub mod migration;

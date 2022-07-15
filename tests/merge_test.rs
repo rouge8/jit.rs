@@ -1,12 +1,13 @@
 mod common;
 
+use std::collections::{BTreeMap, HashMap};
+
 use assert_cmd::assert::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::object::Object;
 use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
-use std::collections::{BTreeMap, HashMap};
 
 type Tree<'a> = BTreeMap<&'a str, Change<'a>>;
 

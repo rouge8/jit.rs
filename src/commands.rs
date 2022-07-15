@@ -1,13 +1,15 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
+use clap::Parser;
+
 use crate::config::VariableValue;
 use crate::editor::Editor;
 use crate::errors::Result;
 use crate::pager::Pager;
 use crate::repository::Repository;
-use clap::Parser;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Write;
-use std::path::{Path, PathBuf};
 
 mod add;
 mod branch;

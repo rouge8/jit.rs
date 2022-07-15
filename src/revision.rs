@@ -1,10 +1,11 @@
-use crate::database::Database;
-use crate::database::ParsedObject;
-use crate::errors::{Error, Result};
-use crate::repository::Repository;
+use std::collections::HashMap;
+
 use lazy_static::lazy_static;
 use regex::{Regex, RegexSet};
-use std::collections::HashMap;
+
+use crate::database::{Database, ParsedObject};
+use crate::errors::{Error, Result};
+use crate::repository::Repository;
 
 lazy_static! {
     static ref INVALID_NAME: RegexSet = RegexSet::new(&[

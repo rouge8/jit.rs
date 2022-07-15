@@ -1,10 +1,11 @@
+use std::io::Write;
+
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};
 use crate::revision::{Revision, COMMIT};
-use std::io::Write;
 
 const DETACHED_HEAD_MESSAGE: &str = "\
 You are in 'detached HEAD' state. You can look around, make experimental

@@ -1,9 +1,9 @@
-use crate::errors::{Error, Result};
-use std::fs;
 use std::fs::{File, OpenOptions};
-use std::io;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use std::{fs, io};
+
+use crate::errors::{Error, Result};
 
 #[derive(Debug)]
 pub struct Lockfile {

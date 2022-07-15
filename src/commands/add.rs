@@ -1,11 +1,12 @@
+use std::io;
+use std::io::Write;
+use std::path::PathBuf;
+
 use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
 use crate::database::object::Object;
 use crate::errors::{Error, Result};
 use crate::util::path_to_string;
-use std::io;
-use std::io::Write;
-use std::path::PathBuf;
 
 pub struct Add<'a> {
     ctx: CommandContext<'a>,

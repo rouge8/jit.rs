@@ -1,11 +1,13 @@
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use indexmap::IndexMap;
+
 use crate::database::entry::Entry;
 use crate::database::tree::{Tree, TreeEntry};
 use crate::database::{Database, ParsedObject};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
-use indexmap::IndexMap;
-use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 pub type TreeDiffChanges = IndexMap<PathBuf, (Option<Entry>, Option<Entry>)>;
 

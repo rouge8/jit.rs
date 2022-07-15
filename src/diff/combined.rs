@@ -1,6 +1,7 @@
+use std::fmt;
+
 use crate::diff::hunk::GenericEdit;
 use crate::diff::{Edit, EditType, Line};
-use std::fmt;
 
 pub struct Combined {
     diffs: Vec<Vec<Edit>>,

@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit as DatabaseCommit;
@@ -5,7 +7,6 @@ use crate::database::object::Object;
 use crate::editor::Editor;
 use crate::errors::{Error, Result};
 use crate::revision::{Revision, COMMIT};
-use std::path::PathBuf;
 
 pub const COMMIT_NOTES: &str = "\
 Please enter the commit message for your changes. Lines starting

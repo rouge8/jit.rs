@@ -1,3 +1,10 @@
+use std::cell::RefMut;
+use std::fmt::Write as _;
+use std::io::Write;
+
+use colored::Colorize;
+use lazy_static::lazy_static;
+
 use crate::database::entry::Entry;
 use crate::database::tree_diff::Differ;
 use crate::database::Database;
@@ -6,11 +13,6 @@ use crate::diff::{combined_hunks, diff_hunks, EditType};
 use crate::errors::Result;
 use crate::repository::Repository;
 use crate::util::path_to_string;
-use colored::Colorize;
-use lazy_static::lazy_static;
-use std::cell::RefMut;
-use std::fmt::Write as _;
-use std::io::Write;
 
 lazy_static! {
     static ref NULL_OID: String = "0".repeat(40);

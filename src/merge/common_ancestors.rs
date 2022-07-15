@@ -1,9 +1,11 @@
+use std::collections::{HashMap, HashSet, VecDeque};
+
+use lazy_static::lazy_static;
+
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::Database;
 use crate::errors::Result;
-use lazy_static::lazy_static;
-use std::collections::{HashMap, HashSet, VecDeque};
 
 lazy_static! {
     static ref BOTH_PARENTS: HashSet<Flag> = {
@@ -133,16 +135,18 @@ impl<'a> CommonAncestors<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+    use std::path::PathBuf;
+
+    use chrono::{DateTime, FixedOffset, Local};
+    use rstest::{fixture, rstest};
+    use tempfile::TempDir;
+
     use super::*;
     use crate::database::author::Author;
     use crate::database::commit::Commit;
     use crate::database::object::Object;
     use crate::merge::bases::Bases;
-    use chrono::{DateTime, FixedOffset, Local};
-    use rstest::{fixture, rstest};
-    use std::fs;
-    use std::path::PathBuf;
-    use tempfile::TempDir;
 
     struct GraphHelper {
         db_path: PathBuf,

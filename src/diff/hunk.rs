@@ -1,6 +1,7 @@
+use std::fmt;
+
 use crate::diff::{EditType, Line};
 use crate::util::transpose;
-use std::fmt;
 
 const HUNK_CONTEXT: isize = 3;
 

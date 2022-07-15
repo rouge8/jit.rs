@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::shared::sequencing::{
     fail_on_conflict, finish_commit, handle_abort, handle_quit, resolve_merge, resume_sequencer,
@@ -14,7 +16,6 @@ use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::sequencer::Sequencer;
 use crate::rev_list::{RevList, RevListOptions};
-use std::collections::HashMap;
 
 pub struct CherryPick<'a> {
     ctx: CommandContext<'a>,

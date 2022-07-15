@@ -1,11 +1,10 @@
+use std::collections::HashMap;
+use std::{env, io, process};
+
 use anyhow::Result;
 use clap::Parser;
 use jit::commands;
 use jit::errors::Error;
-use std::collections::HashMap;
-use std::env;
-use std::io;
-use std::process;
 
 fn main() -> Result<()> {
     let opt = commands::Jit::parse();

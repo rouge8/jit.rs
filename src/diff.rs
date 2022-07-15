@@ -1,7 +1,8 @@
+use std::fmt;
+
 use combined::{Combined, Row};
 use hunk::{GenericEdit, Hunk};
 use myers::Myers;
-use std::fmt;
 
 mod combined;
 pub mod hunk;

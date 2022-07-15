@@ -1,11 +1,13 @@
+use std::io::Write;
+
+use colored::Colorize;
+
 use crate::commands::{Command, CommandContext};
 use crate::database::object::Object;
 use crate::database::Database;
 use crate::errors::{Error, Result};
 use crate::refs::{Ref, HEAD};
 use crate::revision::{Revision, COMMIT};
-use colored::Colorize;
-use std::io::Write;
 
 pub struct Branch<'a> {
     ctx: CommandContext<'a>,

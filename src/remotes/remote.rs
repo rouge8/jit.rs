@@ -1,7 +1,8 @@
-use crate::config::{Config, VariableValue};
-use crate::errors::Result;
 use std::cell::RefCell;
 use std::rc::Rc;
+
+use crate::config::{Config, VariableValue};
+use crate::errors::Result;
 
 pub struct Remote {
     config: Rc<RefCell<Config>>,

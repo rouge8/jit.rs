@@ -1,7 +1,8 @@
+use std::collections::HashSet;
+
 use crate::database::Database;
 use crate::errors::Result;
 use crate::merge::common_ancestors::{CommonAncestors, Flag};
-use std::collections::HashSet;
 
 pub struct Bases<'a> {
     database: &'a Database,

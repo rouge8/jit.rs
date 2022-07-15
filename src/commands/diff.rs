@@ -1,3 +1,7 @@
+use std::path::Path;
+
+use itertools::Itertools;
+
 use crate::commands::shared::diff_printer::{DiffPrinter, Target};
 use crate::commands::{Command, CommandContext};
 use crate::database::blob::Blob;
@@ -6,8 +10,6 @@ use crate::index::Entry;
 use crate::repository::status::Status;
 use crate::repository::ChangeType;
 use crate::revision::Revision;
-use itertools::Itertools;
-use std::path::Path;
 
 pub struct Diff<'a> {
     ctx: CommandContext<'a>,

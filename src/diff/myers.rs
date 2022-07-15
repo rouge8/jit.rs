@@ -1,5 +1,6 @@
-use crate::diff::{Edit, EditType, Line};
 use std::collections::BTreeMap;
+
+use crate::diff::{Edit, EditType, Line};
 
 #[derive(Debug)]
 pub struct Myers {

@@ -1,6 +1,7 @@
-use crate::util::path_to_string;
 use std::fmt;
 use std::path::PathBuf;
+
+use crate::util::path_to_string;
 
 pub struct Refspec {
     source: PathBuf,

@@ -1,3 +1,11 @@
+use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
+use std::process::Output;
+use std::{fs, io};
+
 use assert_cmd::prelude::OutputAssertExt;
 use assert_cmd::Command;
 use filetime::FileTime;
@@ -8,14 +16,6 @@ use jit::repository::Repository;
 use jit::revision::Revision;
 use jit::util::path_to_string;
 use rstest::fixture;
-use std::collections::HashMap;
-use std::fs;
-use std::fs::OpenOptions;
-use std::io;
-use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
-use std::path::PathBuf;
-use std::process::Output;
 use tempfile::TempDir;
 
 pub struct CommandHelper {

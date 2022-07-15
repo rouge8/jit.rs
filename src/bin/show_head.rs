@@ -1,9 +1,10 @@
+use std::env;
+use std::path::PathBuf;
+
 use anyhow::Result;
 use jit::database::tree::TREE_MODE;
 use jit::database::ParsedObject;
 use jit::repository::Repository;
-use std::env;
-use std::path::PathBuf;
 
 fn show_tree(oid: String, prefix: PathBuf) -> Result<()> {
     let repo = repo()?;

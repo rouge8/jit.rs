@@ -1,3 +1,9 @@
+use std::collections::{BTreeSet, HashMap};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use lazy_static::lazy_static;
+
 use crate::database::entry::Entry;
 use crate::database::tree::TreeEntry;
 use crate::database::tree_diff::TreeDiffChanges;
@@ -5,10 +11,6 @@ use crate::errors::{Error, Result};
 use crate::index::Entry as IndexEntry;
 use crate::repository::Repository;
 use crate::util::{parent_directories, path_to_string};
-use lazy_static::lazy_static;
-use std::collections::{BTreeSet, HashMap};
-use std::fs;
-use std::path::{Path, PathBuf};
 
 lazy_static! {
     static ref MESSAGES: HashMap<ConflictType, (&'static str, &'static str)> = HashMap::from([

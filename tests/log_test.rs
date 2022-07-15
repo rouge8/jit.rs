@@ -1,5 +1,7 @@
 mod common;
 
+use std::collections::HashMap;
+
 use assert_cmd::prelude::OutputAssertExt;
 use chrono::{Duration, Local};
 pub use common::CommandHelper;
@@ -8,7 +10,6 @@ use jit::database::object::Object;
 use jit::database::Database;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
 
 fn commit_file(helper: &mut CommandHelper, message: &str) -> Result<()> {
     helper.write_file("file.txt", message)?;

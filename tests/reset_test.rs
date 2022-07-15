@@ -1,10 +1,11 @@
 mod common;
 
+use std::collections::HashMap;
+
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
 
 mod with_no_head_commit {
     use super::*;

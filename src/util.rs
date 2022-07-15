@@ -94,11 +94,13 @@ pub fn transpose<T: Clone>(ary: Vec<Vec<T>>) -> Vec<Vec<T>> {
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
     use rand::distributions::Alphanumeric;
     use rand::{thread_rng, Rng};
     use rstest::rstest;
-    use sha1::{digest::Update, Digest, Sha1};
+    use sha1::digest::Update;
+    use sha1::{Digest, Sha1};
+
+    use super::*;
 
     pub fn random_oid() -> String {
         let rand_string: String = thread_rng()

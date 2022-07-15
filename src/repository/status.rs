@@ -1,11 +1,12 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fs;
+use std::path::{Path, MAIN_SEPARATOR};
+
 use crate::database::tree::TreeEntry;
 use crate::errors::Result;
 use crate::index::Entry as IndexEntry;
 use crate::repository::{ChangeKind, ChangeType, Repository};
 use crate::util::path_to_string;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::fs;
-use std::path::{Path, MAIN_SEPARATOR};
 
 #[derive(Debug)]
 pub struct Status {

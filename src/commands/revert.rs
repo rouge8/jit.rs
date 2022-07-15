@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::commands::commit::COMMIT_NOTES;
 use crate::commands::shared::commit_writer::CommitWriter;
 use crate::commands::shared::sequencing::{
@@ -15,7 +17,6 @@ use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::sequencer::Sequencer;
 use crate::rev_list::{RevList, RevListOptions};
-use std::collections::HashMap;
 
 pub struct Revert<'a> {
     ctx: CommandContext<'a>,

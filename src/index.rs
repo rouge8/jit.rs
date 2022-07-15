@@ -1,19 +1,19 @@
+use std::cmp::min;
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::convert::TryInto;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::os::unix::fs::MetadataExt;
+use std::path::{Path, PathBuf};
+use std::{fs, io, str};
+
+use hex::ToHex;
+use sha1::{Digest, Sha1};
+
 use crate::database::entry::Entry as DatabaseEntry;
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::util::{basename, is_executable, parent_directories, path_to_string};
-use hex::ToHex;
-use sha1::{Digest, Sha1};
-use std::cmp::min;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::convert::TryInto;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::{Read, Write};
-use std::os::unix::fs::MetadataExt;
-use std::path::{Path, PathBuf};
-use std::str;
 
 const MAX_PATH_SIZE: u16 = 0xfff;
 const CHECKSUM_SIZE: usize = 20;
@@ -531,9 +531,10 @@ where
 
 #[cfg(test)]
 mod tests {
+    use tempfile::TempDir;
+
     use super::*;
     use crate::util::tests::random_oid;
-    use tempfile::TempDir;
 
     // Release the lock when dropping an `Index`, but only in tests
     impl Drop for Index {

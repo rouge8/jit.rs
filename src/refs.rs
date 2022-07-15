@@ -1,16 +1,17 @@
+use std::collections::HashMap;
+use std::fs::File;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+use std::{fs, io};
+
+use lazy_static::lazy_static;
+use nix::errno::Errno;
+use regex::Regex;
+
 use crate::errors::{Error, Result};
 use crate::lockfile::Lockfile;
 use crate::revision::Revision;
 use crate::util::{parent_directories, path_to_string};
-use lazy_static::lazy_static;
-use nix::errno::Errno;
-use regex::Regex;
-use std::collections::HashMap;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::Read;
-use std::path::{Path, PathBuf};
 
 pub const HEAD: &str = "HEAD";
 pub const ORIG_HEAD: &str = "ORIG_HEAD";

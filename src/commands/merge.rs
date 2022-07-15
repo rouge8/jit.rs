@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::commands::shared::commit_writer::{CommitWriter, CONFLICT_MESSAGE};
 use crate::commands::{Command, CommandContext};
 use crate::database::tree_diff::Differ;
@@ -9,7 +11,6 @@ use crate::merge::resolve::Resolve;
 use crate::refs::ORIG_HEAD;
 use crate::repository::pending_commit::{PendingCommit, PendingCommitType};
 use crate::revision::HEAD;
-use std::path::PathBuf;
 
 const COMMIT_NOTES: &str = "\
 Please enter a commit message to explain why this merge is necessary,

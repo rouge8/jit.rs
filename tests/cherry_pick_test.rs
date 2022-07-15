@@ -1,5 +1,7 @@
 mod common;
 
+use std::collections::HashMap;
+
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::object::Object;
@@ -7,7 +9,6 @@ use jit::database::Database;
 use jit::errors::Result;
 use jit::rev_list::RevList;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
 
 fn commit_tree(
     helper: &mut CommandHelper,

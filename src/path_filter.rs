@@ -1,6 +1,7 @@
-use crate::database::tree::TreeEntry;
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
+
+use crate::database::tree::TreeEntry;
 
 #[derive(Debug, Clone)]
 pub struct Trie {

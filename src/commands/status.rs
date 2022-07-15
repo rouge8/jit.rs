@@ -1,3 +1,10 @@
+use std::cell::RefMut;
+use std::collections::{BTreeMap, HashMap};
+use std::io::Write;
+
+use colored::Colorize;
+use lazy_static::lazy_static;
+
 use crate::commands::{Command, CommandContext};
 use crate::database::Database;
 use crate::errors::Result;
@@ -5,11 +12,6 @@ use crate::refs::HEAD;
 use crate::repository::pending_commit::PendingCommitType;
 use crate::repository::status::Status as RepositoryStatus;
 use crate::repository::ChangeType;
-use colored::Colorize;
-use lazy_static::lazy_static;
-use std::cell::RefMut;
-use std::collections::{BTreeMap, HashMap};
-use std::io::Write;
 
 pub struct Status<'a> {
     ctx: CommandContext<'a>,

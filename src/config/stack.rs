@@ -1,9 +1,10 @@
-use crate::config::{Config, VariableValue};
-use crate::errors::Result;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+
+use crate::config::{Config, VariableValue};
+use crate::errors::Result;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum ConfigFile {

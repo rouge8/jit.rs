@@ -1,10 +1,12 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use refspec::Refspec;
+use remote::Remote;
+
 use crate::config::{Config, VariableValue};
 use crate::errors::{Error, Result};
 use crate::refs::{HEADS_DIR, REMOTES_DIR};
-use refspec::Refspec;
-use remote::Remote;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 mod refspec;
 mod remote;

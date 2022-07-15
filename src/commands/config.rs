@@ -1,8 +1,9 @@
+use std::cell::RefMut;
+
 use crate::commands::{Command, CommandContext};
 use crate::config::stack::{ConfigFile, Stack};
 use crate::config::{Config, VariableValue};
 use crate::errors::{Error, Result};
-use std::cell::RefMut;
 
 pub struct ConfigCommand<'a> {
     ctx: CommandContext<'a>,

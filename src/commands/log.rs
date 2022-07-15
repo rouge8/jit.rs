@@ -1,3 +1,10 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::io::Write;
+
+use clap::ArgEnum;
+use colored::Colorize;
+
 use crate::commands::shared::diff_printer::DiffPrinter;
 use crate::commands::{Command, CommandContext};
 use crate::database::commit::Commit;
@@ -8,11 +15,6 @@ use crate::errors::Result;
 use crate::refs::Ref;
 use crate::rev_list::RevList;
 use crate::util::path_to_string;
-use clap::ArgEnum;
-use colored::Colorize;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::io::Write;
 
 #[derive(ArgEnum, Debug, Clone, PartialEq, Eq)]
 pub enum LogFormat {

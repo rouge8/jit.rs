@@ -1,11 +1,12 @@
-use crate::errors::{Error, Result};
-use lazy_static::lazy_static;
 use std::collections::HashMap;
-use std::fs;
 use std::fs::OpenOptions;
-use std::io;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
+
+use lazy_static::lazy_static;
+
+use crate::errors::{Error, Result};
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PendingCommitType {

@@ -1,11 +1,12 @@
 mod common;
 
+use std::collections::HashMap;
+use std::path::PathBuf;
+
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::errors::Result;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
-use std::path::PathBuf;
 
 mod with_a_single_file {
     use super::*;

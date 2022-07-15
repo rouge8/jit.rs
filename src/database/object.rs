@@ -1,4 +1,5 @@
-use sha1::{digest::Update, Digest, Sha1};
+use sha1::digest::Update;
+use sha1::{Digest, Sha1};
 
 pub trait Object {
     fn r#type(&self) -> &str;

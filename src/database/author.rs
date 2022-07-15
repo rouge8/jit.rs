@@ -1,6 +1,7 @@
+use std::fmt;
+
 use chrono::{DateTime, FixedOffset};
 use itertools::Itertools;
-use std::fmt;
 
 const TIME_FORMAT: &str = "%s %z";
 

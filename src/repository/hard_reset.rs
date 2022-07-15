@@ -1,8 +1,9 @@
+use std::path::{Path, PathBuf};
+
 use crate::errors::Result;
 use crate::repository::status::Status;
 use crate::repository::Repository;
 use crate::util::path_to_string;
-use std::path::{Path, PathBuf};
 
 pub struct HardReset<'a> {
     repo: &'a mut Repository,

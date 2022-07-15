@@ -1,5 +1,8 @@
 mod common;
 
+use std::collections::HashMap;
+use std::process::Output;
+
 use assert_cmd::prelude::OutputAssertExt;
 pub use common::CommandHelper;
 use jit::database::Database;
@@ -7,8 +10,6 @@ use jit::errors::Result;
 use jit::refs::Ref;
 use lazy_static::lazy_static;
 use rstest::{fixture, rstest};
-use std::collections::HashMap;
-use std::process::Output;
 
 mod with_a_set_of_files {
     use super::*;

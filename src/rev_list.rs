@@ -1,3 +1,10 @@
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::path::PathBuf;
+
+use lazy_static::lazy_static;
+use regex::Regex;
+
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::tree_diff::{Differ, TreeDiffChanges};
@@ -5,11 +12,6 @@ use crate::errors::Result;
 use crate::path_filter::PathFilter;
 use crate::repository::Repository;
 use crate::revision::{Revision, COMMIT, HEAD};
-use lazy_static::lazy_static;
-use regex::Regex;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet, VecDeque};
-use std::path::PathBuf;
 
 lazy_static! {
     static ref RANGE: Regex = Regex::new(r"^(.*)\.\.(.*)$").unwrap();

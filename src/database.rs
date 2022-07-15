@@ -1,3 +1,15 @@
+use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::{Read, Write};
+use std::path::{Path, PathBuf};
+use std::{fs, io};
+
+use flate2::read::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
+use itertools::Itertools;
+use uuid::Uuid;
+
 use crate::database::blob::Blob;
 use crate::database::commit::Commit;
 use crate::database::entry::Entry;
@@ -7,17 +19,6 @@ use crate::database::tree_diff::{Differ, TreeDiff, TreeDiffChanges};
 use crate::errors::Result;
 use crate::path_filter::PathFilter;
 use crate::util::path_to_string;
-use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
-use flate2::Compression;
-use itertools::Itertools;
-use std::collections::HashMap;
-use std::fs;
-use std::fs::OpenOptions;
-use std::io;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use uuid::Uuid;
 
 pub mod author;
 pub mod blob;
@@ -284,13 +285,15 @@ mod tests {
     use super::*;
 
     mod tree_diff {
-        use super::*;
-        use crate::database::tree::TreeEntry;
-        use indexmap::IndexMap;
-        use rstest::{fixture, rstest};
         use std::collections::{BTreeMap, HashMap};
         use std::path::PathBuf;
+
+        use indexmap::IndexMap;
+        use rstest::{fixture, rstest};
         use tempfile::TempDir;
+
+        use super::*;
+        use crate::database::tree::TreeEntry;
 
         fn store_tree(database: &Database, contents: HashMap<&str, &str>) -> String {
             let mut entries = BTreeMap::new();

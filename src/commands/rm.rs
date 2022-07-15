@@ -1,7 +1,8 @@
+use std::path::{Path, PathBuf};
+
 use crate::commands::{Command, CommandContext};
 use crate::errors::{Error, Result};
 use crate::util::path_to_string;
-use std::path::{Path, PathBuf};
 
 pub struct Rm<'a> {
     ctx: CommandContext<'a>,

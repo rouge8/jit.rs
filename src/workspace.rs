@@ -1,14 +1,15 @@
-use crate::errors::{Error, Result};
-use crate::repository::migration::{Action, Migration};
-use crate::util::parent_directories;
-use nix::errno::Errno;
 use std::collections::HashMap;
-use std::fs;
 use std::fs::OpenOptions;
-use std::io;
 use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::{fs, io};
+
+use nix::errno::Errno;
+
+use crate::errors::{Error, Result};
+use crate::repository::migration::{Action, Migration};
+use crate::util::parent_directories;
 
 // TODO: Remove `target` once we have .gitignore support
 const IGNORE: &[&str] = &[".", "..", ".git", "target"];

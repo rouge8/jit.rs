@@ -1,12 +1,14 @@
-use crate::errors::{Error, Result};
-use crate::util::{path_to_string, LinesWithEndings};
-use regex::Regex;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::os::unix::io::AsRawFd;
 use std::path::PathBuf;
 use std::process::Command;
+
+use regex::Regex;
+
+use crate::errors::{Error, Result};
+use crate::util::{path_to_string, LinesWithEndings};
 
 const DEFAULT_EDITOR: &str = "vi";
 

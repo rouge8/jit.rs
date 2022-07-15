@@ -1,3 +1,9 @@
+use std::fmt::Write;
+use std::fs::read_to_string;
+use std::path::{Path, PathBuf};
+
+use chrono::{DateTime, Local};
+
 use crate::commands::commit::COMMIT_NOTES;
 use crate::commands::CommandContext;
 use crate::database::author::Author;
@@ -9,10 +15,6 @@ use crate::editor::Editor;
 use crate::errors::{Error, Result};
 use crate::refs::HEAD;
 use crate::repository::pending_commit::{PendingCommit, PendingCommitType};
-use chrono::{DateTime, Local};
-use std::fmt::Write;
-use std::fs::read_to_string;
-use std::path::{Path, PathBuf};
 
 pub const CONFLICT_MESSAGE: &str = "\
 hint: Fix them up in the work tree, and then use 'jit add/rm <file>'

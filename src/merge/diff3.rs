@@ -1,7 +1,8 @@
-use crate::diff::{diff, EditType};
-use crate::util::LinesWithEndings;
 use std::collections::HashMap;
 use std::fmt::Write;
+
+use crate::diff::{diff, EditType};
+use crate::util::LinesWithEndings;
 
 pub fn merge(o: &str, a: &str, b: &str) -> Result {
     let o: Vec<_> = LinesWithEndings::from(o).map(|l| l.to_string()).collect();

@@ -1,11 +1,13 @@
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+
+use itertools::Itertools;
+
 use crate::database::entry::Entry as DatabaseEntry;
 use crate::database::object::Object;
 use crate::database::ParsedObject;
 use crate::index::Entry as IndexEntry;
 use crate::util::path_to_string;
-use itertools::Itertools;
-use std::collections::BTreeMap;
-use std::path::PathBuf;
 
 pub const TREE_MODE: u32 = 0o40000;
 

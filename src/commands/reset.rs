@@ -1,10 +1,11 @@
+use std::path::{Path, PathBuf};
+
 use crate::commands::{Command, CommandContext};
 use crate::database::tree::TreeEntry;
 use crate::errors::{Error, Result};
 use crate::refs::ORIG_HEAD;
 use crate::revision::{Revision, COMMIT};
 use crate::util::path_to_string;
-use std::path::{Path, PathBuf};
 
 enum Mode {
     Soft,

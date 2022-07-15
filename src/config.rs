@@ -1,13 +1,15 @@
-use crate::errors::{Error, Result};
-use crate::lockfile::Lockfile;
-use indexmap::IndexMap;
-use lazy_static::lazy_static;
-use regex::{Regex, RegexBuilder};
 use std::fmt;
 use std::fmt::Write;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
+
+use indexmap::IndexMap;
+use lazy_static::lazy_static;
+use regex::{Regex, RegexBuilder};
+
+use crate::errors::{Error, Result};
+use crate::lockfile::Lockfile;
 
 pub mod stack;
 
@@ -449,11 +451,13 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fs;
+
     use matches::assert_matches;
     use rstest::{fixture, rstest};
-    use std::fs;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[fixture]
     fn config() -> Config {

@@ -1,9 +1,10 @@
-use crate::commands::{Command, CommandContext};
-use crate::errors::Result;
-use crate::refs::Refs;
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
+
+use crate::commands::{Command, CommandContext};
+use crate::errors::Result;
+use crate::refs::Refs;
 
 const DEFAULT_BRANCH: &str = "main";
 

@@ -3,14 +3,12 @@ use std::io;
 use std::io::Write;
 use std::process::{Child, Command, Stdio};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 const PAGER_CMD: &str = "less";
 
-lazy_static! {
-    static ref PAGER_ENV: HashMap<&'static str, &'static str> =
-        HashMap::from([("LESS", "FRX"), ("LV", "-c"),]);
-}
+static PAGER_ENV: Lazy<HashMap<&'static str, &'static str>> =
+    Lazy::new(|| HashMap::from([("LESS", "FRX"), ("LV", "-c")]));
 
 pub struct Pager {
     process: Child,

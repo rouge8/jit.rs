@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::{fmt, fs};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::config::{Config, VariableValue};
@@ -16,9 +16,7 @@ use crate::lockfile::Lockfile;
 use crate::refs::ORIG_HEAD;
 use crate::repository::Repository;
 
-lazy_static! {
-    static ref LOAD_LINE: Regex = Regex::new(r"^(\S+) (\S+) (.*)$").unwrap();
-}
+static LOAD_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\S+) (\S+) (.*)$").unwrap());
 
 #[derive(Debug, Clone, Copy)]
 pub enum Action {

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Write;
 
 use colored::Colorize;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::commands::{Command, CommandContext};
 use crate::database::Database;
@@ -20,34 +20,40 @@ pub struct Status<'a> {
     porcelain: bool,
 }
 
-lazy_static! {
-    static ref SHORT_STATUS: HashMap<ChangeType, &'static str> = HashMap::from([
+static SHORT_STATUS: Lazy<HashMap<ChangeType, &'static str>> = Lazy::new(|| {
+    HashMap::from([
         (ChangeType::Added, "A"),
         (ChangeType::Deleted, "D"),
         (ChangeType::Modified, "M"),
-    ]);
-    static ref LONG_STATUS: HashMap<ChangeType, &'static str> = HashMap::from([
+    ])
+});
+static LONG_STATUS: Lazy<HashMap<ChangeType, &'static str>> = Lazy::new(|| {
+    HashMap::from([
         (ChangeType::Added, "new file:"),
         (ChangeType::Deleted, "deleted:"),
         (ChangeType::Modified, "modified:"),
-    ]);
-    static ref CONFLICT_SHORT_STATUS: HashMap<Vec<u16>, &'static str> = HashMap::from([
+    ])
+});
+static CONFLICT_SHORT_STATUS: Lazy<HashMap<Vec<u16>, &'static str>> = Lazy::new(|| {
+    HashMap::from([
         (vec![1, 2, 3], "UU"),
         (vec![1, 2], "UD"),
         (vec![1, 3], "DU"),
         (vec![2, 3], "AA"),
         (vec![2], "AU"),
         (vec![3], "UA"),
-    ]);
-    static ref CONFLICT_LONG_STATUS: HashMap<Vec<u16>, &'static str> = HashMap::from([
+    ])
+});
+static CONFLICT_LONG_STATUS: Lazy<HashMap<Vec<u16>, &'static str>> = Lazy::new(|| {
+    HashMap::from([
         (vec![1, 2, 3], "both modified:"),
         (vec![1, 2], "deleted by them:"),
         (vec![1, 3], "deleted by us:"),
         (vec![2, 3], "both added:"),
         (vec![2], "added by us:"),
         (vec![3], "added by them:"),
-    ]);
-}
+    ])
+});
 
 static LABEL_WIDTH: usize = 12;
 static CONFLICT_LABEL_WIDTH: usize = 17;

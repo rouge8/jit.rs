@@ -5,7 +5,7 @@ use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::{Regex, RegexBuilder};
 
 use crate::errors::{Error, Result};
@@ -13,37 +13,42 @@ use crate::lockfile::Lockfile;
 
 pub mod stack;
 
-lazy_static! {
-    static ref SECTION_LINE: Regex =
-        // TODO: Handle difference between Ruby's \Z and Rust's \z
-        RegexBuilder::new(r#"\A\s*\[([a-z0-9-]+)( "(.+)")?\]\s*(\z|#|;)"#)
-            .case_insensitive(true)
-            .build()
-            .unwrap();
+static SECTION_LINE: Lazy<Regex> = Lazy::new(||
+    // TODO: Handle difference between Ruby's \Z and Rust's \z
+    RegexBuilder::new(r#"\A\s*\[([a-z0-9-]+)( "(.+)")?\]\s*(\z|#|;)"#)
+        .case_insensitive(true)
+        .build()
+        .unwrap());
 
-    static ref VARIABLE_LINE: Regex =
-        // TODO: Handle difference between Ruby's \Z and Rust's \z
+static VARIABLE_LINE: Lazy<Regex> =
+    // TODO: Handle difference between Ruby's \Z and Rust's \z
+    Lazy::new(|| {
         RegexBuilder::new(r#"\A\s*([a-z][a-z0-9-]*)\s*=\s*(.*?)\s*(\z|#|;)"#)
             .case_insensitive(true)
             .multi_line(true)
-            .build().unwrap();
+            .build()
+            .unwrap()
+    });
 
-    // TODO: Handle difference between Ruby's \Z and Rust's \z
-    static ref BLANK_LINE: Regex = Regex::new(r#"\A\s*(\z|#|;)"#).unwrap();
+// TODO: Handle difference between Ruby's \Z and Rust's \z
+static BLANK_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\A\s*(\z|#|;)"#).unwrap());
 
-    // TODO: Handle difference between Ruby's \Z and Rust's \z
-    static ref INTEGER: Regex = Regex::new(r#"\A-?[1-9][0-9]*\z"#).unwrap();
+// TODO: Handle difference between Ruby's \Z and Rust's \z
+static INTEGER: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\A-?[1-9][0-9]*\z"#).unwrap());
 
-    static ref VALID_SECTION: Regex = RegexBuilder::new(r"^[a-z0-9-]+$")
+static VALID_SECTION: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r"^[a-z0-9-]+$")
         .case_insensitive(true)
         .build()
-        .unwrap();
+        .unwrap()
+});
 
-    static ref VALID_VARIABLE: Regex = RegexBuilder::new(r"^[a-z][a-z0-9-]*$")
+static VALID_VARIABLE: Lazy<Regex> = Lazy::new(|| {
+    RegexBuilder::new(r"^[a-z][a-z0-9-]*$")
         .case_insensitive(true)
         .build()
-        .unwrap();
-}
+        .unwrap()
+});
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Variable {

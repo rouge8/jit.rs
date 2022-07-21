@@ -8,19 +8,19 @@ pub use common::CommandHelper;
 use jit::database::Database;
 use jit::errors::Result;
 use jit::refs::Ref;
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use rstest::{fixture, rstest};
 
 mod with_a_set_of_files {
     use super::*;
 
-    lazy_static! {
-        static ref BASE_FILES: HashMap<&'static str, &'static str> = HashMap::from([
+    static BASE_FILES: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+        HashMap::from([
             ("1.txt", "1"),
             ("outer/2.txt", "2"),
             ("outer/inner/3.txt", "3"),
-        ]);
-    }
+        ])
+    });
 
     fn commit_all(helper: &mut CommandHelper) -> Result<()> {
         helper.delete(".git/index")?;

@@ -1,21 +1,19 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::database::commit::Commit;
 use crate::database::object::Object;
 use crate::database::Database;
 use crate::errors::Result;
 
-lazy_static! {
-    static ref BOTH_PARENTS: HashSet<Flag> = {
-        let mut v = HashSet::new();
-        v.insert(Flag::Parent1);
-        v.insert(Flag::Parent2);
+static BOTH_PARENTS: Lazy<HashSet<Flag>> = Lazy::new(|| {
+    let mut v = HashSet::new();
+    v.insert(Flag::Parent1);
+    v.insert(Flag::Parent2);
 
-        v
-    };
-}
+    v
+});
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Flag {

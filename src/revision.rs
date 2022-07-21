@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::{Regex, RegexSet};
 
 use crate::database::{Database, ParsedObject};
 use crate::errors::{Error, Result};
 use crate::repository::Repository;
 
-lazy_static! {
-    static ref INVALID_NAME: RegexSet = RegexSet::new(&[
+static INVALID_NAME: Lazy<RegexSet> = Lazy::new(|| {
+    RegexSet::new(&[
         r"^\.",
         r"^/\.",
         r"^\.\.",
@@ -18,11 +18,12 @@ lazy_static! {
         r"@\{",
         r"[\x00-\x20*:?\[\\^~\x7f]",
     ])
-    .unwrap();
-    static ref PARENT: Regex = Regex::new(r"^(.+)\^(\d*)$").unwrap();
-    static ref ANCESTOR: Regex = Regex::new(r"^(.+)~(\d+)$").unwrap();
-    static ref REF_ALIASES: HashMap<&'static str, &'static str> = HashMap::from([("@", HEAD)]);
-}
+    .unwrap()
+});
+static PARENT: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(.+)\^(\d*)$").unwrap());
+static ANCESTOR: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(.+)~(\d+)$").unwrap());
+static REF_ALIASES: Lazy<HashMap<&'static str, &'static str>> =
+    Lazy::new(|| HashMap::from([("@", HEAD)]));
 
 pub const COMMIT: &str = "commit";
 pub const HEAD: &str = "HEAD";

@@ -4,8 +4,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use lazy_static::lazy_static;
 use nix::errno::Errno;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::errors::{Error, Result};
@@ -16,12 +16,10 @@ use crate::util::{parent_directories, path_to_string};
 pub const HEAD: &str = "HEAD";
 pub const ORIG_HEAD: &str = "ORIG_HEAD";
 
-lazy_static! {
-    static ref SYMREF: Regex = Regex::new(r"^ref: (.+)$").unwrap();
-    static ref REFS_DIR: PathBuf = PathBuf::from("refs");
-    pub static ref HEADS_DIR: PathBuf = REFS_DIR.join("heads");
-    pub static ref REMOTES_DIR: PathBuf = REFS_DIR.join("remotes");
-}
+static SYMREF: Lazy<Regex> = Lazy::new(|| Regex::new(r"^ref: (.+)$").unwrap());
+static REFS_DIR: Lazy<PathBuf> = Lazy::new(|| PathBuf::from("refs"));
+pub static HEADS_DIR: Lazy<PathBuf> = Lazy::new(|| REFS_DIR.join("heads"));
+pub static REMOTES_DIR: Lazy<PathBuf> = Lazy::new(|| REFS_DIR.join("remotes"));
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Ref {

@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::errors::{Error, Result};
 
@@ -15,13 +15,13 @@ pub enum PendingCommitType {
     Revert,
 }
 
-lazy_static! {
-    static ref HEAD_FILES: HashMap<PendingCommitType, &'static str> = HashMap::from([
+static HEAD_FILES: Lazy<HashMap<PendingCommitType, &'static str>> = Lazy::new(|| {
+    HashMap::from([
         (PendingCommitType::Merge, "MERGE_HEAD"),
         (PendingCommitType::CherryPick, "CHERRY_PICK_HEAD"),
         (PendingCommitType::Revert, "REVERT_HEAD"),
-    ]);
-}
+    ])
+});
 
 #[derive(Debug)]
 pub struct PendingCommit {

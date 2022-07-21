@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 
 use crate::database::entry::Entry;
 use crate::database::tree::TreeEntry;
@@ -12,8 +12,8 @@ use crate::index::Entry as IndexEntry;
 use crate::repository::Repository;
 use crate::util::{parent_directories, path_to_string};
 
-lazy_static! {
-    static ref MESSAGES: HashMap<ConflictType, (&'static str, &'static str)> = HashMap::from([
+static MESSAGES: Lazy<HashMap<ConflictType, (&'static str, &'static str)>> = Lazy::new(|| {
+    HashMap::from([
         (
             ConflictType::StaleFile,
             (
@@ -42,8 +42,8 @@ lazy_static! {
                 "Please move or remove them before you switch branches.",
             ),
         ),
-    ]);
-}
+    ])
+});
 
 pub struct Migration<'a> {
     repo: &'a mut Repository,

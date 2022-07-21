@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::PathBuf;
 
-use lazy_static::lazy_static;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::database::commit::Commit;
@@ -13,10 +13,8 @@ use crate::path_filter::PathFilter;
 use crate::repository::Repository;
 use crate::revision::{Revision, COMMIT, HEAD};
 
-lazy_static! {
-    static ref RANGE: Regex = Regex::new(r"^(.*)\.\.(.*)$").unwrap();
-    static ref EXCLUDE: Regex = Regex::new(r"^\^(.+)$").unwrap();
-}
+static RANGE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(.*)\.\.(.*)$").unwrap());
+static EXCLUDE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^\^(.+)$").unwrap());
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum Flag {

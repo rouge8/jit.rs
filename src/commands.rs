@@ -53,7 +53,7 @@ pub struct Jit {
 #[derive(Parser, Debug)]
 pub enum Command {
     Add {
-        #[clap(parse(from_os_str))]
+        #[clap(value_parser)]
         files: Vec<PathBuf>,
     },
     Branch {
@@ -134,7 +134,7 @@ pub enum Command {
         stage: StageOptions,
     },
     Init {
-        #[clap(parse(from_os_str))]
+        #[clap(value_parser)]
         directory: Option<PathBuf>,
     },
     Log {
@@ -185,7 +185,7 @@ pub enum Command {
         tracked: Vec<String>,
     },
     Reset {
-        #[clap(parse(from_os_str))]
+        #[clap(value_parser)]
         files: Vec<PathBuf>,
         #[clap(long)]
         soft: bool,
@@ -206,7 +206,7 @@ pub enum Command {
         mainline: Option<u32>,
     },
     Rm {
-        #[clap(parse(from_os_str))]
+        #[clap(value_parser)]
         files: Vec<PathBuf>,
         #[clap(long)]
         cached: bool,
